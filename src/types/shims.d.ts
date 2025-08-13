@@ -1,5 +1,10 @@
 declare module 'pako' {
   export function inflateRaw(data: Uint8Array): Uint8Array
+  export function inflate(data: Uint8Array): Uint8Array;
+  export function deflate(data: Uint8Array): Uint8Array;
+  export function gzip(data: Uint8Array): Uint8Array;
+  export function ungzip(data: Uint8Array): Uint8Array;
+
 }
 
 declare module 'bcryptjs' {
