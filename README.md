@@ -58,3 +58,4 @@ MIT
 - CSV parsing with custom delimiter
 - Regex save/load using localStorage
 - Copy buttons & search bar placeholders
+
