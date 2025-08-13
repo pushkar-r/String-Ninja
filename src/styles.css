@@ -1,3 +1,13 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Text selection colors */
+::selection { background-color: #bfdbfe; color: #0f172a; } /* sky-200 on slate-900 text */
+::-moz-selection { background-color: #bfdbfe; color: #0f172a; }
+.dark ::selection { background-color: rgba(16,185,129,0.35); color: #e2e8f0; } /* emerald-500 tint over dark bg */
+.dark ::-moz-selection { background-color: rgba(16,185,129,0.35); color: #e2e8f0; }
+
+/* Stronger selection contrast for category links in dark header */
+.dark header ::selection { background-color: #34d399; color: #0f172a; } /* emerald-400 bg, dark text */
+.dark header ::-moz-selection { background-color: #34d399; color: #0f172a; }

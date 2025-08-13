@@ -74,8 +74,11 @@ export default function App() {
       <header className="sticky top-0 z-10 bg-white/80 dark:bg-slate-900/80 backdrop-blur border-b border-slate-200 dark:border-slate-800">
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-2xl bg-sky-500 grid place-items-center text-white font-bold">忍</div>
-            <div className="font-semibold text-lg">String Ninja</div>
+            <img src="/logo1-nobg.png" alt="String Ninja" className="h-10 w-auto object-contain" />
+            <div className="flex items-baseline gap-1 select-none">
+              <span className="text-xl md:text-2xl font-extrabold italic tracking-wide text-slate-900 dark:text-slate-100">String</span>
+              <span className="text-xl md:text-2xl font-black italic tracking-wider text-slate-900 dark:text-emerald-300">Ninja</span>
+            </div>
           </div>
           <nav className="flex gap-2">
             <NavItem to="/">Encoding</NavItem>
