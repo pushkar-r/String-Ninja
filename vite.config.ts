@@ -5,7 +5,8 @@ import topLevelAwait from 'vite-plugin-top-level-await'
 
 export default defineConfig(({ mode }) => {
   const repo = (process.env.GITHUB_REPOSITORY || '').split('/')[1] || 'String-Ninja'
-  const base = mode === 'production' ? `/${repo}/` : '/'
+  const explicitBase = process.env.VITE_BASE
+  const base = explicitBase || (mode === 'production' ? `/${repo}/` : '/')
   return {
     base,
     plugins: [react(), wasm(), topLevelAwait()],

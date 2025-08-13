@@ -31,10 +31,20 @@ jobs:
         run: npm ci
 
       - name: Build
-        run: npm run build
+        run: |
+          if [ -n "${{ vars.CUSTOM_DOMAIN }}" ]; then 
+            echo "Using custom domain: ${{ vars.CUSTOM_DOMAIN }}" 
+            VITE_BASE=/ npm run build
+          else
+            npm run build
+          fi
 
       - name: SPA Fallback (404.html)
         run: cp dist/index.html dist/404.html
+
+      - name: Write CNAME if using custom domain
+        if: ${{ vars.CUSTOM_DOMAIN != '' }}
+        run: echo "${{ vars.CUSTOM_DOMAIN }}" > dist/CNAME
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3

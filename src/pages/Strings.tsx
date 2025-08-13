@@ -40,7 +40,10 @@ export default function Strings() {
       case 'basic':
         return (
           <ToolCard title="Basic operations">
-            <textarea value={text} onChange={e=>setText(e.target.value)} placeholder="Enter text…" className="w-full h-40 rounded-xl border p-3 dark:bg-slate-900" />
+            <div className="relative">
+              <textarea value={text} onChange={e=>setText(e.target.value)} placeholder="Enter text…" className="w-full h-40 rounded-xl border p-3 dark:bg-slate-900 pr-12" />
+              <div className="absolute top-2 right-2"><CopyButton value={text} /></div>
+            </div>
             <div className="flex flex-wrap gap-2">
               <button onClick={()=>setText(text.trim())} className="px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">Trim</button>
               <button onClick={()=>setText(text.split(/\r?\n/).map(l => l.replace(/[ \t]+/g,' ').trim()).join('\n'))} className="px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">Remove redundant spaces</button>

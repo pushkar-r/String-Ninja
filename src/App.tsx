@@ -22,6 +22,7 @@ export default function App() {
   const { theme, toggle } = useTheme()
   const navigate = useNavigate()
   const [q, setQ] = useState('')
+  const [mobileOpen, setMobileOpen] = useState(false)
 
   const tools = [
     // Encoding
@@ -74,9 +75,9 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen text-slate-900 dark:text-slate-100">
+    <div className="min-h-screen text-slate-900 dark:text-slate-100 break-words">
       <header className="sticky top-0 z-10 bg-white/80 dark:bg-slate-900/80 backdrop-blur border-b border-slate-200 dark:border-slate-800">
-        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+        <div className="max-w-6xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <img src={`${import.meta.env.BASE_URL}logo1-nobg.png`} alt="String Ninja" className="h-10 w-auto object-contain" />
             <div className="flex items-baseline gap-1 select-none">
@@ -84,7 +85,7 @@ export default function App() {
               <span className="text-xl md:text-2xl font-black italic tracking-wider text-slate-900 dark:text-emerald-300">Ninja</span>
             </div>
           </div>
-          <nav className="flex gap-2">
+          <nav className="hidden md:flex gap-2 overflow-x-auto whitespace-nowrap">
             <NavItem to="/">Encoding</NavItem>
             <NavItem to="/strings">Strings</NavItem>
             <NavItem to="/compare">Compare</NavItem>
@@ -120,10 +121,23 @@ export default function App() {
               {tools.map(t => <option key={t.path} value={t.label} />)}
             </datalist>
           </div>
+          <button onClick={()=>setMobileOpen(v=>!v)} className="md:hidden px-3 py-2 rounded-xl text-sm border dark:border-slate-700">Menu</button>
           <button onClick={toggle} className="px-3 py-2 rounded-xl text-sm bg-slate-900 text-white dark:bg-slate-200 dark:text-slate-900">
             {theme === 'dark' ? 'Light' : 'Dark'}
           </button>
         </div>
+      {mobileOpen && (
+          <div className="md:hidden border-t border-slate-200 dark:border-slate-800">
+            <div className="max-w-6xl mx-auto px-4 py-2 flex flex-wrap gap-2">
+              <NavItem to="/">Encoding</NavItem>
+              <NavItem to="/strings">Strings</NavItem>
+              <NavItem to="/compare">Compare</NavItem>
+              <NavItem to="/security">Security</NavItem>
+              <NavItem to="/data">Data</NavItem>
+              <NavItem to="/misc">Misc</NavItem>
+            </div>
+          </div>
+        )}
       </header>
       <main className="max-w-6xl mx-auto px-4 py-6">
         <Outlet />
