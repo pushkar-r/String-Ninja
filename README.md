@@ -97,28 +97,72 @@ Preview serves the production build locally.
 
 
 ## Deploy (GitHub Pages)
-This repository includes a GitHub Actions workflow that builds and deploys automatically.
+This repository includes a GitHub Actions workflow that builds and deploys automatically to GitHub Pages.
 
-1) Ensure base is correct
-- Vite base is set dynamically from the repository name during production builds; no manual change needed for GitHub Pages.
-
-2) Enable GitHub Pages
+1) Enable GitHub Pages
 - Repo Settings → Pages → Source: GitHub Actions
 
-3) Trigger a deploy
+2) Trigger a deploy
 - Push to your default branch (e.g., `main`), or run the workflow manually under the Actions tab
 
-4) SPA routing
+3) SPA routing
 - The workflow copies `dist/index.html` to `dist/404.html` to support client‑side routes on GitHub Pages
 
-5) Access URL
+4) Access URL (default project pages)
 - GitHub shows the site URL in Settings → Pages, typically:
   - `https://<username>.github.io/<repo-name>/`
+- For this case, Vite’s base is auto‑set to `/<repo-name>/` in production so assets resolve correctly.
 
-Custom domain (optional)
-- Add `public/CNAME` with your domain (e.g., `tools.example.com`)
-- DNS: CNAME → `<username>.github.io`
-- Keep Vite base at `/` when serving from your own domain
+### Custom Domain (stringninja.in or your own)
+There are two supported approaches. If you’ve already added the GitHub repository variable (recommended), use Option A.
+
+Option A — Configure via GitHub repository variable (recommended)
+- In GitHub → your repo → Settings → Secrets and variables → Actions → Variables, set:
+  - Name: `CUSTOM_DOMAIN`
+  - Value: `stringninja.in` (or your domain)
+- What the workflow does when `CUSTOM_DOMAIN` is set:
+  - Builds with `VITE_BASE=/` so the site works at domain root
+  - Writes `dist/CNAME` with the value of `CUSTOM_DOMAIN`
+- You do not need to commit a CNAME file if using this option.
+
+Option B — Commit a CNAME file
+- Create `public/CNAME` containing only your domain (e.g., `stringninja.in`)
+- Vite copies it to `dist/` on build
+- Ensure production builds use `base: '/'` (the workflow only forces this when `CUSTOM_DOMAIN` is set). If you use Option B exclusively, either:
+  - Set `CUSTOM_DOMAIN` anyway (the workflow will set `VITE_BASE=/`), or
+  - Build locally with `VITE_BASE=/` when deploying (not needed if you only deploy via the workflow)
+
+DNS configuration
+- Apex (root): `stringninja.in`
+  - Add A records to GitHub Pages IPs:
+    - 185.199.108.153
+    - 185.199.109.153
+    - 185.199.110.153
+    - 185.199.111.153
+  - Optional AAAA (IPv6):
+    - 2606:50c0:8000::153
+    - 2606:50c0:8001::153
+    - 2606:50c0:8002::153
+    - 2606:50c0:8003::153
+- Alternate host (www): `www.stringninja.in`
+  - CNAME → `<username>.github.io`
+- If you use only a subdomain (e.g., `tools.example.com`), use a CNAME to `<username>.github.io` for that subdomain and skip apex A/AAAA records.
+
+GitHub Pages settings
+- Repo → Settings → Pages → Custom domain: `stringninja.in`
+- Click “Save”, then enable “Enforce HTTPS” once the certificate is issued
+- If you change DNS, click “Check again” after propagation (can take minutes; sometimes up to a few hours)
+
+Verification
+- Check DNS:
+  - `dig +short A stringninja.in`
+  - `dig +short AAAA stringninja.in`
+  - `dig +short CNAME www.stringninja.in`
+- All should resolve to the GitHub Pages IPs (A/AAAA) and the `www` CNAME to `<username>.github.io`
+
+Notes for Cloudflare users
+- For apex: use the A/AAAA records above. For `www`: CNAME to `<username>.github.io`
+- If validation fails, temporarily disable the proxy (grey cloud) until HTTPS is issued; re‑enable after.
 
 
 ## Troubleshooting
