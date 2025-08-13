@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import ToolCard from '../components/ToolCard'
+import CopyButton from '../components/CopyButton'
 import { hashString, aesEncrypt, aesDecrypt, jwtDecode, generateRSAKeyPairPEM } from '../utils/crypto'
 import { bcryptHash, bcryptCompare, argon2Hash } from '../utils/passwords'
 import { verifyHS256, verifyRS256 } from '../utils/jwt'
@@ -83,7 +84,10 @@ export default function Security() {
                 <option>MD5</option><option>SHA1</option><option>SHA256</option><option>SHA512</option>
               </select>
             </div>
-            <input readOnly value={text ? hashString(text, algo) : ''} className="w-full rounded-xl border p-3 font-mono text-xs dark:bg-slate-900" />
+            <div className="relative">
+              <input readOnly value={text ? hashString(text, algo) : ''} className="w-full rounded-xl border p-3 font-mono text-xs dark:bg-slate-900 pr-12" />
+              <div className="absolute top-2 right-2"><CopyButton value={text ? hashString(text, algo) : ''} /></div>
+            </div>
           </ToolCard>
         )
       case 'aes':
@@ -95,14 +99,20 @@ export default function Security() {
               <button onClick={async ()=>setCipher(await aesEncrypt(text, password))} className="px-4 py-2 rounded-xl bg-slate-900 text-white">Encrypt →</button>
               <button onClick={async ()=>setText(await aesDecrypt(cipher, password).catch(()=> 'Decryption failed'))} className="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">← Decrypt</button>
             </div>
-            <textarea value={cipher} onChange={e=>setCipher(e.target.value)} placeholder="Cipher (Base64)…" className="w-full h-28 rounded-xl border p-3 font-mono text-xs dark:bg-slate-900" />
+            <div className="relative">
+              <textarea value={cipher} onChange={e=>setCipher(e.target.value)} placeholder="Cipher (Base64)…" className="w-full h-28 rounded-xl border p-3 font-mono text-xs dark:bg-slate-900 pr-12" />
+              <div className="absolute top-2 right-2"><CopyButton value={cipher} /></div>
+            </div>
           </ToolCard>
         )
       case 'jwt':
         return (
           <ToolCard title="JWT Decoder" description="Decodes header & payload (no signature verification).">
             <input value={jwt} onChange={e=>setJwt(e.target.value)} placeholder="Paste JWT…" className="w-full rounded-xl border p-3 font-mono text-xs dark:bg-slate-900" />
-            <pre className="rounded-xl border p-3 overflow-auto text-xs dark:bg-slate-900">{decoded ? JSON.stringify(decoded, null, 2) : 'Invalid or empty JWT'}</pre>
+            <div className="relative">
+              <pre id="jwt-decoded" className="rounded-xl border p-3 overflow-auto text-xs dark:bg-slate-900 pr-12">{decoded ? JSON.stringify(decoded, null, 2) : 'Invalid or empty JWT'}</pre>
+              <div className="absolute top-2 right-2"><CopyButton getValue={()=> (document.getElementById('jwt-decoded') as HTMLElement)?.textContent || ''} /></div>
+            </div>
           </ToolCard>
         )
       case 'pw':
@@ -114,8 +124,8 @@ export default function Security() {
               <button onClick={async () => { const v = (document.getElementById('pw-in') as HTMLInputElement).value; (document.getElementById('pw-out') as HTMLInputElement).value = await argon2Hash(v) }} className="px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">Argon2 Hash</button>
               <button onClick={() => { const v = (document.getElementById('pw-in') as HTMLInputElement).value; const h = (document.getElementById('pw-out') as HTMLInputElement).value; (document.getElementById('pw-verify') as HTMLInputElement).value = bcryptCompare(v, h) ? 'OK' : 'NO' }} className="px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">Verify bcrypt</button>
             </div>
-            <input id="pw-out" readOnly className="w-full rounded-xl border p-3 dark:bg-slate-900" placeholder="Hash output" />
-            <input id="pw-verify" readOnly className="w-full rounded-xl border p-3 dark:bg-slate-900" placeholder="Verify result" />
+            <div className="relative"><input id="pw-out" readOnly className="w-full rounded-xl border p-3 dark:bg-slate-900 pr-12" placeholder="Hash output" /><div className="absolute top-2 right-2"><CopyButton getValue={()=> (document.getElementById('pw-out') as HTMLInputElement)?.value || ''} /></div></div>
+            <div className="relative"><input id="pw-verify" readOnly className="w-full rounded-xl border p-3 dark:bg-slate-900 pr-12" placeholder="Verify result" /><div className="absolute top-2 right-2"><CopyButton getValue={()=> (document.getElementById('pw-verify') as HTMLInputElement)?.value || ''} /></div></div>
           </ToolCard>
         )
       case 'jwtv':
@@ -128,7 +138,7 @@ export default function Security() {
               <button onClick={async () => { const token = (document.getElementById('jwt-verify-in') as HTMLInputElement).value; const secret = (document.getElementById('jwt-secret') as HTMLInputElement).value; const ok = await verifyHS256(token, secret); (document.getElementById('jwt-verify-out') as HTMLInputElement).value = ok ? 'Valid (HS256)' : 'Invalid' }} className="px-3 py-2 rounded-xl bg-slate-900 text-white">Verify HS256</button>
               <button onClick={async () => { const token = (document.getElementById('jwt-verify-in') as HTMLInputElement).value; const pem = (document.getElementById('jwt-pem') as HTMLInputElement).value; const ok = await verifyRS256(token, pem); (document.getElementById('jwt-verify-out') as HTMLInputElement).value = ok ? 'Valid (RS256)' : 'Invalid' }} className="px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">Verify RS256</button>
             </div>
-            <input id="jwt-verify-out" readOnly className="w-full rounded-xl border p-3 dark:bg-slate-900" />
+            <div className="relative"><input id="jwt-verify-out" readOnly className="w-full rounded-xl border p-3 dark:bg-slate-900 pr-12" /><div className="absolute top-2 right-2"><CopyButton getValue={()=> (document.getElementById('jwt-verify-out') as HTMLInputElement)?.value || ''} /></div></div>
           </ToolCard>
         )
       case 'rsa':
@@ -143,8 +153,8 @@ export default function Security() {
               </select>
               <button onClick={async ()=>{ const bits = parseInt((document.getElementById('rsa-mod') as HTMLSelectElement).value,10) || 2048; const { publicKey, privateKey } = await generateRSAKeyPairPEM(bits); (document.getElementById('rsa-pub') as HTMLTextAreaElement).value = publicKey; (document.getElementById('rsa-priv') as HTMLTextAreaElement).value = privateKey }} className="px-3 py-2 rounded-xl bg-slate-900 text-white">Generate</button>
             </div>
-            <textarea id="rsa-pub" readOnly placeholder="Public Key (PEM)" className="w-full h-40 rounded-xl border p-3 font-mono text-xs dark:bg-slate-900" />
-            <textarea id="rsa-priv" readOnly placeholder="Private Key (PEM)" className="w-full h-40 rounded-xl border p-3 font-mono text-xs dark:bg-slate-900" />
+            <div className="relative"><textarea id="rsa-pub" readOnly placeholder="Public Key (PEM)" className="w-full h-40 rounded-xl border p-3 font-mono text-xs dark:bg-slate-900 pr-12" /><div className="absolute top-2 right-2"><CopyButton getValue={()=> (document.getElementById('rsa-pub') as HTMLTextAreaElement)?.value || ''} /></div></div>
+            <div className="relative"><textarea id="rsa-priv" readOnly placeholder="Private Key (PEM)" className="w-full h-40 rounded-xl border p-3 font-mono text-xs dark:bg-slate-900 pr-12" /><div className="absolute top-2 right-2"><CopyButton getValue={()=> (document.getElementById('rsa-priv') as HTMLTextAreaElement)?.value || ''} /></div></div>
           </ToolCard>
         )
       case 'x509':
@@ -152,7 +162,10 @@ export default function Security() {
           <ToolCard title="X.509 Certificate Decoder" description="Paste PEM or Base64 DER to inspect basic fields.">
             <textarea id="x509-in" placeholder="-----BEGIN CERTIFICATE----- ..." className="w-full h-40 rounded-xl border p-3 font-mono text-xs dark:bg-slate-900" />
             <button onClick={()=>{ const v=(document.getElementById('x509-in') as HTMLTextAreaElement).value; const info = decodeX509(v); (document.getElementById('x509-out') as HTMLPreElement).textContent = JSON.stringify(info, null, 2) }} className="px-3 py-2 rounded-xl bg-slate-900 text-white">Decode</button>
-            <pre id="x509-out" className="rounded-xl border p-3 overflow-auto text-xs dark:bg-slate-900"></pre>
+            <div className="relative">
+              <pre id="x509-out" className="rounded-xl border p-3 overflow-auto text-xs dark:bg-slate-900 pr-12"></pre>
+              <div className="absolute top-2 right-2"><CopyButton getValue={()=> (document.getElementById('x509-out') as HTMLElement)?.textContent || ''} /></div>
+            </div>
           </ToolCard>
         )
       case 'saml':
@@ -163,7 +176,7 @@ export default function Security() {
               <button onClick={()=>{ const v=(document.getElementById('saml-in') as HTMLTextAreaElement).value; (document.getElementById('saml-out') as HTMLTextAreaElement).value = decodeSAMLResponse(v) }} className="px-3 py-2 rounded-xl bg-slate-900 text-white">Decode (POST)</button>
               <button onClick={()=>{ const v=(document.getElementById('saml-in') as HTMLTextAreaElement).value; (document.getElementById('saml-out') as HTMLTextAreaElement).value = decodeSAMLRedirect(v) }} className="px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">Decode (Redirect)</button>
             </div>
-            <textarea id="saml-out" readOnly className="w-full h-40 rounded-xl border p-3 font-mono text-xs dark:bg-slate-900" />
+            <div className="relative"><textarea id="saml-out" readOnly className="w-full h-40 rounded-xl border p-3 font-mono text-xs dark:bg-slate-900 pr-12" /><div className="absolute top-2 right-2"><CopyButton getValue={()=> (document.getElementById('saml-out') as HTMLTextAreaElement)?.value || ''} /></div></div>
           </ToolCard>
         )
       case 'jwtSign':
@@ -197,7 +210,7 @@ export default function Security() {
                 }
               }} className="px-3 py-2 rounded-xl bg-slate-900 text-white">Sign</button>
             </div>
-            <textarea id="jwt-signed-out" readOnly placeholder="JWT (compact)" className="w-full h-28 rounded-xl border p-3 font-mono text-xs dark:bg-slate-900" />
+            <div className="relative"><textarea id="jwt-signed-out" readOnly placeholder="JWT (compact)" className="w-full h-28 rounded-xl border p-3 font-mono text-xs dark:bg-slate-900 pr-12" /><div className="absolute top-2 right-2"><CopyButton getValue={()=> (document.getElementById('jwt-signed-out') as HTMLTextAreaElement)?.value || ''} /></div></div>
           </ToolCard>
         )
       case 'hmac':
@@ -213,15 +226,15 @@ export default function Security() {
               </select>
               <button onClick={async ()=>{ const m=(document.getElementById('hmac-msg') as HTMLTextAreaElement).value; const k=(document.getElementById('hmac-key') as HTMLInputElement).value; const h=(document.getElementById('hmac-hash') as HTMLSelectElement).value as 'SHA-256'|'SHA-512'; (document.getElementById('hmac-out') as HTMLInputElement).value = await hmacCompute(m,k,h) }} className="px-3 py-2 rounded-xl bg-slate-900 text-white">Compute</button>
             </div>
-            <input id="hmac-out" readOnly className="w-full rounded-xl border p-3 font-mono text-xs dark:bg-slate-900" placeholder="HMAC (hex)" />
+            <div className="relative"><input id="hmac-out" readOnly className="w-full rounded-xl border p-3 font-mono text-xs dark:bg-slate-900 pr-12" placeholder="HMAC (hex)" /><div className="absolute top-2 right-2"><CopyButton getValue={()=> (document.getElementById('hmac-out') as HTMLInputElement)?.value || ''} /></div></div>
           </ToolCard>
         )
       case 'filehash':
         return (
           <ToolCard title="File Hashing" description="Compute SHA-256 and SHA-512 of an uploaded file in the browser.">
             <input id="fh-file" type="file" className="block" onChange={async (e)=>{ const f = (e.target as HTMLInputElement).files?.[0]; if(!f) return; const res = await hashFile(f); (document.getElementById('fh-256') as HTMLInputElement).value = res.sha256; (document.getElementById('fh-512') as HTMLInputElement).value = res.sha512 }} />
-            <input id="fh-256" readOnly placeholder="SHA-256 (hex)" className="w-full rounded-xl border p-3 font-mono text-xs dark:bg-slate-900" />
-            <input id="fh-512" readOnly placeholder="SHA-512 (hex)" className="w-full rounded-xl border p-3 font-mono text-xs dark:bg-slate-900" />
+            <div className="relative"><input id="fh-256" readOnly placeholder="SHA-256 (hex)" className="w-full rounded-xl border p-3 font-mono text-xs dark:bg-slate-900 pr-12" /><div className="absolute top-2 right-2"><CopyButton getValue={()=> (document.getElementById('fh-256') as HTMLInputElement)?.value || ''} /></div></div>
+            <div className="relative"><input id="fh-512" readOnly placeholder="SHA-512 (hex)" className="w-full rounded-xl border p-3 font-mono text-xs dark:bg-slate-900 pr-12" /><div className="absolute top-2 right-2"><CopyButton getValue={()=> (document.getElementById('fh-512') as HTMLInputElement)?.value || ''} /></div></div>
           </ToolCard>
         )
     }

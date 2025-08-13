@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import ToolCard from '../components/ToolCard'
+import CopyButton from '../components/CopyButton'
 import { v4 as uuidv4 } from 'uuid'
 import Papa from 'papaparse'
 import { hideTextInImage, extractTextFromImage } from '../utils/stego'
@@ -67,8 +68,8 @@ export default function Misc() {
               <button onClick={()=>setRand(randomString(16))} className="px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">Random 16</button>
               <button onClick={()=>setUuid(uuidv4())} className="px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">UUID v4</button>
             </div>
-            <input readOnly value={rand} className="w-full rounded-xl border p-3 dark:bg-slate-900" placeholder="Random" />
-            <input readOnly value={uuid} className="w-full rounded-xl border p-3 dark:bg-slate-900" placeholder="UUID" />
+            <div className="relative"><input readOnly value={rand} className="w-full rounded-xl border p-3 dark:bg-slate-900 pr-12" placeholder="Random" /><div className="absolute top-2 right-2"><CopyButton value={rand} /></div></div>
+            <div className="relative"><input readOnly value={uuid} className="w-full rounded-xl border p-3 dark:bg-slate-900 pr-12" placeholder="UUID" /><div className="absolute top-2 right-2"><CopyButton value={uuid} /></div></div>
           </ToolCard>
         )
       case 'regex':
@@ -77,7 +78,7 @@ export default function Misc() {
             <textarea value={regex} onChange={e=>setRegex(e.target.value)} placeholder="Enter regex, e.g. \\b\\w+\\b" className="w-full h-20 rounded-xl border p-3 font-mono text-xs dark:bg-slate-900" />
             <textarea value={sample} onChange={e=>setSample(e.target.value)} placeholder="Sample text..." className="w-full h-28 rounded-xl border p-3 font-mono text-xs dark:bg-slate-900" />
             <button onClick={testRegex} className="px-3 py-2 rounded-xl bg-slate-900 text-white">Test</button>
-            <pre className="rounded-xl border p-3 overflow-auto text-xs dark:bg-slate-900">{matches}</pre>
+            <div className="relative"><pre id="regex-matches" className="rounded-xl border p-3 overflow-auto text-xs dark:bg-slate-900 pr-12">{matches}</pre><div className="absolute top-2 right-2"><CopyButton getValue={()=> (document.getElementById('regex-matches') as HTMLElement)?.textContent || ''} /></div></div>
           </ToolCard>
         )
       case 'stego':

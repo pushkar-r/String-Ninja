@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import ToolCard from '../components/ToolCard'
+import CopyButton from '../components/CopyButton'
 import * as Diff from 'diff'
 
 export default function Compare() {
@@ -15,13 +16,17 @@ export default function Compare() {
 
   function InlineDiff(){
     const diffs = mode==='words' ? Diff.diffWords(a,b) : mode==='chars' ? Diff.diffChars(a,b) : Diff.diffLines(a,b)
+    const plain = diffs.map(d=>d.value).join('')
     return (
-      <div className="rounded-xl border p-3 text-sm leading-7 dark:bg-slate-900">
-        {diffs.map((part, i) => (
-          <span key={i} className={part.added ? 'bg-green-200 dark:bg-green-900 rounded px-1' : part.removed ? 'bg-red-200 dark:bg-red-900 rounded px-1 line-through' : ''}>
-            {part.value}
-          </span>
-        ))}
+      <div className="relative">
+        <div className="absolute top-2 right-2 z-10"><CopyButton value={plain} /></div>
+        <div className="rounded-xl border p-3 text-sm leading-7 dark:bg-slate-900">
+          {diffs.map((part, i) => (
+            <span key={i} className={part.added ? 'bg-green-200 dark:bg-green-900 rounded px-1' : part.removed ? 'bg-red-200 dark:bg-red-900 rounded px-1 line-through' : ''}>
+              {part.value}
+            </span>
+          ))}
+        </div>
       </div>
     )
   }
@@ -44,9 +49,15 @@ export default function Compare() {
       }
     }
     const Row = ({l, r}:{l: typeof left[number], r: typeof right[number]})=> (
-      <div className="grid grid-cols-2 gap-2 text-sm">
-        <pre className={`rounded-lg border p-2 overflow-auto dark:bg-slate-900 ${l.type==='rem' ? 'bg-red-50 dark:bg-red-950' : ''}`}>{l.text || '\u00A0'}</pre>
-        <pre className={`rounded-lg border p-2 overflow-auto dark:bg-slate-900 ${r.type==='add' ? 'bg-green-50 dark:bg-green-950' : ''}`}>{r.text || '\u00A0'}</pre>
+      <div className="grid grid-cols-2 gap-2 text-sm relative">
+        <div className="relative">
+          <div className="absolute top-2 right-2"><CopyButton value={l.text} /></div>
+          <pre className={`rounded-lg border p-2 overflow-auto dark:bg-slate-900 ${l.type==='rem' ? 'bg-red-50 dark:bg-red-950' : ''}`}>{l.text || '\u00A0'}</pre>
+        </div>
+        <div className="relative">
+          <div className="absolute top-2 right-2"><CopyButton value={r.text} /></div>
+          <pre className={`rounded-lg border p-2 overflow-auto dark:bg-slate-900 ${r.type==='add' ? 'bg-green-50 dark:bg-green-950' : ''}`}>{r.text || '\u00A0'}</pre>
+        </div>
       </div>
     )
     return (

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import ToolCard from '../components/ToolCard'
+import CopyButton from '../components/CopyButton'
 import { base32Decode, base32Encode, binaryToText, htmlDecode, htmlEncode, rotN, textToBinary, textToHex, hexToText } from '../utils/conversions'
 
 function safeBase64Encode(input: string) {
@@ -62,7 +63,10 @@ export default function Encoding() {
               <button onClick={()=>setB64(safeBase64Encode(input))} className="px-4 py-2 rounded-xl bg-slate-900 text-white">Encode →</button>
               <button onClick={()=>setB64(safeBase64Decode(b64))} className="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">← Decode</button>
             </div>
-            <textarea value={b64} onChange={e=>setB64(e.target.value)} placeholder="Output…" className="w-full h-28 rounded-xl border p-3 dark:bg-slate-900" />
+            <div className="relative">
+              <textarea value={b64} onChange={e=>setB64(e.target.value)} placeholder="Output…" className="w-full h-28 rounded-xl border p-3 dark:bg-slate-900 pr-12" />
+              <div className="absolute top-2 right-2"><CopyButton value={b64} /></div>
+            </div>
           </ToolCard>
         )
       case 'b32':
@@ -73,7 +77,10 @@ export default function Encoding() {
               <button onClick={()=>setB32(base32Encode(input))} className="px-4 py-2 rounded-xl bg-slate-900 text-white">Encode →</button>
               <button onClick={()=>setB32(base32Decode(b32))} className="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">← Decode</button>
             </div>
-            <textarea value={b32} onChange={e=>setB32(e.target.value)} placeholder="Output…" className="w-full h-28 rounded-xl border p-3 dark:bg-slate-900" />
+            <div className="relative">
+              <textarea value={b32} onChange={e=>setB32(e.target.value)} placeholder="Output…" className="w-full h-28 rounded-xl border p-3 dark:bg-slate-900 pr-12" />
+              <div className="absolute top-2 right-2"><CopyButton value={b32} /></div>
+            </div>
           </ToolCard>
         )
       case 'url':
@@ -84,7 +91,10 @@ export default function Encoding() {
               <button onClick={()=>setUrlEnc(encodeURIComponent(input))} className="px-4 py-2 rounded-xl bg-slate-900 text-white">Encode →</button>
               <button onClick={()=>setUrlEnc(decodeURIComponent(urlEnc))} className="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">← Decode</button>
             </div>
-            <textarea value={urlEnc} onChange={e=>setUrlEnc(e.target.value)} placeholder="Output…" className="w-full h-28 rounded-xl border p-3 dark:bg-slate-900" />
+            <div className="relative">
+              <textarea value={urlEnc} onChange={e=>setUrlEnc(e.target.value)} placeholder="Output…" className="w-full h-28 rounded-xl border p-3 dark:bg-slate-900 pr-12" />
+              <div className="absolute top-2 right-2"><CopyButton value={urlEnc} /></div>
+            </div>
           </ToolCard>
         )
       case 'html':
@@ -95,7 +105,10 @@ export default function Encoding() {
               <button onClick={()=>setHtml(htmlEncode(input))} className="px-4 py-2 rounded-xl bg-slate-900 text-white">Encode →</button>
               <button onClick={()=>setHtml(htmlDecode(html))} className="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">← Decode</button>
             </div>
-            <textarea value={html} onChange={e=>setHtml(e.target.value)} placeholder="Output…" className="w-full h-28 rounded-xl border p-3 dark:bg-slate-900" />
+            <div className="relative">
+              <textarea value={html} onChange={e=>setHtml(e.target.value)} placeholder="Output…" className="w-full h-28 rounded-xl border p-3 dark:bg-slate-900 pr-12" />
+              <div className="absolute top-2 right-2"><CopyButton value={html} /></div>
+            </div>
           </ToolCard>
         )
       case 'hexbin':
@@ -107,7 +120,10 @@ export default function Encoding() {
               <button onClick={()=>setHtml(textToBinary(input))} className="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">Text → Binary</button>
               <button onClick={()=>setHtml(hexToText(html))} className="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">Hex → Text</button>
             </div>
-            <textarea value={html} onChange={e=>setHtml(e.target.value)} placeholder="Output…" className="w-full h-28 rounded-xl border p-3 dark:bg-slate-900" />
+            <div className="relative">
+              <textarea value={html} onChange={e=>setHtml(e.target.value)} placeholder="Output…" className="w-full h-28 rounded-xl border p-3 dark:bg-slate-900 pr-12" />
+              <div className="absolute top-2 right-2"><CopyButton value={html} /></div>
+            </div>
           </ToolCard>
         )
       case 'rot':
@@ -118,7 +134,10 @@ export default function Encoding() {
               <button onClick={()=>setRot(rotN(input, 13))} className="px-4 py-2 rounded-xl bg-slate-900 text-white">ROT13</button>
               <button onClick={()=>setRot(rotN(input, 3))} className="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">Caesar (3)</button>
             </div>
-            <textarea value={rot} onChange={e=>setRot(e.target.value)} placeholder="Output…" className="w-full h-28 rounded-xl border p-3 dark:bg-slate-900" />
+            <div className="relative">
+              <textarea value={rot} onChange={e=>setRot(e.target.value)} placeholder="Output…" className="w-full h-28 rounded-xl border p-3 dark:bg-slate-900 pr-12" />
+              <div className="absolute top-2 right-2"><CopyButton value={rot} /></div>
+            </div>
           </ToolCard>
         )
     }

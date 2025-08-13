@@ -35,6 +35,10 @@ export default function App() {
     { label: 'Strings: Basic operations', path: '/strings?tool=basic' },
     { label: 'Strings: Case converters', path: '/strings?tool=case' },
     { label: 'Strings: Unicode / Code Points', path: '/strings?tool=unicode' },
+    { label: 'Strings: Add delimiter / Join lines', path: '/strings?tool=delimiter' },
+    { label: 'Join lines with delimiter', path: '/strings?tool=delimiter' },
+    { label: 'Add delimiter to column', path: '/strings?tool=delimiter' },
+    { label: 'Merge lines with separator', path: '/strings?tool=delimiter' },
     // Compare
     { label: 'Compare: String Compare', path: '/compare?tool=diff' },
     // Security

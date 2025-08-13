@@ -1,5 +1,6 @@
 import React, { useRef, useState } from 'react'
 import ToolCard from '../components/ToolCard'
+import CopyButton from '../components/CopyButton'
 import Papa from 'papaparse'
 import { marked } from 'marked'
 import QRCode from 'qrcode'
@@ -42,7 +43,7 @@ export default function DataTools() {
               <button onClick={()=>{ try { setJsonOut(JSON.stringify(JSON.parse(jsonText), null, 2)) } catch { setJsonOut('Invalid JSON') } }} className="px-3 py-2 rounded-xl bg-slate-900 text-white">Format</button>
               <button onClick={()=>{ try { setJsonOut(JSON.stringify(JSON.parse(jsonText))) } catch { setJsonOut('Invalid JSON') } }} className="px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">Minify</button>
             </div>
-            <textarea readOnly value={jsonOut} className="w-full h-40 rounded-xl border p-3 font-mono text-xs dark:bg-slate-900" />
+            <div className="relative"><textarea readOnly value={jsonOut} className="w-full h-40 rounded-xl border p-3 font-mono text-xs dark:bg-slate-900 pr-12" /><div className="absolute top-2 right-2"><CopyButton value={jsonOut} /></div></div>
           </ToolCard>
         )
       case 'csv':
@@ -53,7 +54,7 @@ export default function DataTools() {
               <button onClick={()=>{ const res = Papa.parse(csvText.trim(), { header: true }); setCsvJson(JSON.stringify(res.data, null, 2)) }} className="px-3 py-2 rounded-xl bg-slate-900 text-white">CSV → JSON</button>
               <button onClick={()=>{ try { const arr = JSON.parse(csvText); setCsvJson(Papa.unparse(arr)) } catch { setCsvJson('Invalid JSON') } }} className="px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">JSON → CSV</button>
             </div>
-            <textarea readOnly value={csvJson} className="w-full h-32 rounded-xl border p-3 font-mono text-xs dark:bg-slate-900" />
+            <div className="relative"><textarea readOnly value={csvJson} className="w-full h-32 rounded-xl border p-3 font-mono text-xs dark:bg-slate-900 pr-12" /><div className="absolute top-2 right-2"><CopyButton value={csvJson} /></div></div>
           </ToolCard>
         )
       case 'md':
@@ -107,15 +108,15 @@ export default function DataTools() {
               <button onClick={async () => { const el = document.getElementById('code-input') as HTMLTextAreaElement; const v = el.value; const out = await minifyCode(v, 'css'); (document.getElementById('code-out') as HTMLTextAreaElement).value = out }} className="px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">Minify CSS</button>
               <button onClick={async () => { const el = document.getElementById('code-input') as HTMLTextAreaElement; const v = el.value; const out = await minifyCode(v, 'html'); (document.getElementById('code-out') as HTMLTextAreaElement).value = out }} className="px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">Minify HTML</button>
             </div>
-            <textarea id="code-out" readOnly className="w-full h-40 rounded-xl border p-3 font-mono text-xs dark:bg-slate-900" />
+            <div className="relative"><textarea id="code-out" readOnly className="w-full h-40 rounded-xl border p-3 font-mono text-xs dark:bg-slate-900 pr-12" /><div className="absolute top-2 right-2"><CopyButton getValue={()=> (document.getElementById('code-out') as HTMLTextAreaElement)?.value || ''} /></div></div>
           </ToolCard>
         )
       case 'xml':
         return (
           <ToolCard title="XML ↔ JSON">
             <div className="grid md:grid-cols-2 gap-3">
-              <textarea id="xml-input" placeholder="XML input..." className="w-full h-32 rounded-xl border p-3 font-mono text-xs dark:bg-slate-900" />
-              <textarea id="json-input-xml" placeholder="JSON input..." className="w-full h-32 rounded-xl border p-3 font-mono text-xs dark:bg-slate-900" />
+              <div className="relative"><textarea id="xml-input" placeholder="XML input..." className="w-full h-32 rounded-xl border p-3 font-mono text-xs dark:bg-slate-900 pr-12" /><div className="absolute top-2 right-2"><CopyButton getValue={()=> (document.getElementById('xml-input') as HTMLTextAreaElement)?.value || ''} /></div></div>
+              <div className="relative"><textarea id="json-input-xml" placeholder="JSON input..." className="w-full h-32 rounded-xl border p-3 font-mono text-xs dark:bg-slate-900 pr-12" /><div className="absolute top-2 right-2"><CopyButton getValue={()=> (document.getElementById('json-input-xml') as HTMLTextAreaElement)?.value || ''} /></div></div>
             </div>
             <div className="flex flex-wrap gap-2">
               <button onClick={() => { const v = (document.getElementById('xml-input') as HTMLTextAreaElement).value; (document.getElementById('json-input-xml') as HTMLTextAreaElement).value = xmlToJson(v) }} className="px-3 py-2 rounded-xl bg-slate-900 text-white">XML → JSON</button>
@@ -133,7 +134,7 @@ export default function DataTools() {
               <button onClick={() => { const v = (document.getElementById('norm-in') as HTMLTextAreaElement).value; (document.getElementById('norm-out') as HTMLTextAreaElement).value = normalizeText(v, 'NFKC') }} className="px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">NFKC</button>
               <button onClick={() => { const v = (document.getElementById('norm-in') as HTMLTextAreaElement).value; (document.getElementById('norm-out') as HTMLTextAreaElement).value = normalizeText(v, 'NFKD') }} className="px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">NFKD</button>
             </div>
-            <textarea id="norm-out" readOnly className="w-full h-28 rounded-xl border p-3 dark:bg-slate-900" />
+            <div className="relative"><textarea id="norm-out" readOnly className="w-full h-28 rounded-xl border p-3 dark:bg-slate-900 pr-12" /><div className="absolute top-2 right-2"><CopyButton getValue={()=> (document.getElementById('norm-out') as HTMLTextAreaElement)?.value || ''} /></div></div>
           </ToolCard>
         )
     }
