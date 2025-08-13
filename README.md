@@ -26,8 +26,19 @@ npm run preview
 ```
 
 ## Deploy
-- Any static host (GitHub Pages, Netlify, Vercel).
-- Build outputs to `dist/`.
+- GitHub Pages (recommended): push to main and GitHub Actions will build and deploy.
+- Any static host (Netlify, Vercel) also works. Build outputs to `dist/`.
+
+### GitHub Pages Setup
+- Vite base is set to `/String-Ninja/` in `vite.config.ts` (adjust if deploying elsewhere).
+- The workflow `.github/workflows/deploy.yml` builds and deploys to Pages.
+- SPA fallback is handled by copying `index.html` to `404.html` in the workflow.
+- Enable Pages: in repo Settings → Pages → Source: GitHub Actions.
+- Access URL: `https://<username>.github.io/String-Ninja/`
+
+Optional: Custom domain
+- Add a `CNAME` file in `public/` with your domain (e.g., `tools.example.com`).
+- Set DNS CNAME to `<username>.github.io` and configure the domain in Pages settings.
 
 ## Security notes
 - Entirely **client-side**; no servers or analytics included.
