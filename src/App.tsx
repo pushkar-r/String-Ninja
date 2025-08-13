@@ -1,5 +1,5 @@
-import React from 'react'
-import { NavLink, Outlet } from 'react-router-dom'
+import React, { useState } from 'react'
+import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useTheme } from './theme'
 
 function NavItem({ to, children }: { to: string, children: React.ReactNode }) {
@@ -20,6 +20,55 @@ function NavItem({ to, children }: { to: string, children: React.ReactNode }) {
 
 export default function App() {
   const { theme, toggle } = useTheme()
+  const navigate = useNavigate()
+  const [q, setQ] = useState('')
+
+  const tools = [
+    // Encoding
+    { label: 'Encoding: Base64', path: '/?tool=b64' },
+    { label: 'Encoding: Base32', path: '/?tool=b32' },
+    { label: 'Encoding: URL Encode/Decode', path: '/?tool=url' },
+    { label: 'Encoding: HTML Entities', path: '/?tool=html' },
+    { label: 'Encoding: Hex / Binary / Text', path: '/?tool=hexbin' },
+    { label: 'Encoding: ROT13 / Caesar', path: '/?tool=rot' },
+    // Strings
+    { label: 'Strings: Basic operations', path: '/strings?tool=basic' },
+    { label: 'Strings: Case converters', path: '/strings?tool=case' },
+    { label: 'Strings: Unicode / Code Points', path: '/strings?tool=unicode' },
+    // Compare
+    { label: 'Compare: String Compare', path: '/compare?tool=diff' },
+    // Security
+    { label: 'Security: Hashing', path: '/security?tool=hash' },
+    { label: 'Security: AES-GCM (PBKDF2)', path: '/security?tool=aes' },
+    { label: 'Security: JWT Decoder', path: '/security?tool=jwt' },
+    { label: 'Security: Password Hashing', path: '/security?tool=pw' },
+    { label: 'Security: JWT Verify', path: '/security?tool=jwtv' },
+    { label: 'Security: RSA Keygen', path: '/security?tool=rsa' },
+    { label: 'Security: X.509 Decoder', path: '/security?tool=x509' },
+    { label: 'Security: SAML Decoder', path: '/security?tool=saml' },
+    // Data
+    { label: 'Data: JSON Formatter / Minifier', path: '/data?tool=json' },
+    { label: 'Data: CSV ↔ JSON', path: '/data?tool=csv' },
+    { label: 'Data: Markdown → HTML', path: '/data?tool=md' },
+    { label: 'Data: QR Tools', path: '/data?tool=qr' },
+    { label: 'Data: Beautify / Minify', path: '/data?tool=code' },
+    { label: 'Data: XML ↔ JSON', path: '/data?tool=xml' },
+    { label: 'Data: Unicode Normalizer', path: '/data?tool=norm' },
+    // Misc
+    { label: 'Misc: Timestamp Converter', path: '/misc?tool=ts' },
+    { label: 'Misc: Random & UUID', path: '/misc?tool=rand' },
+    { label: 'Misc: Regex Tester', path: '/misc?tool=regex' },
+    { label: 'Misc: Steganography', path: '/misc?tool=stego' },
+    { label: 'Misc: CSV Import Options', path: '/misc?tool=csv' },
+    { label: 'Misc: Regex Save / Reuse', path: '/misc?tool=saved' },
+  ]
+
+  function goTo(query: string){
+    const t = tools.find(t => t.label.toLowerCase() === query.toLowerCase()) ||
+              tools.find(t => t.label.toLowerCase().includes(query.toLowerCase()))
+    if (t){ navigate(t.path) }
+  }
+
   return (
     <div className="min-h-screen text-slate-900 dark:text-slate-100">
       <header className="sticky top-0 z-10 bg-white/80 dark:bg-slate-900/80 backdrop-blur border-b border-slate-200 dark:border-slate-800">
@@ -36,6 +85,19 @@ export default function App() {
             <NavItem to="/data">Data</NavItem>
             <NavItem to="/misc">Misc</NavItem>
           </nav>
+          <div className="hidden md:block">
+            <input
+              list="tool-suggestions"
+              value={q}
+              onChange={e=>setQ(e.target.value)}
+              onKeyDown={e=>{ if(e.key==='Enter'){ goTo(q); setQ('') } }}
+              placeholder="Search features..."
+              className="px-3 py-2 rounded-xl text-sm border dark:bg-slate-900 w-64"
+            />
+            <datalist id="tool-suggestions">
+              {tools.map(t => <option key={t.path} value={t.label} />)}
+            </datalist>
+          </div>
           <button onClick={toggle} className="px-3 py-2 rounded-xl text-sm bg-slate-900 text-white dark:bg-slate-200 dark:text-slate-900">
             {theme === 'dark' ? 'Light' : 'Dark'}
           </button>

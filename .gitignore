@@ -1,0 +1,43 @@
+# Dependencies
+node_modules/
+
+# Build output
+/dist/
+/.vite/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+*.log
+
+# Editor directories and settings
+.vscode/
+.idea/
+
+# OS-generated files
+.DS_Store
+Thumbs.db
+
+# TypeScript
+*.tsbuildinfo
+
+# Test coverage
+coverage/
+
+# Environment files (keep example files tracked)
+.env
+.env.*
+!.env.example
+
+# Lint/style caches
+.eslintcache
+.stylelintcache
+
+# Misc
+*.swp
+*.swo
+*.local
+
+# Tooling-specific (not needed in source control)
+.qodo/

@@ -57,3 +57,26 @@ export function jwtDecode(token: string): { header: any; payload: any } | null {
     return null
   }
 }
+
+function ab2b64(arr: ArrayBuffer){
+  const bytes = new Uint8Array(arr)
+  let bin = ''
+  for (let i=0;i<bytes.length;i++) bin += String.fromCharCode(bytes[i])
+  return btoa(bin)
+}
+function toPem(bodyB64: string, label: string){
+  const lines = bodyB64.match(/.{1,64}/g) || []
+  return `-----BEGIN ${label}-----\n${lines.join('\n')}\n-----END ${label}-----`
+}
+export async function generateRSAKeyPairPEM(modulusLength = 2048): Promise<{ publicKey: string; privateKey: string }>{
+  const keyPair = await crypto.subtle.generateKey(
+    { name: 'RSASSA-PKCS1-v1_5', modulusLength, publicExponent: new Uint8Array([1,0,1]), hash: 'SHA-256' },
+    true,
+    ['sign','verify']
+  )
+  const spki = await crypto.subtle.exportKey('spki', keyPair.publicKey)
+  const pkcs8 = await crypto.subtle.exportKey('pkcs8', keyPair.privateKey)
+  const pubPem = toPem(ab2b64(spki), 'PUBLIC KEY')
+  const privPem = toPem(ab2b64(pkcs8), 'PRIVATE KEY')
+  return { publicKey: pubPem, privateKey: privPem }
+}

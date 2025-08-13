@@ -1,4 +1,4 @@
-\
+
   // Minimal JWT verification helpers.
   // HS256 verification (HMAC-SHA256) using SubtleCrypto
   // RS256 verification (RSA SHA-256) by importing a PEM public key
