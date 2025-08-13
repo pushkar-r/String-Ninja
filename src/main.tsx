@@ -25,7 +25,7 @@ const router = createBrowserRouter([
       { path: 'misc', element: <Misc /> },
     ]
   }
-])
+], { basename: import.meta.env.BASE_URL })
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
