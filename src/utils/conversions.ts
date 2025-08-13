@@ -9,6 +9,18 @@ export function hexToText(hex: string): string {
     return new TextDecoder().decode(bytes)
   } catch { return 'Invalid hex' }
 }
+export function hexToBinary(hex: string): string {
+  try {
+    const clean = hex.replace(/\s+/g,'')
+    if (clean.length % 2 !== 0) throw new Error('odd length')
+    const bytes = clean.match(/.{1,2}/g)!.map(h => {
+      const v = parseInt(h, 16)
+      if (Number.isNaN(v)) throw new Error('NaN')
+      return v
+    })
+    return bytes.map(b => b.toString(2).padStart(8,'0')).join(' ')
+  } catch { return 'Invalid hex' }
+}
 export function textToBinary(str: string): string {
   return Array.from(new TextEncoder().encode(str)).map(b => b.toString(2).padStart(8,'0')).join(' ')
 }
@@ -16,6 +28,19 @@ export function binaryToText(bin: string): string {
   try {
     const bytes = new Uint8Array(bin.trim().split(/\s+/).map(b => parseInt(b,2)))
     return new TextDecoder().decode(bytes)
+  } catch { return 'Invalid binary' }
+}
+export function binaryToHex(bin: string): string {
+  try {
+    const tokens = bin.trim().split(/\s+/).filter(Boolean)
+    if (tokens.length === 0) return ''
+    const bytes = tokens.map(b => {
+      if (!/^[01]+$/.test(b)) throw new Error('invalid bit')
+      const v = parseInt(b, 2)
+      if (Number.isNaN(v)) throw new Error('NaN')
+      return v
+    })
+    return bytes.map(b => b.toString(16).padStart(2,'0')).join(' ')
   } catch { return 'Invalid binary' }
 }
 export function base32Encode(s: string): string {

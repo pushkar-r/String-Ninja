@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import ToolCard from '../components/ToolCard'
 import CopyButton from '../components/CopyButton'
-import { base32Decode, base32Encode, binaryToText, htmlDecode, htmlEncode, rotN, textToBinary, textToHex, hexToText } from '../utils/conversions'
+import { base32Decode, base32Encode, binaryToHex, binaryToText, hexToBinary, htmlDecode, htmlEncode, rotN, textToBinary, textToHex, hexToText } from '../utils/conversions'
 
 function safeBase64Encode(input: string) {
   // UTF-8 safe encode
@@ -119,6 +119,9 @@ export default function Encoding() {
               <button onClick={()=>setHtml(textToHex(input))} className="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">Text → Hex</button>
               <button onClick={()=>setHtml(textToBinary(input))} className="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">Text → Binary</button>
               <button onClick={()=>setHtml(hexToText(html))} className="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">Hex → Text</button>
+              <button onClick={()=>setHtml(binaryToText(html))} className="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">Binary → Text</button>
+              <button onClick={()=>setHtml(hexToBinary(html))} className="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">Hex → Binary</button>
+              <button onClick={()=>setHtml(binaryToHex(html))} className="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">Binary → Hex</button>
             </div>
             <div className="relative">
               <textarea value={html} onChange={e=>setHtml(e.target.value)} placeholder="Output…" className="w-full h-28 rounded-xl border p-3 dark:bg-slate-900 pr-12" />
