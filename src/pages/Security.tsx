@@ -73,26 +73,26 @@ export default function Security() {
     return { sha256: toHex(sha256), sha512: toHex(sha512) }
   }
 
-  async function hmacSha1Bytes(key: Uint8Array, msg: Uint8Array){
-    const cryptoKey = await crypto.subtle.importKey('raw', key, { name: 'HMAC', hash: 'SHA-1' }, false, ['sign'])
-    return new Uint8Array(await crypto.subtle.sign('HMAC', cryptoKey, msg))
-  }
+  // async function hmacSha1Bytes(key: Uint8Array, msg: Uint8Array){
+  //   const cryptoKey = await crypto.subtle.importKey('raw', key, { name: 'HMAC', hash: 'SHA-1' }, false, ['sign'])
+  //   return new Uint8Array(await crypto.subtle.sign('HMAC', cryptoKey, msg))
+  // }
   function intToBytesBE(n: number){
     const buf = new Uint8Array(8)
     for (let i=7;i>=0;i--){ buf[i] = n & 0xff; n = Math.floor(n/256) }
     return buf
   }
-  async function hotpGenerate(secretBytes: Uint8Array, counter: number, digits=6){
-    const mac = await hmacSha1Bytes(secretBytes, intToBytesBE(counter))
-    const offset = mac[mac.length - 1] & 0x0f
-    const code = ((mac[offset] & 0x7f) << 24) | (mac[offset+1] << 16) | (mac[offset+2] << 8) | (mac[offset+3])
-    const mod = 10 ** digits
-    return (code % mod).toString().padStart(digits, '0')
-  }
-  async function totpGenerate(secretBytes: Uint8Array, period=30, digits=6, now=Date.now()){
-    const counter = Math.floor(now/1000/period)
-    return hotpGenerate(secretBytes, counter, digits)
-  }
+  // async function hotpGenerate(secretBytes: Uint8Array, counter: number, digits=6){
+  //   const mac = await hmacSha1Bytes(secretBytes, intToBytesBE(counter))
+  //   const offset = mac[mac.length - 1] & 0x0f
+  //   const code = ((mac[offset] & 0x7f) << 24) | (mac[offset+1] << 16) | (mac[offset+2] << 8) | (mac[offset+3])
+  //   const mod = 10 ** digits
+  //   return (code % mod).toString().padStart(digits, '0')
+  // }
+  // async function totpGenerate(secretBytes: Uint8Array, period=30, digits=6, now=Date.now()){
+  //   const counter = Math.floor(now/1000/period)
+  //   return hotpGenerate(secretBytes, counter, digits)
+  // }
   function strToBytes(s: string){ return new TextEncoder().encode(s) }
   function hexToBytes(hex: string){ const clean=hex.replace(/\s+/g,''); if(clean.length%2) return new Uint8Array(); return new Uint8Array(clean.match(/.{1,2}/g)!.map(h=>parseInt(h,16))) }
   function base32ToBytes(b32: string){ const s = base32Decode(b32); const arr = new Uint8Array(s.length); for(let i=0;i<s.length;i++) arr[i]=s.charCodeAt(i); return arr }
@@ -299,12 +299,12 @@ export default function Security() {
               </div>
             </div>
             <div className="flex flex-wrap gap-2 mt-2">
-              <button onClick={async ()=>{ const s=(document.getElementById('otp-secret') as HTMLInputElement).value; const f=(document.getElementById('otp-format') as HTMLSelectElement).value as any; const d=parseInt((document.getElementById('otp-digits') as HTMLSelectElement).value,10)||6; const p=parseInt((document.getElementById('otp-period') as HTMLInputElement).value,10)||30; const code = await totpGenerate(parseSecret(s,f), p, d); (document.getElementById('totp-out') as HTMLInputElement).value = code }} className="px-3 py-2 rounded-xl bg-slate-900 text-white">Generate TOTP</button>
+              {/* <button onClick={async ()=>{ const s=(document.getElementById('otp-secret') as HTMLInputElement).value; const f=(document.getElementById('otp-format') as HTMLSelectElement).value as any; const d=parseInt((document.getElementById('otp-digits') as HTMLSelectElement).value,10)||6; const p=parseInt((document.getElementById('otp-period') as HTMLInputElement).value,10)||30; const code = await totpGenerate(parseSecret(s,f), p, d); (document.getElementById('totp-out') as HTMLInputElement).value = code }} className="px-3 py-2 rounded-xl bg-slate-900 text-white">Generate TOTP</button> */}
               <div className="relative w-full"><input id="totp-out" readOnly placeholder="TOTP" className="w-full rounded-xl border p-3 font-mono text-xs dark:bg-slate-900 pr-12" /><div className="absolute top-2 right-2"><CopyButton getValue={()=> (document.getElementById('totp-out') as HTMLInputElement)?.value || ''} /></div></div>
             </div>
             <div className="grid md:grid-cols-3 gap-2 mt-2">
               <input id="hotp-counter" type="number" placeholder="HOTP counter" className="w-full rounded-xl border p-3 font-mono text-xs dark:bg-slate-900" />
-              <button onClick={async ()=>{ const s=(document.getElementById('otp-secret') as HTMLInputElement).value; const f=(document.getElementById('otp-format') as HTMLSelectElement).value as any; const d=parseInt((document.getElementById('otp-digits') as HTMLSelectElement).value,10)||6; const cnt=parseInt((document.getElementById('hotp-counter') as HTMLInputElement).value,10)||0; const code = await hotpGenerate(parseSecret(s,f), cnt, d); (document.getElementById('hotp-out') as HTMLInputElement).value = code }} className="px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">Generate HOTP</button>
+              {/* <button onClick={async ()=>{ const s=(document.getElementById('otp-secret') as HTMLInputElement).value; const f=(document.getElementById('otp-format') as HTMLSelectElement).value as any; const d=parseInt((document.getElementById('otp-digits') as HTMLSelectElement).value,10)||6; const cnt=parseInt((document.getElementById('hotp-counter') as HTMLInputElement).value,10)||0; const code = await hotpGenerate(parseSecret(s,f), cnt, d); (document.getElementById('hotp-out') as HTMLInputElement).value = code }} className="px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">Generate HOTP</button> */}
               <div className="relative w-full"><input id="hotp-out" readOnly placeholder="HOTP" className="w-full rounded-xl border p-3 font-mono text-xs dark:bg-slate-900 pr-12" /><div className="absolute top-2 right-2"><CopyButton getValue={()=> (document.getElementById('hotp-out') as HTMLInputElement)?.value || ''} /></div></div>
             </div>
           </ToolCard>
