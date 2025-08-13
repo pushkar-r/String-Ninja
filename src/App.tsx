@@ -74,7 +74,7 @@ export default function App() {
       <header className="sticky top-0 z-10 bg-white/80 dark:bg-slate-900/80 backdrop-blur border-b border-slate-200 dark:border-slate-800">
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <img src="/logo1-nobg.png" alt="String Ninja" className="h-10 w-auto object-contain" />
+            <img src={`${import.meta.env.BASE_URL}logo1-nobg.png`} alt="String Ninja" className="h-10 w-auto object-contain" />
             <div className="flex items-baseline gap-1 select-none">
               <span className="text-xl md:text-2xl font-extrabold italic tracking-wide text-slate-900 dark:text-slate-100">String</span>
               <span className="text-xl md:text-2xl font-black italic tracking-wider text-slate-900 dark:text-emerald-300">Ninja</span>
@@ -92,8 +92,23 @@ export default function App() {
             <input
               list="tool-suggestions"
               value={q}
-              onChange={e=>setQ(e.target.value)}
-              onKeyDown={e=>{ if(e.key==='Enter'){ goTo(q); setQ('') } }}
+              onChange={e => {
+                const v = e.target.value
+                setQ(v)
+                const exact = tools.find(t => t.label.toLowerCase() === v.toLowerCase())
+                if (exact) { navigate(exact.path); setQ(''); e.currentTarget.blur() }
+              }}
+              onKeyDown={e => {
+                if (e.key === 'Enter') {
+                  e.preventDefault()
+                  setTimeout(() => {
+                    const v = e.currentTarget.value.trim()
+                    const exact = tools.find(t => t.label.toLowerCase() === v.toLowerCase())
+                    if (exact) { navigate(exact.path); setQ(''); e.currentTarget.blur(); return }
+                    goTo(v); setQ(''); e.currentTarget.blur()
+                  }, 0)
+                }
+              }}
               placeholder="Search features..."
               className="px-3 py-2 rounded-xl text-sm border dark:bg-slate-900 w-64"
             />
