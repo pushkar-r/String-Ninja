@@ -138,6 +138,35 @@ export default function App() {
               <NavItem to="/security">Security</NavItem>
               <NavItem to="/data">Data</NavItem>
               <NavItem to="/misc">Misc</NavItem>
+              <div className="w-full">
+                <input
+                  list="tool-suggestions-m"
+                  value={q}
+                  onChange={e => {
+                    const v = e.target.value
+                    setQ(v)
+                    const exact = tools.find(t => t.label.toLowerCase() === v.toLowerCase())
+                    if (exact) { navigate(exact.path); setQ(''); setMobileOpen(false); (e.currentTarget as HTMLInputElement).blur() }
+                  }}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault()
+                      setTimeout(() => {
+                        const v = (e.currentTarget as HTMLInputElement).value.trim()
+                        const exact = tools.find(t => t.label.toLowerCase() === v.toLowerCase())
+                        if (exact) { navigate(exact.path); setQ(''); setMobileOpen(false); (e.currentTarget as HTMLInputElement).blur(); return }
+                        const t = tools.find(t => t.label.toLowerCase().includes(v.toLowerCase()))
+                        if (t) { navigate(t.path); setQ(''); setMobileOpen(false); (e.currentTarget as HTMLInputElement).blur() }
+                      }, 0)
+                    }
+                  }}
+                  placeholder="Search features..."
+                  className="mt-2 w-full px-3 py-2 rounded-xl text-sm border dark:bg-slate-900"
+                />
+                <datalist id="tool-suggestions-m">
+                  {tools.map(t => <option key={t.path} value={t.label} />)}
+                </datalist>
+              </div>
             </div>
           </div>
         )}
