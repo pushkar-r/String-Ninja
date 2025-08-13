@@ -40,6 +40,11 @@ export default function App() {
     { label: 'Join lines with delimiter', path: '/strings?tool=delimiter' },
     { label: 'Add delimiter to column', path: '/strings?tool=delimiter' },
     { label: 'Merge lines with separator', path: '/strings?tool=delimiter' },
+    { label: 'Strings: Line operations', path: '/strings?tool=lines' },
+    { label: 'Strings: Find / Replace (Regex)', path: '/strings?tool=find' },
+    { label: 'Strings: Wrap / Reflow', path: '/strings?tool=wrap' },
+    { label: 'Strings: Frequency Analysis', path: '/strings?tool=freq' },
+    { label: 'Strings: Remove diacritics', path: '/strings?tool=diacritics' },
     // Compare
     { label: 'Compare: String Compare', path: '/compare?tool=diff' },
     // Security
@@ -54,6 +59,9 @@ export default function App() {
     { label: 'Security: JWT Signer', path: '/security?tool=jwtSign' },
     { label: 'Security: HMAC Generator', path: '/security?tool=hmac' },
     { label: 'Security: File Hashing', path: '/security?tool=filehash' },
+    { label: 'Security: TOTP / HOTP', path: '/security?tool=totp' },
+    { label: 'Security: PKCE Generator', path: '/security?tool=pkce' },
+    { label: 'Security: ECC Keygen (P-256)', path: '/security?tool=ecc' },
     // Data
     { label: 'Data: JSON Formatter / Minifier', path: '/data?tool=json' },
     { label: 'Data: CSV ↔ JSON', path: '/data?tool=csv' },

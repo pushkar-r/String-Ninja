@@ -19,10 +19,15 @@ Encoding
 - ROT13 / Caesar
 
 Strings
-- Trim, case transforms, reverse, slugify
+- Trim, remove redundant spaces, case transforms (UPPER/lower/Title/Sentence), reverse, slugify
 - Word/character counts
 - Case converters: camelCase, PascalCase, snake_case, kebab-case
 - Unicode code point viewer
+- Line operations: sort, unique, remove blank lines
+- Find/Replace with regex (gi flags), shows match indices
+- Wrap/Reflow text to width
+- Frequency analysis (words/chars)
+- Remove diacritics (accents)
 
 Compare
 - Diff: words / chars / lines
@@ -34,13 +39,16 @@ Security
 - JWT tools: decoder, signature verify (HS256/RS256), signer (HS256/RS256)
 - Password hashing: bcrypt (hash/verify), Argon2 (hash via hash‑wasm)
 - RSA keygen: generate RSA key pair (PEM, PKCS#8 + SPKI)
+- ECC keygen: P‑256 (ECDSA), export PEM (PKCS#8 + SPKI)
 - X.509 certificate decoder: basic fields (issuer/subject/validity/SPKI OID)
 - SAML decoder: POST (Base64) and Redirect (URL‑decode + raw DEFLATE)
 - HMAC generator: SHA‑256 / SHA‑512
 - File hashing: SHA‑256 / SHA‑512
+- TOTP/HOTP generator (Base32/Hex/Text secrets, digits 6/8, configurable period)
+- PKCE code_verifier generator and S256 code_challenge derivation
 
 Data Tools
-- JSON format/minify
+- JSON format/minify (with precise error location on failures)
 - CSV ↔ JSON (header mode)
 - Markdown → HTML
 - QR tools: generate (toDataURL), scan from image (canvas + jsQR)

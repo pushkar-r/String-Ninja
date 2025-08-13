@@ -7,10 +7,11 @@ import { bcryptHash, bcryptCompare, argon2Hash } from '../utils/passwords'
 import { verifyHS256, verifyRS256 } from '../utils/jwt'
 import { decodeX509 } from '../utils/x509'
 import { decodeSAMLResponse, decodeSAMLRedirect } from '../utils/saml'
+import { base32Decode } from '../utils/conversions'
 
 export default function Security() {
   const [searchParams, setSearchParams] = useSearchParams()
-  const [active, setActive] = useState<'hash'|'aes'|'jwt'|'pw'|'jwtv'|'rsa'|'x509'|'saml'|'jwtSign'|'hmac'|'filehash'>(
+  const [active, setActive] = useState<'hash'|'aes'|'jwt'|'pw'|'jwtv'|'rsa'|'x509'|'saml'|'jwtSign'|'hmac'|'filehash'|'totp'|'pkce'|'ecc'>(
     (searchParams.get('tool') as any) || 'hash'
   )
   useEffect(()=>{
@@ -70,6 +71,44 @@ export default function Security() {
     const sha512 = new Uint8Array(await crypto.subtle.digest('SHA-512', buf))
     const toHex = (arr: Uint8Array)=> Array.from(arr).map(b=> b.toString(16).padStart(2,'0')).join('')
     return { sha256: toHex(sha256), sha512: toHex(sha512) }
+  }
+
+  async function hmacSha1Bytes(key: Uint8Array, msg: Uint8Array){
+    const cryptoKey = await crypto.subtle.importKey('raw', key, { name: 'HMAC', hash: 'SHA-1' }, false, ['sign'])
+    return new Uint8Array(await crypto.subtle.sign('HMAC', cryptoKey, msg))
+  }
+  function intToBytesBE(n: number){
+    const buf = new Uint8Array(8)
+    for (let i=7;i>=0;i--){ buf[i] = n & 0xff; n = Math.floor(n/256) }
+    return buf
+  }
+  async function hotpGenerate(secretBytes: Uint8Array, counter: number, digits=6){
+    const mac = await hmacSha1Bytes(secretBytes, intToBytesBE(counter))
+    const offset = mac[mac.length - 1] & 0x0f
+    const code = ((mac[offset] & 0x7f) << 24) | (mac[offset+1] << 16) | (mac[offset+2] << 8) | (mac[offset+3])
+    const mod = 10 ** digits
+    return (code % mod).toString().padStart(digits, '0')
+  }
+  async function totpGenerate(secretBytes: Uint8Array, period=30, digits=6, now=Date.now()){
+    const counter = Math.floor(now/1000/period)
+    return hotpGenerate(secretBytes, counter, digits)
+  }
+  function strToBytes(s: string){ return new TextEncoder().encode(s) }
+  function hexToBytes(hex: string){ const clean=hex.replace(/\s+/g,''); if(clean.length%2) return new Uint8Array(); return new Uint8Array(clean.match(/.{1,2}/g)!.map(h=>parseInt(h,16))) }
+  function base32ToBytes(b32: string){ const s = base32Decode(b32); const arr = new Uint8Array(s.length); for(let i=0;i<s.length;i++) arr[i]=s.charCodeAt(i); return arr }
+  function parseSecret(input: string, fmt: 'base32'|'hex'|'text'){
+    if (fmt==='base32') return base32ToBytes(input.trim())
+    if (fmt==='hex') return hexToBytes(input)
+    return strToBytes(input)
+  }
+
+  async function generateECDSAKeyPairPEM(){
+    const kp = await crypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, true, ['sign','verify'])
+    const spki = new Uint8Array(await crypto.subtle.exportKey('spki', kp.publicKey))
+    const pkcs8 = new Uint8Array(await crypto.subtle.exportKey('pkcs8', kp.privateKey))
+    function toB64(u8: Uint8Array){ let bin=''; for(let i=0;i<u8.length;i++) bin+=String.fromCharCode(u8[i]); return btoa(bin) }
+    function toPem(bodyB64: string, label: string){ const lines = bodyB64.match(/.{1,64}/g) || []; return `-----BEGIN ${label}-----\n${lines.join('\n')}\n-----END ${label}-----` }
+    return { publicKey: toPem(toB64(spki), 'PUBLIC KEY'), privateKey: toPem(toB64(pkcs8), 'PRIVATE KEY') }
   }
 
   function renderPanel(){
@@ -237,6 +276,58 @@ export default function Security() {
             <div className="relative"><input id="fh-512" readOnly placeholder="SHA-512 (hex)" className="w-full rounded-xl border p-3 font-mono text-xs dark:bg-slate-900 pr-12" /><div className="absolute top-2 right-2"><CopyButton getValue={()=> (document.getElementById('fh-512') as HTMLInputElement)?.value || ''} /></div></div>
           </ToolCard>
         )
+      case 'totp':
+        return (
+          <ToolCard title="TOTP / HOTP">
+            <div className="grid md:grid-cols-2 gap-3">
+              <input id="otp-secret" placeholder="Secret (Base32 by default)" className="w-full rounded-xl border p-3 font-mono text-xs dark:bg-slate-900" />
+              <div className="flex items-center gap-2">
+                <label className="text-sm">Format</label>
+                <select id="otp-format" defaultValue={'base32'} className="px-2 py-2 rounded-xl border dark:bg-slate-900">
+                  <option value="base32">Base32</option>
+                  <option value="hex">Hex</option>
+                  <option value="text">Text</option>
+                </select>
+              </div>
+              <div className="flex items-center gap-2">
+                <label className="text-sm">Digits</label>
+                <select id="otp-digits" defaultValue={'6'} className="px-2 py-2 rounded-xl border dark:bg-slate-900"><option>6</option><option>8</option></select>
+              </div>
+              <div className="flex items-center gap-2">
+                <label className="text-sm">Period</label>
+                <input id="otp-period" type="number" defaultValue={30} className="w-24 rounded-xl border p-2 dark:bg-slate-900" />
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2 mt-2">
+              <button onClick={async ()=>{ const s=(document.getElementById('otp-secret') as HTMLInputElement).value; const f=(document.getElementById('otp-format') as HTMLSelectElement).value as any; const d=parseInt((document.getElementById('otp-digits') as HTMLSelectElement).value,10)||6; const p=parseInt((document.getElementById('otp-period') as HTMLInputElement).value,10)||30; const code = await totpGenerate(parseSecret(s,f), p, d); (document.getElementById('totp-out') as HTMLInputElement).value = code }} className="px-3 py-2 rounded-xl bg-slate-900 text-white">Generate TOTP</button>
+              <div className="relative w-full"><input id="totp-out" readOnly placeholder="TOTP" className="w-full rounded-xl border p-3 font-mono text-xs dark:bg-slate-900 pr-12" /><div className="absolute top-2 right-2"><CopyButton getValue={()=> (document.getElementById('totp-out') as HTMLInputElement)?.value || ''} /></div></div>
+            </div>
+            <div className="grid md:grid-cols-3 gap-2 mt-2">
+              <input id="hotp-counter" type="number" placeholder="HOTP counter" className="w-full rounded-xl border p-3 font-mono text-xs dark:bg-slate-900" />
+              <button onClick={async ()=>{ const s=(document.getElementById('otp-secret') as HTMLInputElement).value; const f=(document.getElementById('otp-format') as HTMLSelectElement).value as any; const d=parseInt((document.getElementById('otp-digits') as HTMLSelectElement).value,10)||6; const cnt=parseInt((document.getElementById('hotp-counter') as HTMLInputElement).value,10)||0; const code = await hotpGenerate(parseSecret(s,f), cnt, d); (document.getElementById('hotp-out') as HTMLInputElement).value = code }} className="px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">Generate HOTP</button>
+              <div className="relative w-full"><input id="hotp-out" readOnly placeholder="HOTP" className="w-full rounded-xl border p-3 font-mono text-xs dark:bg-slate-900 pr-12" /><div className="absolute top-2 right-2"><CopyButton getValue={()=> (document.getElementById('hotp-out') as HTMLInputElement)?.value || ''} /></div></div>
+            </div>
+          </ToolCard>
+        )
+      case 'pkce':
+        return (
+          <ToolCard title="PKCE Generator (S256)">
+            <div className="flex flex-wrap gap-2 items-center">
+              <button onClick={()=>{ const chars='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~'; let s=''; const arr=new Uint32Array(64); crypto.getRandomValues(arr); for(let i=0;i<arr.length;i++){ s+=chars[arr[i]%chars.length] } (document.getElementById('pkce-verifier') as HTMLInputElement).value = s }} className="px-3 py-2 rounded-xl bg-slate-900 text-white">Generate verifier</button>
+              <button onClick={async ()=>{ const v=(document.getElementById('pkce-verifier') as HTMLInputElement).value; const data=new TextEncoder().encode(v); const hash=new Uint8Array(await crypto.subtle.digest('SHA-256', data)); let bin=''; for(let i=0;i<hash.length;i++) bin+=String.fromCharCode(hash[i]); const b64=btoa(bin).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,''); (document.getElementById('pkce-challenge') as HTMLInputElement).value = b64 }} className="px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">Derive challenge</button>
+            </div>
+            <div className="relative mt-2"><input id="pkce-verifier" placeholder="code_verifier" className="w-full rounded-xl border p-3 font-mono text-xs dark:bg-slate-900 pr-12" /><div className="absolute top-2 right-2"><CopyButton getValue={()=> (document.getElementById('pkce-verifier') as HTMLInputElement)?.value || ''} /></div></div>
+            <div className="relative mt-2"><input id="pkce-challenge" readOnly placeholder="code_challenge (S256)" className="w-full rounded-xl border p-3 font-mono text-xs dark:bg-slate-900 pr-12" /><div className="absolute top-2 right-2"><CopyButton getValue={()=> (document.getElementById('pkce-challenge') as HTMLInputElement)?.value || ''} /></div></div>
+          </ToolCard>
+        )
+      case 'ecc':
+        return (
+          <ToolCard title="ECC Key Pair (P-256, PEM)">
+            <button onClick={async ()=>{ const { publicKey, privateKey } = await generateECDSAKeyPairPEM(); (document.getElementById('ecc-pub') as HTMLTextAreaElement).value = publicKey; (document.getElementById('ecc-priv') as HTMLTextAreaElement).value = privateKey }} className="px-3 py-2 rounded-xl bg-slate-900 text-white">Generate</button>
+            <div className="relative mt-2"><textarea id="ecc-pub" readOnly placeholder="Public Key (PEM)" className="w-full h-40 rounded-xl border p-3 font-mono text-xs dark:bg-slate-900 pr-12" /><div className="absolute top-2 right-2"><CopyButton getValue={()=> (document.getElementById('ecc-pub') as HTMLTextAreaElement)?.value || ''} /></div></div>
+            <div className="relative mt-2"><textarea id="ecc-priv" readOnly placeholder="Private Key (PEM)" className="w-full h-40 rounded-xl border p-3 font-mono text-xs dark:bg-slate-900 pr-12" /><div className="absolute top-2 right-2"><CopyButton getValue={()=> (document.getElementById('ecc-priv') as HTMLTextAreaElement)?.value || ''} /></div></div>
+          </ToolCard>
+        )
     }
   }
 
@@ -252,6 +343,9 @@ export default function Security() {
     { key: 'jwtSign', label: 'JWT Signer' },
     { key: 'hmac', label: 'HMAC Generator' },
     { key: 'filehash', label: 'File Hashing' },
+    { key: 'totp', label: 'TOTP / HOTP' },
+    { key: 'pkce', label: 'PKCE Generator' },
+    { key: 'ecc', label: 'ECC Keygen (P-256)' },
   ]
 
   return (
