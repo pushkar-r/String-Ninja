@@ -9,6 +9,27 @@ import { beautifyCode, minifyCode } from '../utils/formatters'
 import { xmlToJson, jsonToXml } from '../utils/xmljson'
 import { normalizeText } from '../utils/unicode'
 
+function describeJsonError(jsonText: string, err: any): string {
+  try {
+    const msg = err && err.message ? String(err.message) : 'Invalid JSON'
+    const m = msg.match(/position (\d+)/i)
+    const pos = m ? parseInt(m[1], 10) : -1
+    if (pos >= 0 && pos <= jsonText.length) {
+      let line = 1, col = 1
+      for (let i = 0; i < pos; i++) {
+        const ch = jsonText[i]
+        if (ch === '\n') { line++; col = 1 } else { col++ }
+      }
+      const lines = jsonText.split(/\r?\n/)
+      const lineText = lines[line - 1] ?? ''
+      const caret = ' '.repeat(Math.max(0, col - 1)) + '^'
+      return `Invalid JSON at line ${line}, column ${col} (position ${pos})\n${lineText}\n${caret}\n\n${msg}`
+    }
+    return 'Invalid JSON: ' + msg
+  } catch {
+    return 'Invalid JSON'
+  }
+}
 export default function DataTools() {
   const [active, setActive] = useState<'json'|'csv'|'md'|'qr'|'code'|'xml'|'norm'>('json')
 
@@ -40,8 +61,8 @@ export default function DataTools() {
           <ToolCard title="JSON Formatter / Minifier">
             <textarea value={jsonText} onChange={e=>setJsonText(e.target.value)} placeholder='{ "hello": 1 }' className="w-full h-40 rounded-xl border p-3 font-mono text-xs dark:bg-slate-900" />
             <div className="flex flex-wrap gap-2">
-              <button onClick={()=>{ try { setJsonOut(JSON.stringify(JSON.parse(jsonText), null, 2)) } catch { setJsonOut('Invalid JSON') } }} className="px-3 py-2 rounded-xl bg-slate-900 text-white">Format</button>
-              <button onClick={()=>{ try { setJsonOut(JSON.stringify(JSON.parse(jsonText))) } catch { setJsonOut('Invalid JSON') } }} className="px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">Minify</button>
+              <button onClick={()=>{ try { setJsonOut(JSON.stringify(JSON.parse(jsonText), null, 2)) } catch (e) { setJsonOut(describeJsonError(jsonText, e)) } }} className="px-3 py-2 rounded-xl bg-slate-900 text-white">Format</button>
+              <button onClick={()=>{ try { setJsonOut(JSON.stringify(JSON.parse(jsonText))) } catch (e) { setJsonOut(describeJsonError(jsonText, e)) } }} className="px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">Minify</button>
             </div>
             <div className="relative"><textarea readOnly value={jsonOut} className="w-full h-40 rounded-xl border p-3 font-mono text-xs dark:bg-slate-900 pr-12" /><div className="absolute top-2 right-2"><CopyButton value={jsonOut} /></div></div>
           </ToolCard>
