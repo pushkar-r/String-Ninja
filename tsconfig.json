@@ -16,7 +16,8 @@
     "jsx": "react-jsx",
     "strict": true,
     "types": [
-      "node"
+      "node",
+      "vite/client"
     ]
   },
   "include": [
