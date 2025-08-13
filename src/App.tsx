@@ -51,6 +51,9 @@ export default function App() {
     { label: 'Security: RSA Keygen', path: '/security?tool=rsa' },
     { label: 'Security: X.509 Decoder', path: '/security?tool=x509' },
     { label: 'Security: SAML Decoder', path: '/security?tool=saml' },
+    { label: 'Security: JWT Signer', path: '/security?tool=jwtSign' },
+    { label: 'Security: HMAC Generator', path: '/security?tool=hmac' },
+    { label: 'Security: File Hashing', path: '/security?tool=filehash' },
     // Data
     { label: 'Data: JSON Formatter / Minifier', path: '/data?tool=json' },
     { label: 'Data: CSV ↔ JSON', path: '/data?tool=csv' },
