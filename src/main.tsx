@@ -11,6 +11,7 @@ import Compare from './pages/Compare'
 import Security from './pages/Security'
 import DataTools from './pages/DataTools'
 import Misc from './pages/Misc'
+import Contact from './pages/Contact'
 
 const router = createBrowserRouter([
   {
@@ -23,6 +24,7 @@ const router = createBrowserRouter([
       { path: 'security', element: <Security /> },
       { path: 'data', element: <DataTools /> },
       { path: 'misc', element: <Misc /> },
+      { path: 'contact', element: <Contact /> },
     ]
   }
 ], { basename: import.meta.env.BASE_URL })
