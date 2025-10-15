@@ -57,10 +57,7 @@ export default function Strings() {
             <div className="flex flex-wrap gap-2">
               <button onClick={()=>setText(text.trim())} className="px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">Trim</button>
               <button onClick={()=>setText(text.split(/\r?\n/).map(l => l.replace(/[ \t]+/g,' ').trim()).join('\n'))} className="px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">Remove redundant spaces</button>
-              <button onClick={()=>setText(text.toUpperCase())} className="px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">UPPERCASE</button>
-              <button onClick={()=>setText(text.toLowerCase())} className="px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">lowercase</button>
-              <button onClick={()=>setText(titleCase(text))} className="px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">Title Case</button>
-              <button onClick={()=>setText(sentenceCase(text))} className="px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">Sentence case</button>
+              
               <button onClick={()=>setText(text.split('').reverse().join(''))} className="px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">Reverse</button>
               <button onClick={()=>setText(slugify(text))} className="px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">Slugify</button>
             </div>
@@ -70,6 +67,7 @@ export default function Strings() {
       case 'case':
         return (
           <ToolCard title="Case converters" description="Convert between camelCase, PascalCase, snake_case, and kebab-case.">
+            <textarea value={text} onChange={e=>setText(e.target.value)} placeholder="Enter text…" className="w-full h-28 rounded-xl border p-3 dark:bg-slate-900" />
             <div className="flex flex-wrap gap-2">
               <button onClick={()=>setOut(toCamel(text))} className="px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">camelCase</button>
               <button onClick={()=>setOut(toPascal(text))} className="px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">PascalCase</button>
@@ -77,7 +75,7 @@ export default function Strings() {
               <button onClick={()=>setOut(toKebab(text))} className="px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">kebab-case</button>
             </div>
             <div className="relative">
-              <input value={out} onChange={e=>setOut(e.target.value)} placeholder="Output…" className="w-full rounded-xl border p-3 dark:bg-slate-900 pr-12" />
+              <textarea readOnly value={out} placeholder="Output…" className="w-full h-20 rounded-xl border p-3 dark:bg-slate-900 pr-12" />
               <div className="absolute top-2 right-2"><CopyButton value={out} /></div>
             </div>
           </ToolCard>
@@ -85,9 +83,10 @@ export default function Strings() {
       case 'unicode':
         return (
           <ToolCard title="Unicode / ASCII / Code Points" description="Show each character with its Unicode code point.">
+            <textarea value={text} onChange={e=>setText(e.target.value)} placeholder="Enter text…" className="w-full h-28 rounded-xl border p-3 dark:bg-slate-900" />
             <button onClick={()=>setCodepoints(Array.from(text).map(ch=> ch+` U+${ch.codePointAt(0)!.toString(16).toUpperCase().padStart(4,'0')}`).join('\n'))} className="px-3 py-2 rounded-xl bg-slate-900 text-white">Show code points</button>
             <div className="relative">
-              <textarea value={codepoints} onChange={e=>setCodepoints(e.target.value)} className="w-full h-32 rounded-xl border p-3 font-mono text-xs dark:bg-slate-900 pr-12" />
+              <textarea readOnly value={codepoints} className="w-full h-32 rounded-xl border p-3 font-mono text-xs dark:bg-slate-900 pr-12" />
               <div className="absolute top-2 right-2"><CopyButton value={codepoints} /></div>
             </div>
           </ToolCard>

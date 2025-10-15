@@ -152,8 +152,8 @@ export default function Encoding() {
           <ToolCard title="Gzip / Deflate" description="Gzip and Deflate are compression formats for reducing data size.">
             <textarea value={input} onChange={e=>setInput(e.target.value)} placeholder="Text…" className="w-full h-28 rounded-xl border p-3 dark:bg-slate-900" />
             <div className="grid md:grid-cols-2 gap-3">
-              {/* <button onClick={()=>{ const out = gzip(input, { to: 'uint8array' }) as unknown as Uint8Array; setHtml(u8ToB64(out)) }} className="px-4 py-2 rounded-xl bg-slate-900 text-white">Gzip → Base64</button> */}
-              {/* <button onClick={()=>{ const out = deflate(input, { to: 'uint8array' }) as unknown as Uint8Array; setHtml(u8ToB64(out)) }} className="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">Deflate → Base64</button> */}
+              <button onClick={()=>{ try { const out = gzip(input, { to: 'uint8array' }) as unknown as Uint8Array; setHtml(u8ToB64(out)) } catch { setHtml('Gzip failed') } }} className="px-4 py-2 rounded-xl bg-slate-900 text-white">Gzip → Base64</button>
+              <button onClick={()=>{ try { const out = deflate(input, { to: 'uint8array' }) as unknown as Uint8Array; setHtml(u8ToB64(out)) } catch { setHtml('Deflate failed') } }} className="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">Deflate → Base64</button>
             </div>
             <div className="grid md:grid-cols-2 gap-3 mt-2">
               <button onClick={()=>{ try { const u8 = b64ToU8(input); const txt = new TextDecoder().decode(ungzip(u8)); setHtml(txt) } catch { setHtml('Invalid gzip/Base64') } }} className="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">Gunzip (Base64) → Text</button>
