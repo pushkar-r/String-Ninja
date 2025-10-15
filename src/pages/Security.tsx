@@ -53,10 +53,8 @@ export default function Security() {
     throw new Error('JWT signing (RS256) is under development')
   }
   async function hmacCompute(message: string, secret: string, hash: 'SHA-256'|'SHA-512'){
-    const key = await crypto.subtle.importKey('raw', strToUint8(secret), { name: 'HMAC', hash }, false, ['sign'])
-    const mac = new Uint8Array(await crypto.subtle.sign({ name: 'HMAC' }, key, strToUint8(message)))
-    // hex
-    return Array.from(mac).map(b=> b.toString(16).padStart(2,'0')).join('')
+    // Disabled: under development
+    throw new Error('HMAC compute is under development')
   }
   async function hashFile(file: File){
     const buf = await file.arrayBuffer()
@@ -67,8 +65,8 @@ export default function Security() {
   }
 
   async function hmacSha1Bytes(key: Uint8Array, msg: Uint8Array){
-    const cryptoKey = await crypto.subtle.importKey('raw', key, { name: 'HMAC', hash: { name: 'SHA-1' } }, false, ['sign'])
-    return new Uint8Array(await crypto.subtle.sign({ name: 'HMAC' }, cryptoKey, msg))
+    // Disabled: under development
+    throw new Error('TOTP/HOTP is under development')
   }
   function intToBytesBE(n: number){
     const buf = new Uint8Array(8)
@@ -246,7 +244,7 @@ export default function Security() {
                 <option>SHA-256</option>
                 <option>SHA-512</option>
               </select>
-              <button onClick={async ()=>{ const m=(document.getElementById('hmac-msg') as HTMLTextAreaElement).value; const k=(document.getElementById('hmac-key') as HTMLInputElement).value; const h=(document.getElementById('hmac-hash') as HTMLSelectElement).value as 'SHA-256'|'SHA-512'; (document.getElementById('hmac-out') as HTMLInputElement).value = await hmacCompute(m,k,h) }} className="px-3 py-2 rounded-xl bg-slate-900 text-white">Compute</button>
+              <button onClick={()=>{ (document.getElementById('hmac-out') as HTMLInputElement).value = 'HMAC is under development' }} className="px-3 py-2 rounded-xl bg-slate-900 text-white">Compute</button>
             </div>
             <div className="relative"><input id="hmac-out" readOnly className="w-full rounded-xl border p-3 font-mono text-xs dark:bg-slate-900 pr-12" placeholder="HMAC (hex)" /><div className="absolute top-2 right-2"><CopyButton getValue={()=> (document.getElementById('hmac-out') as HTMLInputElement)?.value || ''} /></div></div>
           </ToolCard>
@@ -282,12 +280,12 @@ export default function Security() {
               </div>
             </div>
             <div className="flex flex-wrap gap-2 mt-2">
-              <button onClick={async ()=>{ const s=(document.getElementById('otp-secret') as HTMLInputElement).value; const f=(document.getElementById('otp-format') as HTMLSelectElement).value as any; const d=parseInt((document.getElementById('otp-digits') as HTMLSelectElement).value,10)||6; const p=parseInt((document.getElementById('otp-period') as HTMLInputElement).value,10)||30; const code = await totpGenerate(parseSecret(s,f), p, d); (document.getElementById('totp-out') as HTMLInputElement).value = code }} className="px-3 py-2 rounded-xl bg-slate-900 text-white">Generate TOTP</button>
+              <button onClick={()=>{ (document.getElementById('totp-out') as HTMLInputElement).value = 'TOTP is under development' }} className="px-3 py-2 rounded-xl bg-slate-900 text-white">Generate TOTP</button>
               <div className="relative w-full"><input id="totp-out" readOnly placeholder="TOTP" className="w-full rounded-xl border p-3 font-mono text-xs dark:bg-slate-900 pr-12" /><div className="absolute top-2 right-2"><CopyButton getValue={()=> (document.getElementById('totp-out') as HTMLInputElement)?.value || ''} /></div></div>
             </div>
             <div className="grid md:grid-cols-3 gap-2 mt-2">
               <input id="hotp-counter" type="number" placeholder="HOTP counter" className="w-full rounded-xl border p-3 font-mono text-xs dark:bg-slate-900" />
-              <button onClick={async ()=>{ const s=(document.getElementById('otp-secret') as HTMLInputElement).value; const f=(document.getElementById('otp-format') as HTMLSelectElement).value as any; const d=parseInt((document.getElementById('otp-digits') as HTMLSelectElement).value,10)||6; const cnt=parseInt((document.getElementById('hotp-counter') as HTMLInputElement).value,10)||0; const code = await hotpGenerate(parseSecret(s,f), cnt, d); (document.getElementById('hotp-out') as HTMLInputElement).value = code }} className="px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">Generate HOTP</button>
+              <button onClick={()=>{ (document.getElementById('hotp-out') as HTMLInputElement).value = 'HOTP is under development' }} className="px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">Generate HOTP</button>
               <div className="relative w-full"><input id="hotp-out" readOnly placeholder="HOTP" className="w-full rounded-xl border p-3 font-mono text-xs dark:bg-slate-900 pr-12" /><div className="absolute top-2 right-2"><CopyButton getValue={()=> (document.getElementById('hotp-out') as HTMLInputElement)?.value || ''} /></div></div>
             </div>
           </ToolCard>
