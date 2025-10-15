@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import ToolCard from '../components/ToolCard'
 import CopyButton from '../components/CopyButton'
+import Head from '../components/Head'
 import { v4 as uuidv4 } from 'uuid'
 import Papa from 'papaparse'
 import { hideTextInImage, extractTextFromImage } from '../utils/stego'
@@ -52,7 +53,7 @@ export default function Misc() {
     switch (active) {
       case 'ts':
         return (
-          <ToolCard title="Timestamp Converter">
+          <ToolCard title="Timestamp Converter" description="Convert Unix time (seconds/ms) and ISO date-time.">
             <div className="grid md:grid-cols-2 gap-3">
               <input value={unix} onChange={e=>setUnix(e.target.value)} placeholder="Unix (seconds or ms)" className="w-full rounded-xl border p-3 dark:bg-slate-900" />
               <button onClick={()=>toReadable(unix)} className="px-3 py-2 rounded-xl bg-slate-900 text-white">Unix → ISO</button>
@@ -63,7 +64,7 @@ export default function Misc() {
         )
       case 'rand':
         return (
-          <ToolCard title="Random & UUID">
+          <ToolCard title="Random & UUID" description="Generate random strings and UUID v4 identifiers.">
             <div className="flex flex-wrap gap-2">
               <button onClick={()=>setRand(randomString(16))} className="px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">Random 16</button>
               <button onClick={()=>setUuid(uuidv4())} className="px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">UUID v4</button>
@@ -74,7 +75,7 @@ export default function Misc() {
         )
       case 'regex':
         return (
-          <ToolCard title="Regex Tester">
+          <ToolCard title="Regex Tester" description="Test a regular expression against sample text and view matches.">
             <textarea value={regex} onChange={e=>setRegex(e.target.value)} placeholder="Enter regex, e.g. \\b\\w+\\b" className="w-full h-20 rounded-xl border p-3 font-mono text-xs dark:bg-slate-900" />
             <textarea value={sample} onChange={e=>setSample(e.target.value)} placeholder="Sample text..." className="w-full h-28 rounded-xl border p-3 font-mono text-xs dark:bg-slate-900" />
             <button onClick={testRegex} className="px-3 py-2 rounded-xl bg-slate-900 text-white">Test</button>
@@ -97,7 +98,7 @@ export default function Misc() {
         )
       case 'csv':
         return (
-          <ToolCard title="CSV Import Options (delimiter)">
+          <ToolCard title="CSV Import Options (delimiter)" description="Parse CSV using a chosen delimiter into JSON.">
             <textarea id="csv-in" placeholder="CSV input..." className="w-full h-32 rounded-xl border p-3 font-mono text-xs dark:bg-slate-900" />
             <input id="csv-delim" placeholder="Delimiter (default ,)" className="w-full rounded-xl border p-3 dark:bg-slate-900" />
             <button onClick={()=>{ const v=(document.getElementById('csv-in') as HTMLTextAreaElement).value; const d=(document.getElementById('csv-delim') as HTMLInputElement).value || ','; const res = Papa.parse(v.trim(), { header: true, delimiter: d }); (document.getElementById('csv-out') as HTMLTextAreaElement).value = JSON.stringify(res.data, null, 2) }} className="px-3 py-2 rounded-xl bg-slate-900 text-white">Parse CSV</button>
@@ -106,7 +107,7 @@ export default function Misc() {
         )
       case 'saved':
         return (
-          <ToolCard title="Regex Save / Reuse">
+          <ToolCard title="Regex Save / Reuse" description="Save named regex patterns in browser storage and reuse them.">
             <input id="regex-name" placeholder="Name..." className="w-full rounded-xl border p-3 dark:bg-slate-900" />
             <input id="regex-pat" placeholder="Pattern..." className="w-full rounded-xl border p-3 dark:bg-slate-900" />
             <div className="flex gap-2">
@@ -129,7 +130,9 @@ export default function Misc() {
   ]
 
   return (
-    <div className="grid gap-6 md:grid-cols-[260px_1fr]">
+    <>
+      <Head title="String Ninja — Misc Tools (Timestamps, Random, Regex, Stego, CSV)" description="Convert timestamps, generate random/UUIDs, test regex, basic steganography demo, and CSV parsing with custom delimiters." />
+      <div className="grid gap-6 md:grid-cols-[260px_1fr]">
       <div className="bg-white dark:bg-slate-950 rounded-2xl p-3 shadow-sm border border-slate-200 dark:border-slate-800 h-fit sticky top-24">
         <div className="text-sm font-semibold px-2 pb-2">Misc Tools</div>
         <ul className="grid gap-1">
@@ -154,5 +157,6 @@ export default function Misc() {
         {renderPanel()}
       </div>
     </div>
+    </>
   )
 }

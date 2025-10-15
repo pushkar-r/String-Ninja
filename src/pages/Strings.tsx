@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import ToolCard from '../components/ToolCard'
 import CopyButton from '../components/CopyButton'
+import Head from '../components/Head'
 import { useSearchParams } from 'react-router-dom'
 
 function slugify(str: string) {
@@ -48,7 +49,7 @@ export default function Strings() {
     switch (active) {
       case 'basic':
         return (
-          <ToolCard title="Basic operations">
+          <ToolCard title="Basic operations" description="Quick text cleanup and case transformations.">
             <div className="relative">
               <textarea value={text} onChange={e=>setText(e.target.value)} placeholder="Enter text…" className="w-full h-40 rounded-xl border p-3 dark:bg-slate-900 pr-12" />
               <div className="absolute top-2 right-2"><CopyButton value={text} /></div>
@@ -68,7 +69,7 @@ export default function Strings() {
         )
       case 'case':
         return (
-          <ToolCard title="Case converters">
+          <ToolCard title="Case converters" description="Convert between camelCase, PascalCase, snake_case, and kebab-case.">
             <div className="flex flex-wrap gap-2">
               <button onClick={()=>setOut(toCamel(text))} className="px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">camelCase</button>
               <button onClick={()=>setOut(toPascal(text))} className="px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">PascalCase</button>
@@ -83,7 +84,7 @@ export default function Strings() {
         )
       case 'unicode':
         return (
-          <ToolCard title="Unicode / ASCII / Code Points">
+          <ToolCard title="Unicode / ASCII / Code Points" description="Show each character with its Unicode code point.">
             <button onClick={()=>setCodepoints(Array.from(text).map(ch=> ch+` U+${ch.codePointAt(0)!.toString(16).toUpperCase().padStart(4,'0')}`).join('\n'))} className="px-3 py-2 rounded-xl bg-slate-900 text-white">Show code points</button>
             <div className="relative">
               <textarea value={codepoints} onChange={e=>setCodepoints(e.target.value)} className="w-full h-32 rounded-xl border p-3 font-mono text-xs dark:bg-slate-900 pr-12" />
@@ -93,7 +94,7 @@ export default function Strings() {
         )
       case 'delimiter':
         return (
-          <ToolCard title="Add delimiter / Join lines">
+          <ToolCard title="Add delimiter / Join lines" description="Join lines using a chosen delimiter with options to trim and skip blanks.">
             <textarea value={text} onChange={e=>setText(e.target.value)} placeholder="Paste one item per line…" className="w-full h-40 rounded-xl border p-3 dark:bg-slate-900" />
             <div className="flex flex-wrap items-center gap-2">
               <label className="text-sm text-slate-600 dark:text-slate-400">Delimiter:</label>
@@ -134,7 +135,7 @@ export default function Strings() {
         )
       case 'lines':
         return (
-          <ToolCard title="Line operations">
+          <ToolCard title="Line operations" description="Sort, deduplicate, and remove blank lines.">
             <textarea value={text} onChange={e=>setText(e.target.value)} placeholder="Enter text (one item per line)…" className="w-full h-40 rounded-xl border p-3 dark:bg-slate-900" />
             <div className="flex flex-wrap gap-2">
               <button onClick={()=>{ const res = text.split(/\r?\n/).sort((a,b)=> a.localeCompare(b)).join('\n'); setOut(res) }} className="px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">Sort A→Z</button>
@@ -150,7 +151,7 @@ export default function Strings() {
         )
       case 'find':
         return (
-          <ToolCard title="Find / Replace (Regex)">
+          <ToolCard title="Find / Replace (Regex)" description="Search and replace using regular expressions with flags.">
             <textarea value={text} onChange={e=>setText(e.target.value)} placeholder="Text…" className="w-full h-40 rounded-xl border p-3 dark:bg-slate-900" />
             <div className="grid md:grid-cols-3 gap-2">
               <input id="re-pat" placeholder="Pattern (regex)" className="w-full rounded-xl border p-3 dark:bg-slate-900" />
@@ -169,7 +170,7 @@ export default function Strings() {
         )
       case 'wrap':
         return (
-          <ToolCard title="Wrap / Reflow text">
+          <ToolCard title="Wrap / Reflow text" description="Rewrap text to a fixed column width.">
             <textarea value={text} onChange={e=>setText(e.target.value)} placeholder="Text…" className="w-full h-40 rounded-xl border p-3 dark:bg-slate-900" />
             <div className="flex items-center gap-2">
               <label className="text-sm">Width</label>
@@ -184,7 +185,7 @@ export default function Strings() {
         )
       case 'freq':
         return (
-          <ToolCard title="Frequency Analysis">
+          <ToolCard title="Frequency Analysis" description="Count occurrences of words or characters.">
             <textarea value={text} onChange={e=>setText(e.target.value)} placeholder="Text…" className="w-full h-40 rounded-xl border p-3 dark:bg-slate-900" />
             <div className="flex items-center gap-4">
               <label className="inline-flex items-center gap-2 text-sm"><input type="radio" name="freq-mode" defaultChecked value="words" onChange={()=>{}} /> Words</label>
@@ -199,7 +200,7 @@ export default function Strings() {
         )
       case 'diacritics':
         return (
-          <ToolCard title="Remove diacritics (accents)">
+          <ToolCard title="Remove diacritics (accents)" description="Strip accent marks from characters.">
             <textarea value={text} onChange={e=>setText(e.target.value)} placeholder="Text…" className="w-full h-40 rounded-xl border p-3 dark:bg-slate-900" />
             <div className="flex gap-2"><button onClick={()=> setOut(removeDiacritics(text))} className="px-3 py-2 rounded-xl bg-slate-900 text-white">Remove</button></div>
             <div className="relative mt-2">
@@ -224,7 +225,9 @@ export default function Strings() {
   ]
 
   return (
-    <div className="grid gap-6 md:grid-cols-[220px_1fr]">
+    <>
+      <Head title="String Ninja — String Utilities (Transform, Regex, Wrap, Frequency)" description="Trim and clean text, convert cases, join lines, regex find/replace, wrap text, frequency analysis, remove accents, and more." />
+      <div className="grid gap-6 md:grid-cols-[220px_1fr]">
       <div className="bg-white dark:bg-slate-950 rounded-2xl p-3 shadow-sm border border-slate-200 dark:border-slate-800 h-fit sticky top-24">
         <div className="text-sm font-semibold px-2 pb-2">String Tools</div>
         <ul className="grid gap-1">
@@ -249,5 +252,6 @@ export default function Strings() {
         {renderPanel()}
       </div>
     </div>
+    </>
   )
 }

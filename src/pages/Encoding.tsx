@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import ToolCard from '../components/ToolCard'
 import CopyButton from '../components/CopyButton'
+import Head from '../components/Head'
 import { base32Decode, base32Encode, binaryToHex, binaryToText, hexToBinary, htmlDecode, htmlEncode, rotN, textToBinary, textToHex, hexToText, base58Encode, base58Decode, ascii85Encode, ascii85Decode, utf16ToHex, hexToUtf16, utf32ToHex, hexToUtf32 } from '../utils/conversions'
 import { deflate, inflate, gzip, ungzip } from 'pako'
 
@@ -228,7 +229,9 @@ export default function Encoding() {
   }
 
   return (
-    <div className="grid gap-6 md:grid-cols-[220px_1fr]">
+    <>
+      <Head title="String Ninja — Encoding Tools (Base64, Base32, URL, HTML, Hex/Binary)" description="Encode/decode Base64, Base32, URL, HTML entities; convert Hex/Binary/Text; ROT13/Caesar; gzip/deflate; Base58/Base85; UTF-16/UTF-32." />
+      <div className="grid gap-6 md:grid-cols-[220px_1fr]">
       <div className="bg-white dark:bg-slate-950 rounded-2xl p-3 shadow-sm border border-slate-200 dark:border-slate-800 h-fit sticky top-24">
         <div className="text-sm font-semibold px-2 pb-2">Encoding Tools</div>
         <ul className="grid gap-1">
@@ -253,5 +256,6 @@ export default function Encoding() {
         {renderPanel()}
       </div>
     </div>
+    </>
   )
 }

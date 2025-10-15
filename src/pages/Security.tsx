@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import ToolCard from '../components/ToolCard'
 import CopyButton from '../components/CopyButton'
+import Head from '../components/Head'
 import { hashString, aesEncrypt, aesDecrypt, jwtDecode, generateRSAKeyPairPEM } from '../utils/crypto'
 import { bcryptHash, bcryptCompare, argon2Hash } from '../utils/passwords'
 import { verifyHS256, verifyRS256 } from '../utils/jwt'
@@ -115,7 +116,7 @@ export default function Security() {
     switch (active) {
       case 'hash':
         return (
-          <ToolCard title="Hash (MD5, SHA-1, SHA-256, SHA-512)">
+          <ToolCard title="Hash (MD5, SHA-1, SHA-256, SHA-512)" description="Compute fixed-length hashes (digests) of text.">
             <textarea value={text} onChange={e=>setText(e.target.value)} placeholder="Enter text…" className="w-full h-28 rounded-xl border p-3 dark:bg-slate-900" />
             <div className="flex gap-2 items-center">
               <label className="text-sm">Algorithm</label>
@@ -156,7 +157,7 @@ export default function Security() {
         )
       case 'pw':
         return (
-          <ToolCard title="Password Hashing (bcrypt, Argon2)">
+          <ToolCard title="Password Hashing (bcrypt, Argon2)" description="Hash passwords and verify bcrypt hashes.">
             <input id="pw-in" placeholder="Password..." className="w-full rounded-xl border p-3 dark:bg-slate-900" />
             <div className="flex flex-wrap gap-2">
               <button onClick={() => { const v = (document.getElementById('pw-in') as HTMLInputElement).value; (document.getElementById('pw-out') as HTMLInputElement).value = bcryptHash(v) }} className="px-3 py-2 rounded-xl bg-slate-900 text-white">bcrypt Hash</button>
@@ -169,7 +170,7 @@ export default function Security() {
         )
       case 'jwtv':
         return (
-          <ToolCard title="JWT Verify (HS256 / RS256)">
+          <ToolCard title="JWT Verify (HS256 / RS256)" description="Verify JWT signatures using an HS secret or RSA public key.">
             <input id="jwt-verify-in" placeholder="JWT..." className="w-full rounded-xl border p-3 font-mono text-xs dark:bg-slate-900" />
             <input id="jwt-secret" placeholder="HS secret (for HS256)..." className="w-full rounded-xl border p-3 font-mono text-xs dark:bg-slate-900" />
             <textarea id="jwt-pem" placeholder="PEM public key (for RS256)..." className="w-full h-28 rounded-xl border p-3 font-mono text-xs dark:bg-slate-900" />
@@ -182,7 +183,7 @@ export default function Security() {
         )
       case 'rsa':
         return (
-          <ToolCard title="RSA Key Pair (PEM)">
+          <ToolCard title="RSA Key Pair (PEM)" description="Generate an RSA public/private key pair in PEM format.">
             <div className="flex gap-2 items-center">
               <label className="text-sm">Modulus length</label>
               <select id="rsa-mod" defaultValue={"2048"} className="px-2 py-2 rounded-xl border dark:bg-slate-900">
@@ -254,7 +255,7 @@ export default function Security() {
         )
       case 'hmac':
         return (
-          <ToolCard title="HMAC Generator">
+          <ToolCard title="HMAC Generator" description="Compute keyed-hash MACs (HMAC) with SHA-256 or SHA-512.">
             <textarea id="hmac-msg" placeholder="Message" className="w-full h-24 rounded-xl border p-3 font-mono text-xs dark:bg-slate-900" />
             <input id="hmac-key" placeholder="Secret" className="w-full rounded-xl border p-3 font-mono text-xs dark:bg-slate-900" />
             <div className="flex gap-2 items-center">
@@ -278,7 +279,7 @@ export default function Security() {
         )
       case 'totp':
         return (
-          <ToolCard title="TOTP / HOTP">
+          <ToolCard title="TOTP / HOTP" description="One-time password generators (time-based and counter-based).">
             <div className="grid md:grid-cols-2 gap-3">
               <input id="otp-secret" placeholder="Secret (Base32 by default)" className="w-full rounded-xl border p-3 font-mono text-xs dark:bg-slate-900" />
               <div className="flex items-center gap-2">
@@ -311,7 +312,7 @@ export default function Security() {
         )
       case 'pkce':
         return (
-          <ToolCard title="PKCE Generator (S256)">
+          <ToolCard title="PKCE Generator (S256)" description="Create OAuth 2.0 PKCE code_verifier and S256 code_challenge.">
             <div className="flex flex-wrap gap-2 items-center">
               <button onClick={()=>{ const chars='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~'; let s=''; const arr=new Uint32Array(64); crypto.getRandomValues(arr); for(let i=0;i<arr.length;i++){ s+=chars[arr[i]%chars.length] } (document.getElementById('pkce-verifier') as HTMLInputElement).value = s }} className="px-3 py-2 rounded-xl bg-slate-900 text-white">Generate verifier</button>
               <button onClick={async ()=>{ const v=(document.getElementById('pkce-verifier') as HTMLInputElement).value; const data=new TextEncoder().encode(v); const hash=new Uint8Array(await crypto.subtle.digest('SHA-256', data)); let bin=''; for(let i=0;i<hash.length;i++) bin+=String.fromCharCode(hash[i]); const b64=btoa(bin).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,''); (document.getElementById('pkce-challenge') as HTMLInputElement).value = b64 }} className="px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">Derive challenge</button>
@@ -322,7 +323,7 @@ export default function Security() {
         )
       case 'ecc':
         return (
-          <ToolCard title="ECC Key Pair (P-256, PEM)">
+          <ToolCard title="ECC Key Pair (P-256, PEM)" description="Generate an ECDSA P-256 key pair in PEM format.">
             <button onClick={async ()=>{ const { publicKey, privateKey } = await generateECDSAKeyPairPEM(); (document.getElementById('ecc-pub') as HTMLTextAreaElement).value = publicKey; (document.getElementById('ecc-priv') as HTMLTextAreaElement).value = privateKey }} className="px-3 py-2 rounded-xl bg-slate-900 text-white">Generate</button>
             <div className="relative mt-2"><textarea id="ecc-pub" readOnly placeholder="Public Key (PEM)" className="w-full h-40 rounded-xl border p-3 font-mono text-xs dark:bg-slate-900 pr-12" /><div className="absolute top-2 right-2"><CopyButton getValue={()=> (document.getElementById('ecc-pub') as HTMLTextAreaElement)?.value || ''} /></div></div>
             <div className="relative mt-2"><textarea id="ecc-priv" readOnly placeholder="Private Key (PEM)" className="w-full h-40 rounded-xl border p-3 font-mono text-xs dark:bg-slate-900 pr-12" /><div className="absolute top-2 right-2"><CopyButton getValue={()=> (document.getElementById('ecc-priv') as HTMLTextAreaElement)?.value || ''} /></div></div>
@@ -349,7 +350,9 @@ export default function Security() {
   ]
 
   return (
-    <div className="grid gap-6 md:grid-cols-[260px_1fr]">
+    <>
+      <Head title="String Ninja — Security Tools (Hashing, AES, JWT, RSA, X.509, SAML)" description="Hashing (MD5/SHA), AES-GCM, JWT decode/verify/sign, bcrypt/Argon2, RSA/ECC keygen, X.509/SAML decoders, HMAC, PKCE, TOTP/HOTP, file hashing." />
+      <div className="grid gap-6 md:grid-cols-[260px_1fr]">
       <div className="bg-white dark:bg-slate-950 rounded-2xl p-3 shadow-sm border border-slate-200 dark:border-slate-800 h-fit sticky top-24">
         <div className="text-sm font-semibold px-2 pb-2">Security Tools</div>
         <ul className="grid gap-1">
@@ -374,5 +377,6 @@ export default function Security() {
         {renderPanel()}
       </div>
     </div>
+    </>
   )
 }

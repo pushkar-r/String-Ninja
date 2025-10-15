@@ -1,6 +1,7 @@
 import React, { useRef, useState } from 'react'
 import ToolCard from '../components/ToolCard'
 import CopyButton from '../components/CopyButton'
+import Head from '../components/Head'
 import Papa from 'papaparse'
 import { marked } from 'marked'
 import QRCode from 'qrcode'
@@ -44,6 +45,14 @@ export default function DataTools() {
   const [qrUrl, setQrUrl] = useState('')
   const fileInput = useRef<HTMLInputElement|null>(null)
 
+  // New state-based I/O for tools that previously used direct DOM access
+  const [codeIn, setCodeIn] = useState('')
+  const [codeOut, setCodeOut] = useState('')
+  const [xmlIn, setXmlIn] = useState('')
+  const [jsonXml, setJsonXml] = useState('')
+  const [normIn, setNormIn] = useState('')
+  const [normOut, setNormOut] = useState('')
+
   const navItems: { key: typeof active, label: string }[] = [
     { key: 'json', label: 'JSON Formatter / Minifier' },
     { key: 'csv', label: 'CSV ↔ JSON Converter' },
@@ -58,7 +67,7 @@ export default function DataTools() {
     switch (active) {
       case 'json':
         return (
-          <ToolCard title="JSON Formatter / Minifier">
+          <ToolCard title="JSON Formatter / Minifier" description="Pretty-print or minify JSON text for readability or compact size.">
             <textarea value={jsonText} onChange={e=>setJsonText(e.target.value)} placeholder='{ "hello": 1 }' className="w-full h-40 rounded-xl border p-3 font-mono text-xs dark:bg-slate-900" />
             <div className="flex flex-wrap gap-2">
               <button onClick={()=>{ try { setJsonOut(JSON.stringify(JSON.parse(jsonText), null, 2)) } catch (e) { setJsonOut(describeJsonError(jsonText, e)) } }} className="px-3 py-2 rounded-xl bg-slate-900 text-white">Format</button>
@@ -69,7 +78,7 @@ export default function DataTools() {
         )
       case 'csv':
         return (
-          <ToolCard title="CSV ↔ JSON Converter">
+          <ToolCard title="CSV ↔ JSON Converter" description="Convert between CSV (comma/tab-delimited) and JSON arrays of objects.">
             <textarea value={csvText} onChange={e=>setCsvText(e.target.value)} placeholder="CSV input…" className="w-full h-32 rounded-xl border p-3 font-mono text-xs dark:bg-slate-900" />
             <div className="flex flex-wrap gap-2">
               <button onClick={()=>{ const res = Papa.parse(csvText.trim(), { header: true }); setCsvJson(JSON.stringify(res.data, null, 2)) }} className="px-3 py-2 rounded-xl bg-slate-900 text-white">CSV → JSON</button>
@@ -80,7 +89,7 @@ export default function DataTools() {
         )
       case 'md':
         return (
-          <ToolCard title="Markdown → HTML">
+          <ToolCard title="Markdown → HTML" description="Render Markdown text as HTML for preview or conversion.">
             <textarea value={mdText} onChange={e=>setMdText(e.target.value)} placeholder="Markdown…" className="w-full h-32 rounded-xl border p-3 font-mono text-xs dark:bg-slate-900" />
             <button onClick={()=> setMdHtml(marked.parse(mdText) as string)} className="px-3 py-2 rounded-xl bg-slate-900 text-white">Convert</button>
             <div className="rounded-xl border p-3 dark:bg-slate-900">
@@ -90,7 +99,7 @@ export default function DataTools() {
         )
       case 'qr':
         return (
-          <ToolCard title="QR Code Generator & Scanner">
+          <ToolCard title="QR Code Generator & Scanner" description="Generate QR codes from text and decode them from uploaded images.">
             <div className="grid md:grid-cols-2 gap-3">
               <div className="grid gap-2">
                 <input value={qrInput} onChange={e=>setQrInput(e.target.value)} placeholder="Text or URL…" className="w-full rounded-xl border p-3 dark:bg-slate-900" />
@@ -119,50 +128,52 @@ export default function DataTools() {
         )
       case 'code':
         return (
-          <ToolCard title="HTML / CSS / JS Beautify & Minify">
-            <textarea id="code-input" placeholder="Paste code (html/css/js)..." className="w-full h-40 rounded-xl border p-3 font-mono text-xs dark:bg-slate-900" />
+          <ToolCard title="HTML / CSS / JS Beautify & Minify" description="Format or minify HTML, CSS, and JavaScript for readability or performance.">
+            <textarea value={codeIn} onChange={e=>setCodeIn(e.target.value)} placeholder="Paste code (html/css/js)..." className="w-full h-40 rounded-xl border p-3 font-mono text-xs dark:bg-slate-900" />
             <div className="flex flex-wrap gap-2">
-              <button onClick={async () => { const el = document.getElementById('code-input') as HTMLTextAreaElement; const v = el.value; const out = beautifyCode(v, 'js'); (document.getElementById('code-out') as HTMLTextAreaElement).value = out }} className="px-3 py-2 rounded-xl bg-slate-900 text-white">Beautify JS</button>
-              <button onClick={async () => { const el = document.getElementById('code-input') as HTMLTextAreaElement; const v = el.value; const out = beautifyCode(v, 'css'); (document.getElementById('code-out') as HTMLTextAreaElement).value = out }} className="px-3 py-2 rounded-xl bg-slate-900 text-white">Beautify CSS</button>
-              <button onClick={async () => { const el = document.getElementById('code-input') as HTMLTextAreaElement; const v = el.value; const out = beautifyCode(v, 'html'); (document.getElementById('code-out') as HTMLTextAreaElement).value = out }} className="px-3 py-2 rounded-xl bg-slate-900 text-white">Beautify HTML</button>
-              <button onClick={async () => { const el = document.getElementById('code-input') as HTMLTextAreaElement; const v = el.value; const out = await minifyCode(v, 'js'); (document.getElementById('code-out') as HTMLTextAreaElement).value = out }} className="px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">Minify JS</button>
-              <button onClick={async () => { const el = document.getElementById('code-input') as HTMLTextAreaElement; const v = el.value; const out = await minifyCode(v, 'css'); (document.getElementById('code-out') as HTMLTextAreaElement).value = out }} className="px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">Minify CSS</button>
-              <button onClick={async () => { const el = document.getElementById('code-input') as HTMLTextAreaElement; const v = el.value; const out = await minifyCode(v, 'html'); (document.getElementById('code-out') as HTMLTextAreaElement).value = out }} className="px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">Minify HTML</button>
+              <button onClick={()=> setCodeOut(beautifyCode(codeIn, 'js'))} className="px-3 py-2 rounded-xl bg-slate-900 text-white">Beautify JS</button>
+              <button onClick={()=> setCodeOut(beautifyCode(codeIn, 'css'))} className="px-3 py-2 rounded-xl bg-slate-900 text-white">Beautify CSS</button>
+              <button onClick={()=> setCodeOut(beautifyCode(codeIn, 'html'))} className="px-3 py-2 rounded-xl bg-slate-900 text-white">Beautify HTML</button>
+              <button onClick={async ()=> setCodeOut(await minifyCode(codeIn, 'js'))} className="px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">Minify JS</button>
+              <button onClick={async ()=> setCodeOut(await minifyCode(codeIn, 'css'))} className="px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">Minify CSS</button>
+              <button onClick={async ()=> setCodeOut(await minifyCode(codeIn, 'html'))} className="px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">Minify HTML</button>
             </div>
-            <div className="relative"><textarea id="code-out" readOnly className="w-full h-40 rounded-xl border p-3 font-mono text-xs dark:bg-slate-900 pr-12" /><div className="absolute top-2 right-2"><CopyButton getValue={()=> (document.getElementById('code-out') as HTMLTextAreaElement)?.value || ''} /></div></div>
+            <div className="relative"><textarea readOnly value={codeOut} className="w-full h-40 rounded-xl border p-3 font-mono text-xs dark:bg-slate-900 pr-12" /><div className="absolute top-2 right-2"><CopyButton value={codeOut} /></div></div>
           </ToolCard>
         )
       case 'xml':
         return (
-          <ToolCard title="XML ↔ JSON">
+          <ToolCard title="XML ↔ JSON" description="Convert between XML text and JSON text representations.">
             <div className="grid md:grid-cols-2 gap-3">
-              <div className="relative"><textarea id="xml-input" placeholder="XML input..." className="w-full h-32 rounded-xl border p-3 font-mono text-xs dark:bg-slate-900 pr-12" /><div className="absolute top-2 right-2"><CopyButton getValue={()=> (document.getElementById('xml-input') as HTMLTextAreaElement)?.value || ''} /></div></div>
-              <div className="relative"><textarea id="json-input-xml" placeholder="JSON input..." className="w-full h-32 rounded-xl border p-3 font-mono text-xs dark:bg-slate-900 pr-12" /><div className="absolute top-2 right-2"><CopyButton getValue={()=> (document.getElementById('json-input-xml') as HTMLTextAreaElement)?.value || ''} /></div></div>
+              <div className="relative"><textarea value={xmlIn} onChange={e=>setXmlIn(e.target.value)} placeholder="XML input..." className="w-full h-32 rounded-xl border p-3 font-mono text-xs dark:bg-slate-900 pr-12" /><div className="absolute top-2 right-2"><CopyButton value={xmlIn} /></div></div>
+              <div className="relative"><textarea value={jsonXml} onChange={e=>setJsonXml(e.target.value)} placeholder="JSON input..." className="w-full h-32 rounded-xl border p-3 font-mono text-xs dark:bg-slate-900 pr-12" /><div className="absolute top-2 right-2"><CopyButton value={jsonXml} /></div></div>
             </div>
             <div className="flex flex-wrap gap-2">
-              <button onClick={() => { const v = (document.getElementById('xml-input') as HTMLTextAreaElement).value; (document.getElementById('json-input-xml') as HTMLTextAreaElement).value = xmlToJson(v) }} className="px-3 py-2 rounded-xl bg-slate-900 text-white">XML → JSON</button>
-              <button onClick={() => { const v = (document.getElementById('json-input-xml') as HTMLTextAreaElement).value; (document.getElementById('xml-input') as HTMLTextAreaElement).value = jsonToXml(v) }} className="px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">JSON → XML</button>
+              <button onClick={() => setJsonXml(xmlToJson(xmlIn))} className="px-3 py-2 rounded-xl bg-slate-900 text-white">XML → JSON</button>
+              <button onClick={() => setXmlIn(jsonToXml(jsonXml))} className="px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">JSON → XML</button>
             </div>
           </ToolCard>
         )
       case 'norm':
         return (
-          <ToolCard title="Unicode Normalizer">
-            <textarea id="norm-in" placeholder="Text..." className="w-full h-28 rounded-xl border p-3 dark:bg-slate-900" />
+          <ToolCard title="Unicode Normalizer" description="Normalize Unicode text (NFC, NFD, NFKC, NFKD) for consistent representation.">
+            <textarea value={normIn} onChange={e=>setNormIn(e.target.value)} placeholder="Text..." className="w-full h-28 rounded-xl border p-3 dark:bg-slate-900" />
             <div className="flex gap-2">
-              <button onClick={() => { const v = (document.getElementById('norm-in') as HTMLTextAreaElement).value; (document.getElementById('norm-out') as HTMLTextAreaElement).value = normalizeText(v, 'NFC') }} className="px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">NFC</button>
-              <button onClick={() => { const v = (document.getElementById('norm-in') as HTMLTextAreaElement).value; (document.getElementById('norm-out') as HTMLTextAreaElement).value = normalizeText(v, 'NFD') }} className="px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">NFD</button>
-              <button onClick={() => { const v = (document.getElementById('norm-in') as HTMLTextAreaElement).value; (document.getElementById('norm-out') as HTMLTextAreaElement).value = normalizeText(v, 'NFKC') }} className="px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">NFKC</button>
-              <button onClick={() => { const v = (document.getElementById('norm-in') as HTMLTextAreaElement).value; (document.getElementById('norm-out') as HTMLTextAreaElement).value = normalizeText(v, 'NFKD') }} className="px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">NFKD</button>
+              <button onClick={() => setNormOut(normalizeText(normIn, 'NFC'))} className="px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">NFC</button>
+              <button onClick={() => setNormOut(normalizeText(normIn, 'NFD'))} className="px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">NFD</button>
+              <button onClick={() => setNormOut(normalizeText(normIn, 'NFKC'))} className="px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">NFKC</button>
+              <button onClick={() => setNormOut(normalizeText(normIn, 'NFKD'))} className="px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">NFKD</button>
             </div>
-            <div className="relative"><textarea id="norm-out" readOnly className="w-full h-28 rounded-xl border p-3 dark:bg-slate-900 pr-12" /><div className="absolute top-2 right-2"><CopyButton getValue={()=> (document.getElementById('norm-out') as HTMLTextAreaElement)?.value || ''} /></div></div>
+            <div className="relative"><textarea readOnly value={normOut} className="w-full h-28 rounded-xl border p-3 dark:bg-slate-900 pr-12" /><div className="absolute top-2 right-2"><CopyButton value={normOut} /></div></div>
           </ToolCard>
         )
     }
   }
 
   return (
-    <div className="grid gap-6 md:grid-cols-[260px_1fr]">
+    <>
+      <Head title="String Ninja — Data Tools (JSON, CSV, Markdown, QR, Code Formatters)" description="Format JSON, convert CSV ↔ JSON, render Markdown, generate/scan QR, beautify/minify HTML/CSS/JS, and convert XML ↔ JSON." />
+      <div className="grid gap-6 md:grid-cols-[260px_1fr]">
       <div className="bg-white dark:bg-slate-950 rounded-2xl p-3 shadow-sm border border-slate-200 dark:border-slate-800 h-fit sticky top-24">
         <div className="text-sm font-semibold px-2 pb-2">Data Tools</div>
         <ul className="grid gap-1">
@@ -187,5 +198,6 @@ export default function DataTools() {
         {renderPanel()}
       </div>
     </div>
+    </>
   )
 }

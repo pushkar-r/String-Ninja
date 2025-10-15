@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import ToolCard from '../components/ToolCard'
 import CopyButton from '../components/CopyButton'
+import Head from '../components/Head'
 import * as Diff from 'diff'
 
 export default function Compare() {
@@ -70,7 +71,9 @@ export default function Compare() {
 
   function renderPanel(){
     return (
-      <ToolCard title="String Compare (Diff)">
+      <>
+      <Head title="String Ninja — String Compare (Diff)" description="Visual diff between two texts by words, characters, or lines; inline or side-by-side." />
+      <ToolCard title="String Compare (Diff)" description="Visual diff between two texts by words, characters, or lines; inline or side-by-side.">
         <div className="flex flex-wrap gap-3 items-center mb-2">
           <div className="flex gap-2 items-center">
             <label className="text-sm">Mode</label>
@@ -96,6 +99,7 @@ export default function Compare() {
           {view==='inline' ? <InlineDiff/> : <SideBySideDiff/>}
         </div>
       </ToolCard>
+      </>
     )
   }
 
