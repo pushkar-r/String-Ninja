@@ -13,9 +13,9 @@ export default function Contact() {
             <div className="font-semibold mb-1">Pushkar Raj</div>
             {/* NOTE: We cannot programmatically scrape LinkedIn in the browser without CORS/API access. */}
             <p className="text-slate-700 dark:text-slate-300">
-              Pushkar is a skilled software engineer with a strong focus on building secure, scalable systems. With expertise in Identity & Access Management (IAM), and security automation, he specializes in streamlining critical operations while ensuring robust data protection. He brings hands-on experience working with enterprise security teams, optimizing authentication workflows, and improving overall security posture.
+              Pushkar is a skilled software engineer with a strong focus on building secure, scalable systems. With expertise in Identity & Access Management (IAM), and security automation, he specializes in streamlining critical operations while ensuring robust data protection. He brings hands-on experience working with enterprise security teams, optimizing authentication workflows, and improving overall security posture.<br/>
 
-              <br>Pushkar also has experience in vulnerability assessments and security monitoring, ensuring both performance and protection are top priorities. On this website, he offers tools designed for client-side data formatting, all built with a strong emphasis on security, reliability, and ease of use.
+              Pushkar also has experience in vulnerability assessments and security monitoring, ensuring both performance and protection are top priorities. On this website, he offers tools designed for client-side data formatting, all built with a strong emphasis on security, reliability, and ease of use.
             </p>
             <a href={linkedIn} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex items-center gap-2 text-emerald-700 dark:text-emerald-400 underline">
               View LinkedIn Profile
