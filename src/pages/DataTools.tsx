@@ -48,10 +48,14 @@ export default function DataTools() {
   // New state-based I/O for tools that previously used direct DOM access
   const [codeIn, setCodeIn] = useState('')
   const [codeOut, setCodeOut] = useState('')
-  const [xmlIn, setXmlIn] = useState('')
-  const [jsonXml, setJsonXml] = useState('')
+  const [xjInput, setXjInput] = useState('')
+  const [xjOutput, setXjOutput] = useState('')
   const [normIn, setNormIn] = useState('')
   const [normOut, setNormOut] = useState('')
+  const [jsonStatus, setJsonStatus] = useState<'idle'|'success'|'error'>('idle')
+  const [csvStatus, setCsvStatus] = useState<'idle'|'success'|'error'>('idle')
+  const [codeStatus, setCodeStatus] = useState<'idle'|'success'|'error'>('idle')
+  const [xjStatus, setXjStatus] = useState<'idle'|'success'|'error'>('idle')
 
   const navItems: { key: typeof active, label: string }[] = [
     { key: 'json', label: 'JSON Formatter / Minifier' },
@@ -70,10 +74,13 @@ export default function DataTools() {
           <ToolCard title="JSON Formatter / Minifier" description="Pretty-print or minify JSON text for readability or compact size.">
             <textarea value={jsonText} onChange={e=>setJsonText(e.target.value)} placeholder='{ "hello": 1 }' className="w-full h-40 rounded-xl border p-3 font-mono text-xs dark:bg-slate-900" />
             <div className="flex flex-wrap gap-2">
-              <button onClick={()=>{ try { setJsonOut(JSON.stringify(JSON.parse(jsonText), null, 2)) } catch (e) { setJsonOut(describeJsonError(jsonText, e)) } }} className="px-3 py-2 rounded-xl bg-slate-900 text-white">Format</button>
-              <button onClick={()=>{ try { setJsonOut(JSON.stringify(JSON.parse(jsonText))) } catch (e) { setJsonOut(describeJsonError(jsonText, e)) } }} className="px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">Minify</button>
+              <button onClick={()=>{ try { setJsonOut(JSON.stringify(JSON.parse(jsonText), null, 2)); setJsonStatus('success') } catch (e) { setJsonOut(describeJsonError(jsonText, e)); setJsonStatus('error') } }} className="px-3 py-2 rounded-xl bg-slate-900 text-white">Format</button>
+              <button onClick={()=>{ try { setJsonOut(JSON.stringify(JSON.parse(jsonText))); setJsonStatus('success') } catch (e) { setJsonOut(describeJsonError(jsonText, e)); setJsonStatus('error') } }} className="px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">Minify</button>
             </div>
-            <div className="relative"><textarea readOnly value={jsonOut} className="w-full h-40 rounded-xl border p-3 font-mono text-xs dark:bg-slate-900 pr-12" /><div className="absolute top-2 right-2"><CopyButton value={jsonOut} /></div></div>
+            <div className="relative"><textarea readOnly value={jsonOut} className={
+              "w-full h-40 rounded-xl border p-3 font-mono text-xs pr-12 " +
+              (jsonText.trim()==='' ? 'bg-white dark:bg-slate-900' : jsonStatus==='success' ? 'bg-emerald-50 dark:bg-emerald-950' : jsonStatus==='error' ? 'bg-red-50 dark:bg-red-950' : 'bg-white dark:bg-slate-900')
+            } /><div className="absolute top-2 right-2"><CopyButton value={jsonOut} /></div></div>
           </ToolCard>
         )
       case 'csv':
@@ -81,10 +88,13 @@ export default function DataTools() {
           <ToolCard title="CSV ↔ JSON Converter" description="Convert between CSV (comma/tab-delimited) and JSON arrays of objects.">
             <textarea value={csvText} onChange={e=>setCsvText(e.target.value)} placeholder="CSV input…" className="w-full h-32 rounded-xl border p-3 font-mono text-xs dark:bg-slate-900" />
             <div className="flex flex-wrap gap-2">
-              <button onClick={()=>{ const res = Papa.parse(csvText.trim(), { header: true }); setCsvJson(JSON.stringify(res.data, null, 2)) }} className="px-3 py-2 rounded-xl bg-slate-900 text-white">CSV → JSON</button>
-              <button onClick={()=>{ try { const arr = JSON.parse(csvText); setCsvJson(Papa.unparse(arr)) } catch { setCsvJson('Invalid JSON') } }} className="px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">JSON → CSV</button>
+              <button onClick={()=>{ const res = Papa.parse(csvText.trim(), { header: true }); setCsvJson(JSON.stringify(res.data, null, 2)); setCsvStatus((res.errors && res.errors.length>0)? 'error' : 'success') }} className="px-3 py-2 rounded-xl bg-slate-900 text-white">CSV → JSON</button>
+              <button onClick={()=>{ try { const arr = JSON.parse(csvText); setCsvJson(Papa.unparse(arr)); setCsvStatus('success') } catch { setCsvJson('Invalid JSON'); setCsvStatus('error') } }} className="px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">JSON → CSV</button>
             </div>
-            <div className="relative"><textarea readOnly value={csvJson} className="w-full h-32 rounded-xl border p-3 font-mono text-xs dark:bg-slate-900 pr-12" /><div className="absolute top-2 right-2"><CopyButton value={csvJson} /></div></div>
+            <div className="relative"><textarea readOnly value={csvJson} className={
+              "w-full h-32 rounded-xl border p-3 font-mono text-xs pr-12 " +
+              (csvText.trim()==='' ? 'bg-white dark:bg-slate-900' : csvStatus==='success' ? 'bg-emerald-50 dark:bg-emerald-950' : csvStatus==='error' ? 'bg-red-50 dark:bg-red-950' : 'bg-white dark:bg-slate-900')
+            } /><div className="absolute top-2 right-2"><CopyButton value={csvJson} /></div></div>
           </ToolCard>
         )
       case 'md':
@@ -131,26 +141,32 @@ export default function DataTools() {
           <ToolCard title="HTML / CSS / JS Beautify & Minify" description="Format or minify HTML, CSS, and JavaScript for readability or performance.">
             <textarea value={codeIn} onChange={e=>setCodeIn(e.target.value)} placeholder="Paste code (html/css/js)..." className="w-full h-40 rounded-xl border p-3 font-mono text-xs dark:bg-slate-900" />
             <div className="flex flex-wrap gap-2">
-              <button onClick={()=> setCodeOut(beautifyCode(codeIn, 'js'))} className="px-3 py-2 rounded-xl bg-slate-900 text-white">Beautify JS</button>
-              <button onClick={()=> setCodeOut(beautifyCode(codeIn, 'css'))} className="px-3 py-2 rounded-xl bg-slate-900 text-white">Beautify CSS</button>
-              <button onClick={()=> setCodeOut(beautifyCode(codeIn, 'html'))} className="px-3 py-2 rounded-xl bg-slate-900 text-white">Beautify HTML</button>
-              <button onClick={async ()=> setCodeOut(await minifyCode(codeIn, 'js'))} className="px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">Minify JS</button>
-              <button onClick={async ()=> setCodeOut(await minifyCode(codeIn, 'css'))} className="px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">Minify CSS</button>
-              <button onClick={async ()=> setCodeOut(await minifyCode(codeIn, 'html'))} className="px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">Minify HTML</button>
+              <button onClick={()=> { setCodeOut(beautifyCode(codeIn, 'js')); setCodeStatus(codeIn.trim()===''? 'idle' : 'success') }} className="px-3 py-2 rounded-xl bg-slate-900 text-white">Beautify JS</button>
+              <button onClick={()=> { setCodeOut(beautifyCode(codeIn, 'css')); setCodeStatus(codeIn.trim()===''? 'idle' : 'success') }} className="px-3 py-2 rounded-xl bg-slate-900 text-white">Beautify CSS</button>
+              <button onClick={()=> { setCodeOut(beautifyCode(codeIn, 'html')); setCodeStatus(codeIn.trim()===''? 'idle' : 'success') }} className="px-3 py-2 rounded-xl bg-slate-900 text-white">Beautify HTML</button>
+              <button onClick={async ()=> { setCodeOut(await minifyCode(codeIn, 'js')); setCodeStatus(codeIn.trim()===''? 'idle' : 'success') }} className="px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">Minify JS</button>
+              <button onClick={async ()=> { setCodeOut(await minifyCode(codeIn, 'css')); setCodeStatus(codeIn.trim()===''? 'idle' : 'success') }} className="px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">Minify CSS</button>
+              <button onClick={async ()=> { setCodeOut(await minifyCode(codeIn, 'html')); setCodeStatus(codeIn.trim()===''? 'idle' : 'success') }} className="px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">Minify HTML</button>
             </div>
-            <div className="relative"><textarea readOnly value={codeOut} className="w-full h-40 rounded-xl border p-3 font-mono text-xs dark:bg-slate-900 pr-12" /><div className="absolute top-2 right-2"><CopyButton value={codeOut} /></div></div>
+            <div className="relative"><textarea readOnly value={codeOut} className={
+              "w-full h-40 rounded-xl border p-3 font-mono text-xs pr-12 " +
+              (codeIn.trim()==='' ? 'bg-white dark:bg-slate-900' : codeStatus==='success' ? 'bg-emerald-50 dark:bg-emerald-950' : codeStatus==='error' ? 'bg-red-50 dark:bg-red-950' : 'bg-white dark:bg-slate-900')
+            } /><div className="absolute top-2 right-2"><CopyButton value={codeOut} /></div></div>
           </ToolCard>
         )
       case 'xml':
         return (
           <ToolCard title="XML ↔ JSON" description="Convert between XML text and JSON text representations.">
             <div className="grid md:grid-cols-2 gap-3">
-              <div className="relative"><textarea value={xmlIn} onChange={e=>setXmlIn(e.target.value)} placeholder="XML input..." className="w-full h-32 rounded-xl border p-3 font-mono text-xs dark:bg-slate-900 pr-12" /><div className="absolute top-2 right-2"><CopyButton value={xmlIn} /></div></div>
-              <div className="relative"><textarea value={jsonXml} onChange={e=>setJsonXml(e.target.value)} placeholder="JSON input..." className="w-full h-32 rounded-xl border p-3 font-mono text-xs dark:bg-slate-900 pr-12" /><div className="absolute top-2 right-2"><CopyButton value={jsonXml} /></div></div>
+              <div className="relative"><textarea value={xjInput} onChange={e=>setXjInput(e.target.value)} placeholder="Input..." className="w-full h-32 rounded-xl border p-3 font-mono text-xs pr-12 dark:bg-slate-900" /><div className="absolute top-2 right-2"><CopyButton value={xjInput} /></div></div>
+              <div className="relative"><textarea readOnly value={xjOutput} placeholder="Output..." className={
+                "w-full h-32 rounded-xl border p-3 font-mono text-xs pr-12 " +
+                (xjInput.trim()==='' ? 'bg-white dark:bg-slate-900' : xjStatus==='success' ? 'bg-emerald-50 dark:bg-emerald-950' : xjStatus==='error' ? 'bg-red-50 dark:bg-red-950' : 'bg-white dark:bg-slate-900')
+              } /><div className="absolute top-2 right-2"><CopyButton value={xjOutput} /></div></div>
             </div>
             <div className="flex flex-wrap gap-2">
-              <button onClick={() => setJsonXml(xmlToJson(xmlIn))} className="px-3 py-2 rounded-xl bg-slate-900 text-white">XML → JSON</button>
-              <button onClick={() => setXmlIn(jsonToXml(jsonXml))} className="px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">JSON → XML</button>
+              <button onClick={() => { const out = xmlToJson(xjInput); setXjOutput(out); setXjStatus(out.startsWith('Invalid') ? 'error' : 'success') }} className="px-3 py-2 rounded-xl bg-slate-900 text-white">XML → JSON</button>
+              <button onClick={() => { const out = jsonToXml(xjInput); setXjOutput(out); setXjStatus(out.startsWith('Invalid') ? 'error' : 'success') }} className="px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">JSON → XML</button>
             </div>
           </ToolCard>
         )
