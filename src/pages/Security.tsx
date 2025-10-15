@@ -48,8 +48,8 @@ export default function Security() {
     const header = b64url(strToUint8(headerJson))
     const payload = b64url(strToUint8(payloadJson))
     const data = strToUint8(`${header}.${payload}`)
-    const key = await crypto.subtle.importKey('raw', strToUint8(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign'])
-    const sig = new Uint8Array(await crypto.subtle.sign('HMAC', key, data))
+    const key = await crypto.subtle.importKey('raw', strToUint8(secret).buffer, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign'])
+    const sig = new Uint8Array(await crypto.subtle.sign({ name: 'HMAC' }, key, data.buffer))
     return `${header}.${payload}.${b64url(sig)}`
   }
   async function signJwtRS256(headerJson: string, payloadJson: string, privatePem: string){
@@ -57,12 +57,12 @@ export default function Security() {
     const payload = b64url(strToUint8(payloadJson))
     const data = strToUint8(`${header}.${payload}`)
     const key = await crypto.subtle.importKey('pkcs8', pemToArrayBuffer(privatePem), { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, ['sign'])
-    const sig = new Uint8Array(await crypto.subtle.sign('RSASSA-PKCS1-v1_5', key, data))
+    const sig = new Uint8Array(await crypto.subtle.sign({ name: 'RSASSA-PKCS1-v1_5' }, key, data.buffer))
     return `${header}.${payload}.${b64url(sig)}`
   }
   async function hmacCompute(message: string, secret: string, hash: 'SHA-256'|'SHA-512'){
-    const key = await crypto.subtle.importKey('raw', strToUint8(secret), { name: 'HMAC', hash }, false, ['sign'])
-    const mac = new Uint8Array(await crypto.subtle.sign('HMAC', key, strToUint8(message)))
+    const key = await crypto.subtle.importKey('raw', strToUint8(secret).buffer, { name: 'HMAC', hash }, false, ['sign'])
+    const mac = new Uint8Array(await crypto.subtle.sign({ name: 'HMAC' }, key, strToUint8(message).buffer))
     // hex
     return Array.from(mac).map(b=> b.toString(16).padStart(2,'0')).join('')
   }
@@ -75,8 +75,8 @@ export default function Security() {
   }
 
   async function hmacSha1Bytes(key: Uint8Array, msg: Uint8Array){
-    const cryptoKey = await crypto.subtle.importKey('raw', key, { name: 'HMAC', hash: 'SHA-1' }, false, ['sign'])
-    return new Uint8Array(await crypto.subtle.sign('HMAC', cryptoKey, msg))
+    const cryptoKey = await crypto.subtle.importKey('raw', key.buffer, { name: 'HMAC', hash: 'SHA-1' }, false, ['sign'])
+    return new Uint8Array(await crypto.subtle.sign({ name: 'HMAC' }, cryptoKey, msg.buffer))
   }
   function intToBytesBE(n: number){
     const buf = new Uint8Array(8)
@@ -315,7 +315,7 @@ export default function Security() {
           <ToolCard title="PKCE Generator (S256)" description="Create OAuth 2.0 PKCE code_verifier and S256 code_challenge.">
             <div className="flex flex-wrap gap-2 items-center">
               <button onClick={()=>{ const chars='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~'; let s=''; const arr=new Uint32Array(64); crypto.getRandomValues(arr); for(let i=0;i<arr.length;i++){ s+=chars[arr[i]%chars.length] } (document.getElementById('pkce-verifier') as HTMLInputElement).value = s }} className="px-3 py-2 rounded-xl bg-slate-900 text-white">Generate verifier</button>
-              <button onClick={async ()=>{ const v=(document.getElementById('pkce-verifier') as HTMLInputElement).value; const data=new TextEncoder().encode(v); const hash=new Uint8Array(await crypto.subtle.digest('SHA-256', data)); let bin=''; for(let i=0;i<hash.length;i++) bin+=String.fromCharCode(hash[i]); const b64=btoa(bin).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,''); (document.getElementById('pkce-challenge') as HTMLInputElement).value = b64 }} className="px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">Derive challenge</button>
+              <button onClick={async ()=>{ const v=(document.getElementById('pkce-verifier') as HTMLInputElement).value; const data=new TextEncoder().encode(v); const hash=new Uint8Array(await crypto.subtle.digest('SHA-256', data.buffer)); let bin=''; for(let i=0;i<hash.length;i++) bin+=String.fromCharCode(hash[i]); const b64=btoa(bin).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,''); (document.getElementById('pkce-challenge') as HTMLInputElement).value = b64 }} className="px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">Derive challenge</button>
             </div>
             <div className="relative mt-2"><input id="pkce-verifier" placeholder="code_verifier" className="w-full rounded-xl border p-3 font-mono text-xs dark:bg-slate-900 pr-12" /><div className="absolute top-2 right-2"><CopyButton getValue={()=> (document.getElementById('pkce-verifier') as HTMLInputElement)?.value || ''} /></div></div>
             <div className="relative mt-2"><input id="pkce-challenge" readOnly placeholder="code_challenge (S256)" className="w-full rounded-xl border p-3 font-mono text-xs dark:bg-slate-900 pr-12" /><div className="absolute top-2 right-2"><CopyButton getValue={()=> (document.getElementById('pkce-challenge') as HTMLInputElement)?.value || ''} /></div></div>
