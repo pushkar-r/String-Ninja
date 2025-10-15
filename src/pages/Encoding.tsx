@@ -65,7 +65,7 @@ export default function Encoding() {
     switch (active) {
       case 'b64':
         return (
-          <ToolCard title="Base64">
+          <ToolCard title="Base64" description="Base64 encodes data into a 64-character text alphabet so it can be safely stored or transmitted in text systems.">
             <textarea value={input} onChange={e=>setInput(e.target.value)} placeholder="Enter text…" className="w-full h-28 rounded-xl border p-3 dark:bg-slate-900" />
             <div className="flex flex-wrap items-center gap-4 text-sm text-slate-600 dark:text-slate-400 mb-2">
               <label className="inline-flex items-center gap-2"><input type="checkbox" checked={b64UrlSafe} onChange={e=>setB64UrlSafe(e.target.checked)} /> URL-safe (-/_)</label>
@@ -73,7 +73,7 @@ export default function Encoding() {
             </div>
             <div className="grid md:grid-cols-2 gap-3">
               <button onClick={()=>{ let v = safeBase64Encode(input); if (b64UrlSafe) v = v.replace(/\+/g,'-').replace(/\//g,'_'); if (b64NoPad) v = v.replace(/=+$/,''); setB64(v) }} className="px-4 py-2 rounded-xl bg-slate-900 text-white">Encode →</button>
-              <button onClick={()=>setB64(safeBase64Decode(b64))} className="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">← Decode</button>
+              <button onClick={()=>setB64(safeBase64Decode(input))} className="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">← Decode</button>
             </div>
             <div className="relative">
               <textarea value={b64} onChange={e=>setB64(e.target.value)} placeholder="Output…" className="w-full h-28 rounded-xl border p-3 dark:bg-slate-900 pr-12" />
@@ -83,11 +83,11 @@ export default function Encoding() {
         )
       case 'b32':
         return (
-          <ToolCard title="Base32">
+          <ToolCard title="Base32" description="Base32 encodes data using A–Z and 2–7, useful in case-insensitive or restricted text environments.">
             <textarea value={input} onChange={e=>setInput(e.target.value)} placeholder="Enter text…" className="w-full h-28 rounded-xl border p-3 dark:bg-slate-900" />
             <div className="grid md:grid-cols-2 gap-3">
               <button onClick={()=>setB32(base32Encode(input))} className="px-4 py-2 rounded-xl bg-slate-900 text-white">Encode →</button>
-              <button onClick={()=>setB32(base32Decode(b32))} className="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">← Decode</button>
+              <button onClick={()=>setB32(base32Decode(input))} className="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">← Decode</button>
             </div>
             <div className="relative">
               <textarea value={b32} onChange={e=>setB32(e.target.value)} placeholder="Output…" className="w-full h-28 rounded-xl border p-3 dark:bg-slate-900 pr-12" />
@@ -97,11 +97,11 @@ export default function Encoding() {
         )
       case 'url':
         return (
-          <ToolCard title="URL Encode/Decode">
+          <ToolCard title="URL Encode/Decode" description="Percent-encoding for URLs and HTTP so special characters are safely represented.">
             <textarea value={input} onChange={e=>setInput(e.target.value)} placeholder="Enter text…" className="w-full h-28 rounded-xl border p-3 dark:bg-slate-900" />
             <div className="grid md:grid-cols-2 gap-3">
               <button onClick={()=>setUrlEnc(encodeURIComponent(input))} className="px-4 py-2 rounded-xl bg-slate-900 text-white">Encode →</button>
-              <button onClick={()=>setUrlEnc(decodeURIComponent(urlEnc))} className="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">← Decode</button>
+              <button onClick={()=>setUrlEnc(decodeURIComponent(input))} className="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">← Decode</button>
             </div>
             <div className="relative">
               <textarea value={urlEnc} onChange={e=>setUrlEnc(e.target.value)} placeholder="Output…" className="w-full h-28 rounded-xl border p-3 dark:bg-slate-900 pr-12" />
@@ -111,11 +111,11 @@ export default function Encoding() {
         )
       case 'html':
         return (
-          <ToolCard title="HTML Entities">
+          <ToolCard title="HTML Entities" description="Convert characters to and from HTML entity forms (e.g., <, >, &).">
             <textarea value={input} onChange={e=>setInput(e.target.value)} placeholder="Enter text…" className="w-full h-28 rounded-xl border p-3 dark:bg-slate-900" />
             <div className="grid md:grid-cols-2 gap-3">
               <button onClick={()=>setHtml(htmlEncode(input))} className="px-4 py-2 rounded-xl bg-slate-900 text-white">Encode →</button>
-              <button onClick={()=>setHtml(htmlDecode(html))} className="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">← Decode</button>
+              <button onClick={()=>setHtml(htmlDecode(input))} className="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">← Decode</button>
             </div>
             <div className="relative">
               <textarea value={html} onChange={e=>setHtml(e.target.value)} placeholder="Output…" className="w-full h-28 rounded-xl border p-3 dark:bg-slate-900 pr-12" />
@@ -125,7 +125,7 @@ export default function Encoding() {
         )
       case 'hexbin':
         return (
-          <ToolCard title="Hex ↔ Binary ↔ Text">
+          <ToolCard title="Hex ↔ Binary ↔ Text" description="Convert between plain text, hexadecimal, and binary representations of data bytes.">
             <textarea value={input} onChange={e=>setInput(e.target.value)} placeholder="Text…" className="w-full h-28 rounded-xl border p-3 dark:bg-slate-900" />
             <div className="flex flex-wrap items-center gap-4 text-sm text-slate-600 dark:text-slate-400 mb-2">
               <label className="inline-flex items-center gap-2"><input type="checkbox" checked={hexUpper} onChange={e=>setHexUpper(e.target.checked)} /> Uppercase hex</label>
@@ -133,10 +133,10 @@ export default function Encoding() {
             <div className="grid md:grid-cols-3 gap-3">
               <button onClick={()=>{ const v=textToHex(input); setHtml(hexUpper? v.toUpperCase(): v) }} className="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">Text → Hex</button>
               <button onClick={()=>setHtml(textToBinary(input))} className="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">Text → Binary</button>
-              <button onClick={()=>setHtml(hexToText(html))} className="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">Hex → Text</button>
-              <button onClick={()=>setHtml(binaryToText(html))} className="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">Binary → Text</button>
-              <button onClick={()=>setHtml(hexToBinary(html))} className="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">Hex → Binary</button>
-              <button onClick={()=>{ const v=binaryToHex(html); setHtml(hexUpper? v.toUpperCase(): v) }} className="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">Binary → Hex</button>
+              <button onClick={()=>setHtml(hexToText(input))} className="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">Hex → Text</button>
+              <button onClick={()=>setHtml(binaryToText(input))} className="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">Binary → Text</button>
+              <button onClick={()=>setHtml(hexToBinary(input))} className="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">Hex → Binary</button>
+              <button onClick={()=>{ const v=binaryToHex(input); setHtml(hexUpper? v.toUpperCase(): v) }} className="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">Binary → Hex</button>
             </div>
             <div className="relative">
               <textarea value={html} onChange={e=>setHtml(e.target.value)} placeholder="Output…" className="w-full h-28 rounded-xl border p-3 dark:bg-slate-900 pr-12" />
@@ -148,15 +148,15 @@ export default function Encoding() {
         function u8ToB64(u8: Uint8Array){ let bin=''; for (let i=0;i<u8.length;i++) bin += String.fromCharCode(u8[i]); return btoa(bin) }
         function b64ToU8(b64: string){ const bin = atob(b64.trim()); const u8 = new Uint8Array(bin.length); for (let i=0;i<bin.length;i++) u8[i] = bin.charCodeAt(i); return u8 }
         return (
-          <ToolCard title="Gzip / Deflate">
+          <ToolCard title="Gzip / Deflate" description="Gzip and Deflate are compression formats for reducing data size.">
             <textarea value={input} onChange={e=>setInput(e.target.value)} placeholder="Text…" className="w-full h-28 rounded-xl border p-3 dark:bg-slate-900" />
             <div className="grid md:grid-cols-2 gap-3">
               {/* <button onClick={()=>{ const out = gzip(input, { to: 'uint8array' }) as unknown as Uint8Array; setHtml(u8ToB64(out)) }} className="px-4 py-2 rounded-xl bg-slate-900 text-white">Gzip → Base64</button> */}
               {/* <button onClick={()=>{ const out = deflate(input, { to: 'uint8array' }) as unknown as Uint8Array; setHtml(u8ToB64(out)) }} className="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">Deflate → Base64</button> */}
             </div>
             <div className="grid md:grid-cols-2 gap-3 mt-2">
-              <button onClick={()=>{ try { const u8 = b64ToU8(html); const txt = new TextDecoder().decode(ungzip(u8)); setHtml(txt) } catch { setHtml('Invalid gzip/Base64') } }} className="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">Gunzip (Base64) → Text</button>
-              <button onClick={()=>{ try { const u8 = b64ToU8(html); const txt = new TextDecoder().decode(inflate(u8)); setHtml(txt) } catch { setHtml('Invalid deflate/Base64') } }} className="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">Inflate (Base64) → Text</button>
+              <button onClick={()=>{ try { const u8 = b64ToU8(input); const txt = new TextDecoder().decode(ungzip(u8)); setHtml(txt) } catch { setHtml('Invalid gzip/Base64') } }} className="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">Gunzip (Base64) → Text</button>
+              <button onClick={()=>{ try { const u8 = b64ToU8(input); const txt = new TextDecoder().decode(inflate(u8)); setHtml(txt) } catch { setHtml('Invalid deflate/Base64') } }} className="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">Inflate (Base64) → Text</button>
             </div>
             <div className="relative mt-2">
               <textarea value={html} onChange={e=>setHtml(e.target.value)} placeholder="Output…" className="w-full h-28 rounded-xl border p-3 dark:bg-slate-900 pr-12" />
@@ -166,11 +166,11 @@ export default function Encoding() {
         )
       case 'b58':
         return (
-          <ToolCard title="Base58 (Bitcoin alphabet)">
+          <ToolCard title="Base58 (Bitcoin alphabet)" description="Base58 is a text encoding that avoids ambiguous characters (used by Bitcoin).">
             <textarea value={input} onChange={e=>setInput(e.target.value)} placeholder="Enter text…" className="w-full h-28 rounded-xl border p-3 dark:bg-slate-900" />
             <div className="grid md:grid-cols-2 gap-3">
               <button onClick={()=>setB32(base58Encode(input))} className="px-4 py-2 rounded-xl bg-slate-900 text-white">Encode →</button>
-              <button onClick={()=>setB32(base58Decode(b32))} className="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">← Decode</button>
+              <button onClick={()=>setB32(base58Decode(input))} className="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">← Decode</button>
             </div>
             <div className="relative">
               <textarea value={b32} onChange={e=>setB32(e.target.value)} placeholder="Output…" className="w-full h-28 rounded-xl border p-3 dark:bg-slate-900 pr-12" />
@@ -180,11 +180,11 @@ export default function Encoding() {
         )
       case 'b85':
         return (
-          <ToolCard title="Ascii85 (Base85)">
+          <ToolCard title="Ascii85 (Base85)" description="Ascii85/Base85 encodes binary data into a compact ASCII representation.">
             <textarea value={input} onChange={e=>setInput(e.target.value)} placeholder="Enter text…" className="w-full h-28 rounded-xl border p-3 dark:bg-slate-900" />
             <div className="grid md:grid-cols-2 gap-3">
               <button onClick={()=>setB32(ascii85Encode(input))} className="px-4 py-2 rounded-xl bg-slate-900 text-white">Encode →</button>
-              <button onClick={()=>setB32(ascii85Decode(b32))} className="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">← Decode</button>
+              <button onClick={()=>setB32(ascii85Decode(input))} className="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">← Decode</button>
             </div>
             <div className="relative">
               <textarea value={b32} onChange={e=>setB32(e.target.value)} placeholder="Output…" className="w-full h-28 rounded-xl border p-3 dark:bg-slate-900 pr-12" />
@@ -194,7 +194,7 @@ export default function Encoding() {
         )
       case 'utf':
         return (
-          <ToolCard title="UTF-16 / UTF-32 ↔ Hex">
+          <ToolCard title="UTF-16 / UTF-32 ↔ Hex" description="Represent Unicode text as UTF-16 or UTF-32 and convert to/from hexadecimal bytes.">
             <textarea value={input} onChange={e=>setInput(e.target.value)} placeholder="Text or Hex…" className="w-full h-28 rounded-xl border p-3 dark:bg-slate-900" />
             <div className="grid md:grid-cols-3 gap-3">
               <div className="flex items-center gap-2"><label className="text-sm">Type</label><select id="utf-type" className="px-2 py-2 rounded-xl border dark:bg-slate-900"><option>UTF-16</option><option>UTF-32</option></select></div>
@@ -202,7 +202,7 @@ export default function Encoding() {
             </div>
             <div className="grid md:grid-cols-2 gap-3 mt-2">
               <button onClick={()=>{ const t=(document.getElementById('utf-type') as HTMLSelectElement).value; const e=(document.getElementById('utf-end') as HTMLSelectElement).value as 'LE'|'BE'; const v = t==='UTF-16'? utf16ToHex(input, e) : utf32ToHex(input, e); setHtml(v) }} className="px-4 py-2 rounded-xl bg-slate-900 text-white">Text → Hex</button>
-              <button onClick={()=>{ const t=(document.getElementById('utf-type') as HTMLSelectElement).value; const e=(document.getElementById('utf-end') as HTMLSelectElement).value as 'LE'|'BE'; const v = t==='UTF-16'? hexToUtf16(html, e) : hexToUtf32(html, e); setHtml(v) }} className="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">Hex → Text</button>
+              <button onClick={()=>{ const t=(document.getElementById('utf-type') as HTMLSelectElement).value; const e=(document.getElementById('utf-end') as HTMLSelectElement).value as 'LE'|'BE'; const v = t==='UTF-16'? hexToUtf16(input, e) : hexToUtf32(input, e); setHtml(v) }} className="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">Hex → Text</button>
             </div>
             <div className="relative mt-2">
               <textarea value={html} onChange={e=>setHtml(e.target.value)} placeholder="Output…" className="w-full h-28 rounded-xl border p-3 dark:bg-slate-900 pr-12" />
