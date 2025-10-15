@@ -73,6 +73,10 @@ export default function Strings() {
               <button onClick={()=>setOut(toPascal(text))} className="px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">PascalCase</button>
               <button onClick={()=>setOut(toSnake(text))} className="px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">snake_case</button>
               <button onClick={()=>setOut(toKebab(text))} className="px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">kebab-case</button>
+              <button onClick={()=>setOut(text.toUpperCase())} className="px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">UPPERCASE</button>
+              <button onClick={()=>setOut(text.toLowerCase())} className="px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">lowercase</button>
+              <button onClick={()=>setOut(titleCase(text))} className="px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">Title Case</button>
+              <button onClick={()=>setOut(sentenceCase(text))} className="px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">Sentence case</button>
             </div>
             <div className="relative">
               <textarea readOnly value={out} placeholder="Output…" className="w-full h-20 rounded-xl border p-3 dark:bg-slate-900 pr-12" />
