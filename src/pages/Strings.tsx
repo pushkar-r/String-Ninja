@@ -66,7 +66,7 @@ export default function Strings() {
         )
       case 'case':
         return (
-          <ToolCard title="Case converters" description="Convert between camelCase, PascalCase, snake_case, and kebab-case.">
+          <ToolCard title="Case converters" description="Convert text between different cases and naming styles.">
             <textarea value={text} onChange={e=>setText(e.target.value)} placeholder="Enter text…" className="w-full h-28 rounded-xl border p-3 dark:bg-slate-900" />
             <div className="flex flex-wrap gap-2">
               <button onClick={()=>setOut(toCamel(text))} className="px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">camelCase</button>

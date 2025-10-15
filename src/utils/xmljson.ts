@@ -10,7 +10,23 @@ export function xmlToJson(xml: string) {
 export function jsonToXml(jsonText: string) {
   try {
     const obj = JSON.parse(jsonText)
-    // Use compact:true so plain objects like {"hello":1} map to <hello>1</hello>
-    return convert.json2xml(obj, { compact: true, spaces: 2 })
+    function toCompact(val: any): any {
+      if (val === null) return { _text: 'null' }
+      const t = typeof val
+      if (t === 'string' || t === 'number' || t === 'boolean') return { _text: String(val) }
+      if (Array.isArray(val)) return val.map(item => toCompact(item))
+      if (t === 'object') {
+        const out: any = {}
+        for (const [k, v] of Object.entries(val)) {
+          if (v && typeof v === 'object' && !Array.isArray(v)) out[k] = toCompact(v)
+          else if (Array.isArray(v)) out[k] = v.map(item => toCompact(item))
+          else out[k] = { _text: String(v) }
+        }
+        return out
+      }
+      return { _text: '' }
+    }
+    const compact = Array.isArray(obj) ? { item: toCompact(obj) } : toCompact(obj)
+    return convert.json2xml(compact, { compact: true, spaces: 2 })
   } catch (e) { return 'Invalid JSON' }
 }
