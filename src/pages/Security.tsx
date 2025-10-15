@@ -45,20 +45,12 @@ export default function Security() {
   }
 
   async function signJwtHS256(headerJson: string, payloadJson: string, secret: string){
-    const header = b64url(strToUint8(headerJson))
-    const payload = b64url(strToUint8(payloadJson))
-    const data = strToUint8(`${header}.${payload}`)
-    const key = await crypto.subtle.importKey('raw', strToUint8(secret), { name: 'HMAC', hash: { name: 'SHA-256' } }, false, ['sign'])
-    const sig = new Uint8Array(await crypto.subtle.sign({ name: 'HMAC' }, key, data))
-    return `${header}.${payload}.${b64url(sig)}`
+    // Disabled: under development
+    throw new Error('JWT signing (HS256) is under development')
   }
   async function signJwtRS256(headerJson: string, payloadJson: string, privatePem: string){
-    const header = b64url(strToUint8(headerJson))
-    const payload = b64url(strToUint8(payloadJson))
-    const data = strToUint8(`${header}.${payload}`)
-    const key = await crypto.subtle.importKey('pkcs8', pemToArrayBuffer(privatePem), { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, ['sign'])
-    const sig = new Uint8Array(await crypto.subtle.sign({ name: 'RSASSA-PKCS1-v1_5' }, key, data))
-    return `${header}.${payload}.${b64url(sig)}`
+    // Disabled: under development
+    throw new Error('JWT signing (RS256) is under development')
   }
   async function hmacCompute(message: string, secret: string, hash: 'SHA-256'|'SHA-512'){
     const key = await crypto.subtle.importKey('raw', strToUint8(secret), { name: 'HMAC', hash }, false, ['sign'])
@@ -237,17 +229,7 @@ export default function Security() {
               <input id="jwt-secret-in" placeholder="Secret (HS256)" className="w-full rounded-xl border p-3 font-mono text-xs dark:bg-slate-900" />
               <textarea id="jwt-priv-in" placeholder="Private Key (PKCS#8 PEM for RS256)" className="w-full h-28 rounded-xl border p-3 font-mono text-xs dark:bg-slate-900" />
               <button onClick={async ()=>{
-                const h = (document.getElementById('jwt-hdr') as HTMLTextAreaElement).value
-                const p = (document.getElementById('jwt-pl') as HTMLTextAreaElement).value
-                const alg = (document.getElementById('jwt-alg') as HTMLSelectElement).value
-                try {
-                  let token = ''
-                  if (alg === 'HS256') token = await signJwtHS256(h, p, (document.getElementById('jwt-secret-in') as HTMLInputElement).value)
-                  else token = await signJwtRS256(h, p, (document.getElementById('jwt-priv-in') as HTMLTextAreaElement).value)
-                  ;(document.getElementById('jwt-signed-out') as HTMLTextAreaElement).value = token
-                } catch (e) {
-                  (document.getElementById('jwt-signed-out') as HTMLTextAreaElement).value = String(e)
-                }
+                (document.getElementById('jwt-signed-out') as HTMLTextAreaElement).value = 'JWT signing is under development'
               }} className="px-3 py-2 rounded-xl bg-slate-900 text-white">Sign</button>
             </div>
             <div className="relative"><textarea id="jwt-signed-out" readOnly placeholder="JWT (compact)" className="w-full h-28 rounded-xl border p-3 font-mono text-xs dark:bg-slate-900 pr-12" /><div className="absolute top-2 right-2"><CopyButton getValue={()=> (document.getElementById('jwt-signed-out') as HTMLTextAreaElement)?.value || ''} /></div></div>
