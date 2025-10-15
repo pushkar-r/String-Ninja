@@ -74,15 +74,12 @@ export default function Security() {
     return buf
   }
   async function hotpGenerate(secretBytes: Uint8Array, counter: number, digits=6){
-    const mac = await hmacSha1Bytes(secretBytes, intToBytesBE(counter))
-    const offset = mac[mac.length - 1] & 0x0f
-    const code = ((mac[offset] & 0x7f) << 24) | (mac[offset+1] << 16) | (mac[offset+2] << 8) | (mac[offset+3])
-    const mod = 10 ** digits
-    return (code % mod).toString().padStart(digits, '0')
+    // Disabled: under development
+    throw new Error('TOTP/HOTP is under development')
   }
   async function totpGenerate(secretBytes: Uint8Array, period=30, digits=6, now=Date.now()){
-    const counter = Math.floor(now/1000/period)
-    return hotpGenerate(secretBytes, counter, digits)
+    // Disabled: under development
+    throw new Error('TOTP/HOTP is under development')
   }
   function strToBytes(s: string){ return new TextEncoder().encode(s) }
   function hexToBytes(hex: string){ const clean=hex.replace(/\s+/g,''); if(clean.length%2) return new Uint8Array(); return new Uint8Array(clean.match(/.{1,2}/g)!.map(h=>parseInt(h,16))) }
