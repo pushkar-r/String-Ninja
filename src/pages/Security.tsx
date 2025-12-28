@@ -117,6 +117,14 @@ export default function Security() {
             </div>
           </ToolCard>
         )
+      case 'filehash':
+        return (
+          <ToolCard title="File Hashing" description="Compute SHA-256 and SHA-512 of an uploaded file in the browser.">
+            <input id="fh-file" type="file" className="block" onChange={async (e)=>{ const f = (e.target as HTMLInputElement).files?.[0]; if(!f) return; const res = await hashFile(f); (document.getElementById('fh-256') as HTMLInputElement).value = res.sha256; (document.getElementById('fh-512') as HTMLInputElement).value = res.sha512 }} />
+            <div className="relative"><input id="fh-256" readOnly placeholder="SHA-256 (hex)" className="w-full rounded-xl border p-3 font-mono text-xs dark:bg-slate-900 pr-12" /><div className="absolute top-2 right-2"><CopyButton getValue={()=> (document.getElementById('fh-256') as HTMLInputElement)?.value || ''} /></div></div>
+            <div className="relative"><input id="fh-512" readOnly placeholder="SHA-512 (hex)" className="w-full rounded-xl border p-3 font-mono text-xs dark:bg-slate-900 pr-12" /><div className="absolute top-2 right-2"><CopyButton getValue={()=> (document.getElementById('fh-512') as HTMLInputElement)?.value || ''} /></div></div>
+          </ToolCard>
+        )
       case 'aes':
         return (
           <ToolCard title="AES-GCM Encrypt/Decrypt (Password)" description="PBKDF2 100k, Base64 payload (salt+IV+cipher).">
@@ -246,14 +254,6 @@ export default function Security() {
             <div className="relative"><input id="hmac-out" readOnly className="w-full rounded-xl border p-3 font-mono text-xs dark:bg-slate-900 pr-12" placeholder="HMAC (hex)" /><div className="absolute top-2 right-2"><CopyButton getValue={()=> (document.getElementById('hmac-out') as HTMLInputElement)?.value || ''} /></div></div>
           </ToolCard>
         )
-      case 'filehash':
-        return (
-          <ToolCard title="File Hashing" description="Compute SHA-256 and SHA-512 of an uploaded file in the browser.">
-            <input id="fh-file" type="file" className="block" onChange={async (e)=>{ const f = (e.target as HTMLInputElement).files?.[0]; if(!f) return; const res = await hashFile(f); (document.getElementById('fh-256') as HTMLInputElement).value = res.sha256; (document.getElementById('fh-512') as HTMLInputElement).value = res.sha512 }} />
-            <div className="relative"><input id="fh-256" readOnly placeholder="SHA-256 (hex)" className="w-full rounded-xl border p-3 font-mono text-xs dark:bg-slate-900 pr-12" /><div className="absolute top-2 right-2"><CopyButton getValue={()=> (document.getElementById('fh-256') as HTMLInputElement)?.value || ''} /></div></div>
-            <div className="relative"><input id="fh-512" readOnly placeholder="SHA-512 (hex)" className="w-full rounded-xl border p-3 font-mono text-xs dark:bg-slate-900 pr-12" /><div className="absolute top-2 right-2"><CopyButton getValue={()=> (document.getElementById('fh-512') as HTMLInputElement)?.value || ''} /></div></div>
-          </ToolCard>
-        )
       // case 'totp':
       //   return (
       //     <ToolCard title="TOTP / HOTP" description="One-time password generators (time-based and counter-based).">
@@ -284,6 +284,7 @@ export default function Security() {
 
   const navItems: { key: typeof active, label: string }[] = [
     { key: 'hash', label: 'Hashing' },
+    { key: 'filehash', label: 'File Hashing' },
     { key: 'aes', label: 'AES-GCM (PBKDF2)' },
     { key: 'jwt', label: 'JWT Decoder' },
     { key: 'pw', label: 'Password Hashing' },
@@ -293,7 +294,6 @@ export default function Security() {
     { key: 'saml', label: 'SAML Decoder' },
     { key: 'jwtSign', label: 'JWT Signer' },
     { key: 'hmac', label: 'HMAC Generator' },
-    { key: 'filehash', label: 'File Hashing' },
     // { key: 'totp', label: 'TOTP / HOTP' },
     { key: 'pkce', label: 'PKCE Generator' },
     { key: 'ecc', label: 'ECC Keygen (P-256)' },
