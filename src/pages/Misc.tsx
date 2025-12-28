@@ -7,12 +7,20 @@ import Papa from 'papaparse'
 import { hideTextInImage, extractTextFromImage } from '../utils/stego'
 
 export default function Misc() {
-  const [active, setActive] = useState<'ts'|'rand'|'regex'|'stego'|'csv'|'saved'>('ts')
+  const [active, setActive] = useState<'ts'|'pass'|'rand'|'regex'|'stego'|'csv'|'saved'>('ts')
 
   const [unix, setUnix] = useState<string>('')
   const [readable, setReadable] = useState<string>('')
   const [rand, setRand] = useState('')
   const [uuid, setUuid] = useState('')
+  // Password generator state
+  const [passLen, setPassLen] = useState(16)
+  const [useLower, setUseLower] = useState(true)
+  const [useUpper, setUseUpper] = useState(true)
+  const [useNums, setUseNums] = useState(true)
+  const [useCommonSpecial, setUseCommonSpecial] = useState(false)
+  const [customSpecial, setCustomSpecial] = useState('')
+  const [pwdOut, setPwdOut] = useState('')
   const [regex, setRegex] = useState('')
   const [sample, setSample] = useState('')
   const [matches, setMatches] = useState('')
@@ -39,6 +47,48 @@ export default function Misc() {
     return s
   }
 
+  function secureRandomInt(max: number){
+    if (max <= 0) return 0
+    const maxUint = 0xffffffff
+    const limit = Math.floor((maxUint + 1) / max) * max
+    let r = 0
+    const buf = new Uint32Array(1)
+    do {
+      crypto.getRandomValues(buf)
+      r = buf[0]
+    } while (r >= limit)
+    return r % max
+  }
+  function generatePassword(){
+    const lowers = 'abcdefghijklmnopqrstuvwxyz'
+    const uppers = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+    const nums = '0123456789'
+    const common = '!@#$%^&*'
+    let pool = ''
+    const categories: string[] = []
+    if (useLower) { pool += lowers; categories.push(lowers) }
+    if (useUpper) { pool += uppers; categories.push(uppers) }
+    if (useNums) { pool += nums; categories.push(nums) }
+    if (useCommonSpecial) { pool += common; categories.push(common) }
+    const custom = (customSpecial || '').replace(/\s/g,'')
+    if (custom) { pool += custom; categories.push(custom) }
+    if (!pool) { setPwdOut('Select at least one character set'); return }
+    const out: string[] = []
+    const need = Math.min(categories.length, passLen)
+    for (let i=0;i<need;i++){
+      const cat = categories[i]
+      out.push(cat[secureRandomInt(cat.length)])
+    }
+    for (let i=out.length;i<passLen;i++){
+      out.push(pool[secureRandomInt(pool.length)])
+    }
+    for (let i=out.length-1;i>0;i--){
+      const j = secureRandomInt(i+1)
+      const tmp = out[i]; out[i]=out[j]; out[j]=tmp
+    }
+    setPwdOut(out.join(''))
+  }
+
   function testRegex(){
     try {
       const re = new RegExp(regex, 'g')
@@ -59,6 +109,29 @@ export default function Misc() {
               <button onClick={()=>toReadable(unix)} className="px-3 py-2 rounded-xl bg-slate-900 text-white">Unix → ISO</button>
               <input value={readable} onChange={e=>setReadable(e.target.value)} placeholder="YYYY-MM-DD..." className="w-full rounded-xl border p-3 dark:bg-slate-900" />
               <button onClick={()=>toUnix(readable)} className="px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">ISO → Unix</button>
+            </div>
+          </ToolCard>
+        )
+      case 'pass':
+        return (
+          <ToolCard title="Password Generator" description="Generate cryptographically strong passwords with custom options.">
+            <div className="grid gap-3">
+              <div className="flex items-center gap-3">
+                <label className="text-sm font-medium">Length: {passLen}</label>
+                <input type="range" min={4} max={48} value={passLen} onChange={e=>setPassLen(parseInt(e.target.value,10))} className="w-full" />
+              </div>
+              <div className="grid md:grid-cols-2 gap-2 text-sm">
+                <label className="inline-flex items-center gap-2"><input type="checkbox" checked={useLower} onChange={e=>setUseLower(e.target.checked)} /> Lowercase (a-z)</label>
+                <label className="inline-flex items-center gap-2"><input type="checkbox" checked={useUpper} onChange={e=>setUseUpper(e.target.checked)} /> Uppercase (A-Z)</label>
+                <label className="inline-flex items-center gap-2"><input type="checkbox" checked={useNums} onChange={e=>setUseNums(e.target.checked)} /> Numbers (0-9)</label>
+                <label className="inline-flex items-center gap-2"><input type="checkbox" checked={useCommonSpecial} onChange={e=>setUseCommonSpecial(e.target.checked)} /> Common special (!@#$%^&*)</label>
+              </div>
+              <input value={customSpecial} onChange={e=>setCustomSpecial(e.target.value)} placeholder="Custom special characters (optional)" className="w-full rounded-xl border p-3 font-mono text-xs dark:bg-slate-900" />
+              <button onClick={generatePassword} className="px-3 py-2 rounded-xl bg-slate-900 text-white w-fit">Generate</button>
+              <div className="relative">
+                <input readOnly value={pwdOut} className="w-full rounded-xl border p-3 font-mono text-xs dark:bg-slate-900 pr-12" placeholder="Password" />
+                <div className="absolute top-2 right-2"><CopyButton value={pwdOut} /></div>
+              </div>
             </div>
           </ToolCard>
         )
@@ -122,6 +195,7 @@ export default function Misc() {
 
   const navItems: { key: typeof active, label: string }[] = [
     { key: 'ts', label: 'Timestamp Converter' },
+    { key: 'pass', label: 'Password Generator' },
     { key: 'rand', label: 'Random & UUID' },
     { key: 'regex', label: 'Regex Tester' },
     { key: 'stego', label: 'Steganography' },
@@ -131,7 +205,7 @@ export default function Misc() {
 
   return (
     <>
-      <Head title="String Ninja — Misc Tools (Timestamps, Random, Regex, Stego, CSV)" description="Convert timestamps, generate random/UUIDs, test regex, basic steganography demo, and CSV parsing with custom delimiters." />
+      <Head title="String Ninja — Misc Tools (Timestamps, Passwords, Random, Regex, Stego, CSV)" description="Convert timestamps, generate secure passwords and UUIDs, test regex, basic steganography demo, and CSV parsing with custom delimiters." />
       <div className="grid gap-6 md:grid-cols-[260px_1fr]">
       <div className="bg-white dark:bg-slate-950 rounded-2xl p-3 shadow-sm border border-slate-200 dark:border-slate-800 h-fit sticky top-24">
         <div className="text-sm font-semibold px-2 pb-2">Misc Tools</div>

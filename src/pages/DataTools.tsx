@@ -32,7 +32,7 @@ function describeJsonError(jsonText: string, err: any): string {
   }
 }
 export default function DataTools() {
-  const [active, setActive] = useState<'json'|'csv'|'md'|'qr'|'code'|'xml'|'norm'>('json')
+  const [active, setActive] = useState<'json'|'md'|'qr'|'code'|'xml'|'norm'>('json')
 
   // States preserved from original implementation
   const [jsonText, setJsonText] = useState('')
@@ -59,7 +59,7 @@ export default function DataTools() {
 
   const navItems: { key: typeof active, label: string }[] = [
     { key: 'json', label: 'JSON Formatter / Minifier' },
-    { key: 'csv', label: 'CSV ↔ JSON Converter' },
+    // { key: 'csv', label: 'CSV ↔ JSON Converter' },
     { key: 'md', label: 'Markdown → HTML' },
     { key: 'qr', label: 'QR Code Tools' },
     { key: 'code', label: 'Beautify / Minify' },
@@ -83,20 +83,12 @@ export default function DataTools() {
             } /><div className="absolute top-2 right-2"><CopyButton value={jsonOut} /></div></div>
           </ToolCard>
         )
-      case 'csv':
-        return (
-          <ToolCard title="CSV ↔ JSON Converter" description="Convert between CSV (comma/tab-delimited) and JSON arrays of objects.">
-            <textarea value={csvText} onChange={e=>setCsvText(e.target.value)} placeholder="CSV input…" className="w-full h-32 rounded-xl border p-3 font-mono text-xs dark:bg-slate-900" />
-            <div className="flex flex-wrap gap-2">
-              <button onClick={()=>{ const res = Papa.parse(csvText.trim(), { header: true }); setCsvJson(JSON.stringify(res.data, null, 2)); setCsvStatus((res.errors && res.errors.length>0)? 'error' : 'success') }} className="px-3 py-2 rounded-xl bg-slate-900 text-white">CSV → JSON</button>
-              <button onClick={()=>{ try { const arr = JSON.parse(csvText); setCsvJson(Papa.unparse(arr)); setCsvStatus('success') } catch { setCsvJson('Invalid JSON'); setCsvStatus('error') } }} className="px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">JSON → CSV</button>
-            </div>
-            <div className="relative"><textarea readOnly value={csvJson} className={
-              "w-full h-32 rounded-xl border p-3 font-mono text-xs pr-12 " +
-              (csvText.trim()==='' ? 'bg-white dark:bg-slate-900' : csvStatus==='success' ? 'bg-emerald-50 dark:bg-emerald-950' : csvStatus==='error' ? 'bg-red-50 dark:bg-red-950' : 'bg-white dark:bg-slate-900')
-            } /><div className="absolute top-2 right-2"><CopyButton value={csvJson} /></div></div>
-          </ToolCard>
-        )
+      // case 'csv':
+      //   return (
+      //     <ToolCard title="CSV ↔ JSON Converter" description="Convert between CSV (comma/tab-delimited) and JSON arrays of objects.">
+      //       ... feature removed ...
+      //     </ToolCard>
+      //   )
       case 'md':
         return (
           <ToolCard title="Markdown → HTML" description="Render Markdown text as HTML for preview or conversion.">
@@ -109,29 +101,39 @@ export default function DataTools() {
         )
       case 'qr':
         return (
-          <ToolCard title="QR Code Generator & Scanner" description="Generate QR codes from text and decode them from uploaded images.">
-            <div className="grid md:grid-cols-2 gap-3">
-              <div className="grid gap-2">
-                <input value={qrInput} onChange={e=>setQrInput(e.target.value)} placeholder="Text or URL…" className="w-full rounded-xl border p-3 dark:bg-slate-900" />
-                <button onClick={async ()=> setQrUrl(await QRCode.toDataURL(qrInput || ''))} className="px-3 py-2 rounded-xl bg-slate-900 text-white">Generate</button>
-                {qrUrl && <img src={qrUrl} alt="QR" className="w-40 h-40 border rounded-xl" />}
+          <ToolCard title="QR Code Tools" description="Generate QR codes from text and decode them from uploaded images.">
+            <div className="grid gap-4">
+              <div>
+                <div className="font-semibold text-sm mb-2">Generator</div>
+                <div className="grid md:grid-cols-[1fr_auto] gap-2 items-start">
+                  <input value={qrInput} onChange={e=>setQrInput(e.target.value)} placeholder="Text or URL…" className="w-full rounded-xl border p-3 dark:bg-slate-900" />
+                  <button onClick={async ()=> setQrUrl(await QRCode.toDataURL(qrInput || ''))} className="px-3 py-2 rounded-xl bg-slate-900 text-white">Generate</button>
+                </div>
+                {qrUrl && <img src={qrUrl} alt="QR code" className="mt-3 w-40 h-40 border rounded-xl" />}
               </div>
-              <div className="grid gap-2">
-                <input ref={fileInput} type="file" accept="image/*" className="block" onChange={async (e)=>{
-                  const file = e.target.files?.[0]; if(!file) return
-                  const img = new Image()
-                  const url = URL.createObjectURL(file)
-                  img.onload = ()=>{
-                    const canvas = document.createElement('canvas')
-                    canvas.width = img.naturalWidth; canvas.height = img.naturalHeight
-                    const ctx = canvas.getContext('2d')!
-                    ctx.drawImage(img,0,0)
-                    const imgData = ctx.getImageData(0,0,canvas.width,canvas.height)
-                    const code = jsQR(imgData.data, canvas.width, canvas.height)
-                    setQrInput(code?.data || 'No QR found')
-                  }
-                  img.src = url
-                }} />
+              <div>
+                <div className="font-semibold text-sm mb-2">Reader</div>
+                <div className="grid gap-2">
+                  <input ref={fileInput} type="file" accept="image/*" className="block" onChange={async (e)=>{
+                    const file = e.target.files?.[0]; if(!file) return
+                    const img = new Image()
+                    const url = URL.createObjectURL(file)
+                    img.onload = ()=>{
+                      const canvas = document.createElement('canvas')
+                      canvas.width = img.naturalWidth; canvas.height = img.naturalHeight
+                      const ctx = canvas.getContext('2d')!
+                      ctx.drawImage(img,0,0)
+                      const imgData = ctx.getImageData(0,0,canvas.width,canvas.height)
+                      const code = jsQR(imgData.data, canvas.width, canvas.height)
+                      setQrInput(code?.data || 'No QR found')
+                    }
+                    img.src = url
+                  }} />
+                  <div className="relative">
+                    <textarea readOnly value={qrInput} placeholder="Decoded text will appear here" className="w-full h-24 rounded-xl border p-3 font-mono text-xs pr-12 dark:bg-slate-900" />
+                    <div className="absolute top-2 right-2"><CopyButton value={qrInput} /></div>
+                  </div>
+                </div>
               </div>
             </div>
           </ToolCard>
@@ -188,7 +190,7 @@ export default function DataTools() {
 
   return (
     <>
-      <Head title="String Ninja — Data Tools (JSON, CSV, Markdown, QR, Code Formatters)" description="Format JSON, convert CSV ↔ JSON, render Markdown, generate/scan QR, beautify/minify HTML/CSS/JS, and convert XML ↔ JSON." />
+      <Head title="String Ninja — Data Tools (JSON, Markdown, QR, Code Formatters)" description="Format JSON, render Markdown, generate/scan QR, beautify/minify HTML/CSS/JS, and convert XML ↔ JSON." />
       <div className="grid gap-6 md:grid-cols-[260px_1fr]">
       <div className="bg-white dark:bg-slate-950 rounded-2xl p-3 shadow-sm border border-slate-200 dark:border-slate-800 h-fit sticky top-24">
         <div className="text-sm font-semibold px-2 pb-2">Data Tools</div>

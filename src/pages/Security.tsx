@@ -12,7 +12,7 @@ import { base32Decode } from '../utils/conversions'
 
 export default function Security() {
   const [searchParams, setSearchParams] = useSearchParams()
-  const [active, setActive] = useState<'hash'|'aes'|'jwt'|'pw'|'jwtv'|'rsa'|'x509'|'saml'|'jwtSign'|'hmac'|'filehash'|'totp'|'pkce'|'ecc'>(
+  const [active, setActive] = useState<'hash'|'aes'|'jwt'|'pw'|'jwtv'|'rsa'|'x509'|'saml'|'jwtSign'|'hmac'|'filehash'|'pkce'|'ecc'>(
     (searchParams.get('tool') as any) || 'hash'
   )
   useEffect(()=>{
@@ -254,39 +254,12 @@ export default function Security() {
             <div className="relative"><input id="fh-512" readOnly placeholder="SHA-512 (hex)" className="w-full rounded-xl border p-3 font-mono text-xs dark:bg-slate-900 pr-12" /><div className="absolute top-2 right-2"><CopyButton getValue={()=> (document.getElementById('fh-512') as HTMLInputElement)?.value || ''} /></div></div>
           </ToolCard>
         )
-      case 'totp':
-        return (
-          <ToolCard title="TOTP / HOTP" description="One-time password generators (time-based and counter-based).">
-            <div className="grid md:grid-cols-2 gap-3">
-              <input id="otp-secret" placeholder="Secret (Base32 by default)" className="w-full rounded-xl border p-3 font-mono text-xs dark:bg-slate-900" />
-              <div className="flex items-center gap-2">
-                <label className="text-sm">Format</label>
-                <select id="otp-format" defaultValue={'base32'} className="px-2 py-2 rounded-xl border dark:bg-slate-900">
-                  <option value="base32">Base32</option>
-                  <option value="hex">Hex</option>
-                  <option value="text">Text</option>
-                </select>
-              </div>
-              <div className="flex items-center gap-2">
-                <label className="text-sm">Digits</label>
-                <select id="otp-digits" defaultValue={'6'} className="px-2 py-2 rounded-xl border dark:bg-slate-900"><option>6</option><option>8</option></select>
-              </div>
-              <div className="flex items-center gap-2">
-                <label className="text-sm">Period</label>
-                <input id="otp-period" type="number" defaultValue={30} className="w-24 rounded-xl border p-2 dark:bg-slate-900" />
-              </div>
-            </div>
-            <div className="flex flex-wrap gap-2 mt-2">
-              <button onClick={()=>{ (document.getElementById('totp-out') as HTMLInputElement).value = 'TOTP is under development' }} className="px-3 py-2 rounded-xl bg-slate-900 text-white">Generate TOTP</button>
-              <div className="relative w-full"><input id="totp-out" readOnly placeholder="TOTP" className="w-full rounded-xl border p-3 font-mono text-xs dark:bg-slate-900 pr-12" /><div className="absolute top-2 right-2"><CopyButton getValue={()=> (document.getElementById('totp-out') as HTMLInputElement)?.value || ''} /></div></div>
-            </div>
-            <div className="grid md:grid-cols-3 gap-2 mt-2">
-              <input id="hotp-counter" type="number" placeholder="HOTP counter" className="w-full rounded-xl border p-3 font-mono text-xs dark:bg-slate-900" />
-              <button onClick={()=>{ (document.getElementById('hotp-out') as HTMLInputElement).value = 'HOTP is under development' }} className="px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">Generate HOTP</button>
-              <div className="relative w-full"><input id="hotp-out" readOnly placeholder="HOTP" className="w-full rounded-xl border p-3 font-mono text-xs dark:bg-slate-900 pr-12" /><div className="absolute top-2 right-2"><CopyButton getValue={()=> (document.getElementById('hotp-out') as HTMLInputElement)?.value || ''} /></div></div>
-            </div>
-          </ToolCard>
-        )
+      // case 'totp':
+      //   return (
+      //     <ToolCard title="TOTP / HOTP" description="One-time password generators (time-based and counter-based).">
+      //       ... feature removed ...
+      //     </ToolCard>
+      //   )
       case 'pkce':
         return (
           <ToolCard title="PKCE Generator (S256)" description="Create OAuth 2.0 PKCE code_verifier and S256 code_challenge.">
@@ -321,7 +294,7 @@ export default function Security() {
     { key: 'jwtSign', label: 'JWT Signer' },
     { key: 'hmac', label: 'HMAC Generator' },
     { key: 'filehash', label: 'File Hashing' },
-    { key: 'totp', label: 'TOTP / HOTP' },
+    // { key: 'totp', label: 'TOTP / HOTP' },
     { key: 'pkce', label: 'PKCE Generator' },
     { key: 'ecc', label: 'ECC Keygen (P-256)' },
   ]
