@@ -161,7 +161,7 @@ export default function DataTools() {
         return (
           <ToolCard title="XML ↔ JSON" description="Convert between XML text and JSON text representations.">
             <div className="grid md:grid-cols-2 gap-3">
-              <div className="relative"><textarea value={xjInput} onChange={e=>setXjInput(e.target.value)} placeholder="Input..." className="w-full h-32 rounded-xl border p-3 font-mono text-xs pr-12 dark:bg-slate-900" /><div className="absolute top-2 right-2"><CopyButton value={xjInput} /></div></div>
+              <div className="relative"><textarea value={xjInput} onChange={e=>setXjInput(e.target.value)} placeholder="Input..." className="w-full h-32 rounded-xl border p-3 font-mono text-xs pr-12 dark:bg-slate-900" /></div>
               <div className="relative"><textarea readOnly value={xjOutput} placeholder="Output..." className={
                 "w-full h-32 rounded-xl border p-3 font-mono text-xs pr-12 " +
                 (xjInput.trim()==='' ? 'bg-white dark:bg-slate-900' : xjStatus==='success' ? 'bg-emerald-50 dark:bg-emerald-950' : xjStatus==='error' ? 'bg-red-50 dark:bg-red-950' : 'bg-white dark:bg-slate-900')

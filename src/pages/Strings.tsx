@@ -44,6 +44,8 @@ export default function Strings() {
     if (t && t !== active) setActive(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams])
+  // Clear input/output when switching tools for predictable UX
+  useEffect(()=>{ setText(''); setOut('') }, [active])
   function selectTool(key: typeof active){ setActive(key); setSearchParams({ tool: key }) }
 
   function parseEscapes(s: string){ return s.replace(/\\n/g, '\n').replace(/\\t/g, '\t') }
