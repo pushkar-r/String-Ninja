@@ -80,6 +80,43 @@ export default function Encoding() {
               <textarea value={b64} onChange={e=>setB64(e.target.value)} placeholder="Output…" className="w-full h-28 rounded-xl border p-3 dark:bg-slate-900 pr-12" />
               <div className="absolute top-2 right-2"><CopyButton value={b64} /></div>
             </div>
+            <div className="mt-6 text-sm leading-6 text-slate-700 dark:text-slate-300 space-y-3">
+              <h3 className="text-base font-semibold">How Base64 works (algorithm and math)</h3>
+              <p>
+                Base64 is a binary-to-text encoding. It takes raw bytes and maps them to a 64‑symbol alphabet so data can safely travel through text‑only systems.
+                The standard alphabet is A–Z (26), a–z (26), 0–9 (10), plus + and /. A URL‑safe variant replaces + with - and / with _.
+              </p>
+              <p className="font-semibold">Bit grouping</p>
+              <ul className="list-disc pl-5 space-y-1">
+                <li>Group input bytes into blocks of 3 bytes = 24 bits.</li>
+                <li>Split 24 bits into four 6‑bit chunks. Each 6‑bit value is between 0 and 63.</li>
+                <li>Map each 6‑bit value to a Base64 character using the alphabet.</li>
+              </ul>
+              <p className="font-semibold">Padding (=)</p>
+              <ul className="list-disc pl-5 space-y-1">
+                <li>If the input length is not a multiple of 3, we add 1 or 2 '=' characters so the output length becomes a multiple of 4.</li>
+                <li>Example: 1 leftover byte (8 bits) becomes two 6‑bit symbols plus two '=' pads. 2 leftover bytes become three symbols plus one '='.</li>
+              </ul>
+              <p className="font-semibold">Mathematical view</p>
+              <p>
+                Let the three bytes be b0, b1, b2. Create a 24‑bit number: N = (b0 << 16) | (b1 << 8) | b2. Then extract indices:
+              </p>
+              <pre className="bg-slate-100 dark:bg-slate-800 rounded p-3 overflow-auto text-xs">
+{`i0 = (N >> 18) & 0x3F
+i1 = (N >> 12) & 0x3F
+i2 = (N >>  6) & 0x3F
+i3 =  N        & 0x3F`}
+              </pre>
+              <p>
+                Finally, output chars = alphabet[i0] alphabet[i1] alphabet[i2] alphabet[i3], applying '=' padding if b1/b2 were missing. URL‑safe mode swaps +→- and /→_.
+              </p>
+              <p className="font-semibold">Decoding</p>
+              <ul className="list-disc pl-5 space-y-1">
+                <li>Reverse the mapping to recover 6‑bit values, pack them back into 24‑bit blocks, and split into the original 8‑bit bytes.</li>
+                <li>Ignore padding '=' during reconstruction.</li>
+              </ul>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Note: This tool encodes/decodes UTF‑8 text, supports optional URL‑safe alphabet and optional padding removal.</p>
+            </div>
           </ToolCard>
         )
       case 'b32':

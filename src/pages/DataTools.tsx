@@ -32,15 +32,16 @@ function describeJsonError(jsonText: string, err: any): string {
   }
 }
 export default function DataTools() {
-  const [active, setActive] = useState<'json'|'md'|'qr'|'code'|'xml'|'norm'>('json')
+  const [active, setActive] = useState<'json'|'qr'|'code'|'xml'|'norm'>('json')
 
   // States preserved from original implementation
   const [jsonText, setJsonText] = useState('')
   const [jsonOut, setJsonOut] = useState('')
   const [csvText, setCsvText] = useState('')
   const [csvJson, setCsvJson] = useState('')
-  const [mdText, setMdText] = useState('')
-  const [mdHtml, setMdHtml] = useState('')
+  // Markdown feature removed
+  // const [mdText, setMdText] = useState('')
+  // const [mdHtml, setMdHtml] = useState('')
   const [qrInput, setQrInput] = useState('')
   const [qrUrl, setQrUrl] = useState('')
   const [qrDecoded, setQrDecoded] = useState('')
@@ -61,7 +62,7 @@ export default function DataTools() {
   const navItems: { key: typeof active, label: string }[] = [
     { key: 'json', label: 'JSON Formatter / Minifier' },
     // { key: 'csv', label: 'CSV ↔ JSON Converter' },
-    { key: 'md', label: 'Markdown → HTML' },
+    // { key: 'md', label: 'Markdown → HTML' },
     { key: 'qr', label: 'QR Code Tools' },
     { key: 'code', label: 'Beautify / Minify' },
     { key: 'xml', label: 'XML ↔ JSON' },
@@ -90,16 +91,12 @@ export default function DataTools() {
       //       ... feature removed ...
       //     </ToolCard>
       //   )
-      case 'md':
-        return (
-          <ToolCard title="Markdown → HTML" description="Render Markdown text as HTML for preview or conversion.">
-            <textarea value={mdText} onChange={e=>setMdText(e.target.value)} placeholder="Markdown…" className="w-full h-32 rounded-xl border p-3 font-mono text-xs dark:bg-slate-900" />
-            <button onClick={()=> setMdHtml(marked.parse(mdText) as string)} className="px-3 py-2 rounded-xl bg-slate-900 text-white">Convert</button>
-            <div className="rounded-xl border p-3 dark:bg-slate-900">
-              <div dangerouslySetInnerHTML={{ __html: mdHtml }} />
-            </div>
-          </ToolCard>
-        )
+      // case 'md':
+      //   return (
+      //     <ToolCard title="Markdown → HTML" description="Render Markdown text as HTML for preview or conversion.">
+      //       ... feature removed ...
+      //     </ToolCard>
+      //   )
       case 'qr':
         return (
           <ToolCard title="QR Code Tools" description="Generate QR codes from text and decode them from uploaded images.">
@@ -191,7 +188,7 @@ export default function DataTools() {
 
   return (
     <>
-      <Head title="String Ninja — Data Tools (JSON, Markdown, QR, Code Formatters)" description="Format JSON, render Markdown, generate/scan QR, beautify/minify HTML/CSS/JS, and convert XML ↔ JSON." />
+      <Head title="String Ninja — Data Tools (JSON, QR, Code Formatters)" description="Format JSON, generate/scan QR, beautify/minify HTML/CSS/JS, and convert XML ↔ JSON." />
       <div className="grid gap-6 md:grid-cols-[260px_1fr]">
       <div className="bg-white dark:bg-slate-950 rounded-2xl p-3 shadow-sm border border-slate-200 dark:border-slate-800 h-fit sticky top-24">
         <div className="text-sm font-semibold px-2 pb-2">Data Tools</div>
