@@ -149,7 +149,7 @@ i3 =  N        & 0x3F`}
         )
       case 'html':
         return (
-          <ToolCard title="HTML Entities" description="Convert characters to and from HTML entity forms (e.g., <, >, &).">
+          <ToolCard title="HTML Entities" description="Convert characters to and from HTML entity forms (e.g., &lt;, &gt;, &amp;).">
             <textarea value={input} onChange={e=>setInput(e.target.value)} placeholder="Enter text…" className="w-full h-28 rounded-xl border p-3 dark:bg-slate-900" />
             <div className="grid md:grid-cols-2 gap-3">
               <button onClick={()=>setHtml(htmlEncode(input))} className="px-4 py-2 rounded-xl bg-slate-900 text-white">Encode →</button>
