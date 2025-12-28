@@ -37,6 +37,7 @@ export default function App() {
     { label: 'Strings: Case converters', path: '/strings?tool=case' },
     { label: 'Strings: Unicode / Code Points', path: '/strings?tool=unicode' },
     { label: 'Strings: Add delimiter / Join lines', path: '/strings?tool=delimiter' },
+    { label: 'Strings: Split by delimiter', path: '/strings?tool=split' },
     { label: 'Join lines with delimiter', path: '/strings?tool=delimiter' },
     { label: 'Add delimiter to column', path: '/strings?tool=delimiter' },
     { label: 'Merge lines with separator', path: '/strings?tool=delimiter' },
@@ -59,12 +60,12 @@ export default function App() {
     { label: 'Security: JWT Signer', path: '/security?tool=jwtSign' },
     { label: 'Security: HMAC Generator', path: '/security?tool=hmac' },
     { label: 'Security: File Hashing', path: '/security?tool=filehash' },
-    { label: 'Security: TOTP / HOTP', path: '/security?tool=totp' },
+
     { label: 'Security: PKCE Generator', path: '/security?tool=pkce' },
     { label: 'Security: ECC Keygen (P-256)', path: '/security?tool=ecc' },
     // Data
     { label: 'Data: JSON Formatter / Minifier', path: '/data?tool=json' },
-    { label: 'Data: CSV ↔ JSON', path: '/data?tool=csv' },
+
     { label: 'Data: Markdown → HTML', path: '/data?tool=md' },
     { label: 'Data: QR Tools', path: '/data?tool=qr' },
     { label: 'Data: Beautify / Minify', path: '/data?tool=code' },
@@ -72,10 +73,11 @@ export default function App() {
     { label: 'Data: Unicode Normalizer', path: '/data?tool=norm' },
     // Misc
     { label: 'Misc: Timestamp Converter', path: '/misc?tool=ts' },
+    { label: 'Misc: Password Generator', path: '/misc?tool=pass' },
     { label: 'Misc: Random & UUID', path: '/misc?tool=rand' },
     { label: 'Misc: Regex Tester', path: '/misc?tool=regex' },
     { label: 'Misc: Steganography', path: '/misc?tool=stego' },
-    { label: 'Misc: CSV Import Options', path: '/misc?tool=csv' },
+
     { label: 'Misc: Regex Save / Reuse', path: '/misc?tool=saved' },
   ]
 

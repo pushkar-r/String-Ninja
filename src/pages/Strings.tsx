@@ -23,7 +23,7 @@ function removeDiacritics(s: string){
 
 export default function Strings() {
   const [searchParams, setSearchParams] = useSearchParams()
-  const [active, setActive] = useState<'basic'|'case'|'unicode'|'delimiter'|'lines'|'find'|'wrap'|'freq'|'diacritics'>(
+  const [active, setActive] = useState<'basic'|'case'|'unicode'|'delimiter'|'split'|'lines'|'find'|'wrap'|'freq'|'diacritics'>(
     (searchParams.get('tool') as any) || 'basic'
   )
 
@@ -36,6 +36,8 @@ export default function Strings() {
   const [delimiter, setDelimiter] = useState(', ')
   const [trimItems, setTrimItems] = useState(true)
   const [ignoreEmpty, setIgnoreEmpty] = useState(true)
+  const [prefix, setPrefix] = useState('')
+  const [suffix, setSuffix] = useState('')
 
   useEffect(()=>{
     const t = searchParams.get('tool') as any
@@ -97,7 +99,7 @@ export default function Strings() {
         )
       case 'delimiter':
         return (
-          <ToolCard title="Add delimiter / Join lines" description="Join lines using a chosen delimiter with options to trim and skip blanks.">
+          <ToolCard title="Add delimiter / Join lines" description="Join lines using a chosen delimiter with options to trim/skip blanks and add per-line prefix/suffix.">
             <textarea value={text} onChange={e=>setText(e.target.value)} placeholder="Paste one item per line…" className="w-full h-40 rounded-xl border p-3 dark:bg-slate-900" />
             <div className="flex flex-wrap items-center gap-2">
               <label className="text-sm text-slate-600 dark:text-slate-400">Delimiter:</label>
@@ -106,6 +108,10 @@ export default function Strings() {
               <button onClick={()=>setDelimiter('|')} className="px-2 py-1 rounded-lg bg-slate-200 dark:bg-slate-800 text-sm">|</button>
               <button onClick={()=>setDelimiter('\\t')} className="px-2 py-1 rounded-lg bg-slate-200 dark:bg-slate-800 text-sm">Tab</button>
               <button onClick={()=>setDelimiter('; ')} className="px-2 py-1 rounded-lg bg-slate-200 dark:bg-slate-800 text-sm">;</button>
+            </div>
+            <div className="grid md:grid-cols-2 gap-2 mt-2">
+              <input value={prefix} onChange={e=>setPrefix(e.target.value)} placeholder="Prefix for each line (optional)" className="w-full rounded-xl border p-2 dark:bg-slate-900" />
+              <input value={suffix} onChange={e=>setSuffix(e.target.value)} placeholder="Suffix for each line (optional)" className="w-full rounded-xl border p-2 dark:bg-slate-900" />
             </div>
             <div className="flex flex-wrap gap-4 my-2 text-sm">
               <label className="inline-flex items-center gap-2">
@@ -124,13 +130,55 @@ export default function Strings() {
                   const parts = text.split(/\r?\n/)
                     .map(s => trimItems ? s.trim() : s)
                   const filtered = ignoreEmpty ? parts.filter(s => s.length>0) : parts
-                  setOut(filtered.join(dlm))
+                  const wrapped = filtered.map(s => `${prefix}${s}${suffix}`)
+                  setOut(wrapped.join(dlm))
                 }}
                 className="px-3 py-2 rounded-xl bg-slate-900 text-white"
               >Join</button>
             </div>
             <div className="relative mt-2">
               <textarea value={out} onChange={e=>setOut(e.target.value)} placeholder="Output…" className="w-full h-28 rounded-xl border p-3 font-mono text-xs dark:bg-slate-900 pr-12" />
+              <div className="absolute top-2 right-2"><CopyButton value={out} /></div>
+            </div>
+            <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">Tip: Use \\t for tab, \\n for newline in the delimiter.</div>
+          </ToolCard>
+        )
+      case 'split':
+        return (
+          <ToolCard title="Split string by delimiter" description="Break a string on a chosen delimiter into separate lines.">
+            <textarea value={text} onChange={e=>setText(e.target.value)} placeholder="Input string…" className="w-full h-40 rounded-xl border p-3 dark:bg-slate-900" />
+            <div className="flex flex-wrap items-center gap-2">
+              <label className="text-sm text-slate-600 dark:text-slate-400">Delimiter:</label>
+              <input value={delimiter} onChange={e=>setDelimiter(e.target.value)} placeholder=", " className="px-3 py-2 rounded-xl border dark:bg-slate-900" />
+              <button onClick={()=>setDelimiter(', ')} className="px-2 py-1 rounded-lg bg-slate-200 dark:bg-slate-800 text-sm">,</button>
+              <button onClick={()=>setDelimiter('|')} className="px-2 py-1 rounded-lg bg-slate-200 dark:bg-slate-800 text-sm">|</button>
+              <button onClick={()=>setDelimiter('\\t')} className="px-2 py-1 rounded-lg bg-slate-200 dark:bg-slate-800 text-sm">Tab</button>
+              <button onClick={()=>setDelimiter('; ')} className="px-2 py-1 rounded-lg bg-slate-200 dark:bg-slate-800 text-sm">;</button>
+            </div>
+            <div className="flex flex-wrap gap-4 my-2 text-sm">
+              <label className="inline-flex items-center gap-2">
+                <input type="checkbox" checked={trimItems} onChange={e=>setTrimItems(e.target.checked)} />
+                Trim entries
+              </label>
+              <label className="inline-flex items-center gap-2">
+                <input type="checkbox" checked={ignoreEmpty} onChange={e=>setIgnoreEmpty(e.target.checked)} />
+                Ignore empty results
+              </label>
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={()=>{
+                  const dlm = parseEscapes(delimiter)
+                  let parts = dlm ? text.split(dlm) : [text]
+                  if (trimItems) parts = parts.map(s=>s.trim())
+                  if (ignoreEmpty) parts = parts.filter(s=>s.length>0)
+                  setOut(parts.join('\n'))
+                }}
+                className="px-3 py-2 rounded-xl bg-slate-900 text-white"
+              >Split</button>
+            </div>
+            <div className="relative mt-2">
+              <textarea value={out} onChange={e=>setOut(e.target.value)} placeholder="Output (one item per line)…" className="w-full h-28 rounded-xl border p-3 font-mono text-xs dark:bg-slate-900 pr-12" />
               <div className="absolute top-2 right-2"><CopyButton value={out} /></div>
             </div>
             <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">Tip: Use \\t for tab, \\n for newline in the delimiter.</div>
@@ -220,6 +268,7 @@ export default function Strings() {
     { key: 'case', label: 'Case converters' },
     { key: 'unicode', label: 'Unicode / Code Points' },
     { key: 'delimiter', label: 'Add delimiter / Join lines' },
+    { key: 'split', label: 'Split by delimiter' },
     { key: 'lines', label: 'Line operations' },
     { key: 'find', label: 'Find / Replace (Regex)' },
     { key: 'wrap', label: 'Wrap / Reflow' },

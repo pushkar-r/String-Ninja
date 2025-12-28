@@ -7,7 +7,7 @@ import Papa from 'papaparse'
 import { hideTextInImage, extractTextFromImage } from '../utils/stego'
 
 export default function Misc() {
-  const [active, setActive] = useState<'ts'|'pass'|'rand'|'regex'|'stego'|'csv'|'saved'>('ts')
+  const [active, setActive] = useState<'ts'|'pass'|'rand'|'regex'|'stego'|'saved'>('ts')
 
   const [unix, setUnix] = useState<string>('')
   const [readable, setReadable] = useState<string>('')
@@ -169,15 +169,7 @@ export default function Misc() {
             {outUrl && (<div className="grid gap-2"><img src={outUrl} className="max-h-80 rounded-xl border" /><a href={outUrl} download="stego.png" className="underline text-sm">Download stego.png</a></div>)}
           </ToolCard>
         )
-      case 'csv':
-        return (
-          <ToolCard title="CSV Import Options (delimiter)" description="Parse CSV using a chosen delimiter into JSON.">
-            <textarea id="csv-in" placeholder="CSV input..." className="w-full h-32 rounded-xl border p-3 font-mono text-xs dark:bg-slate-900" />
-            <input id="csv-delim" placeholder="Delimiter (default ,)" className="w-full rounded-xl border p-3 dark:bg-slate-900" />
-            <button onClick={()=>{ const v=(document.getElementById('csv-in') as HTMLTextAreaElement).value; const d=(document.getElementById('csv-delim') as HTMLInputElement).value || ','; const res = Papa.parse(v.trim(), { header: true, delimiter: d }); (document.getElementById('csv-out') as HTMLTextAreaElement).value = JSON.stringify(res.data, null, 2) }} className="px-3 py-2 rounded-xl bg-slate-900 text-white">Parse CSV</button>
-            <textarea id="csv-out" readOnly className="w-full h-32 rounded-xl border p-3 font-mono text-xs dark:bg-slate-900"></textarea>
-          </ToolCard>
-        )
+      // CSV Import feature removed
       case 'saved':
         return (
           <ToolCard title="Regex Save / Reuse" description="Save named regex patterns in browser storage and reuse them.">
@@ -199,13 +191,13 @@ export default function Misc() {
     { key: 'rand', label: 'Random & UUID' },
     { key: 'regex', label: 'Regex Tester' },
     { key: 'stego', label: 'Steganography' },
-    { key: 'csv', label: 'CSV Import Options' },
+    // { key: 'csv', label: 'CSV Import Options' },
     { key: 'saved', label: 'Regex Save / Reuse' },
   ]
 
   return (
     <>
-      <Head title="String Ninja — Misc Tools (Timestamps, Passwords, Random, Regex, Stego, CSV)" description="Convert timestamps, generate secure passwords and UUIDs, test regex, basic steganography demo, and CSV parsing with custom delimiters." />
+      <Head title="String Ninja — Misc Tools (Timestamps, Passwords, Random, Regex, Stego)" description="Convert timestamps, generate secure passwords and UUIDs, test regex, and basic steganography demo." />
       <div className="grid gap-6 md:grid-cols-[260px_1fr]">
       <div className="bg-white dark:bg-slate-950 rounded-2xl p-3 shadow-sm border border-slate-200 dark:border-slate-800 h-fit sticky top-24">
         <div className="text-sm font-semibold px-2 pb-2">Misc Tools</div>

@@ -43,6 +43,7 @@ export default function DataTools() {
   const [mdHtml, setMdHtml] = useState('')
   const [qrInput, setQrInput] = useState('')
   const [qrUrl, setQrUrl] = useState('')
+  const [qrDecoded, setQrDecoded] = useState('')
   const fileInput = useRef<HTMLInputElement|null>(null)
 
   // New state-based I/O for tools that previously used direct DOM access
@@ -125,13 +126,13 @@ export default function DataTools() {
                       ctx.drawImage(img,0,0)
                       const imgData = ctx.getImageData(0,0,canvas.width,canvas.height)
                       const code = jsQR(imgData.data, canvas.width, canvas.height)
-                      setQrInput(code?.data || 'No QR found')
+                      setQrDecoded(code?.data || 'No QR found')
                     }
                     img.src = url
                   }} />
                   <div className="relative">
-                    <textarea readOnly value={qrInput} placeholder="Decoded text will appear here" className="w-full h-24 rounded-xl border p-3 font-mono text-xs pr-12 dark:bg-slate-900" />
-                    <div className="absolute top-2 right-2"><CopyButton value={qrInput} /></div>
+                    <textarea readOnly value={qrDecoded} placeholder="Decoded text will appear here" className="w-full h-24 rounded-xl border p-3 font-mono text-xs pr-12 dark:bg-slate-900" />
+                    <div className="absolute top-2 right-2"><CopyButton value={qrDecoded} /></div>
                   </div>
                 </div>
               </div>
@@ -168,7 +169,7 @@ export default function DataTools() {
             </div>
             <div className="flex flex-wrap gap-2">
               <button onClick={() => { const out = xmlToJson(xjInput); setXjOutput(out); setXjStatus(out.startsWith('Invalid') ? 'error' : 'success') }} className="px-3 py-2 rounded-xl bg-slate-900 text-white">XML → JSON</button>
-              <button onClick={() => { const out = jsonToXml(xjInput); setXjOutput(out); setXjStatus(out.startsWith('Invalid') ? 'error' : 'success') }} className="px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">JSON → XML</button>
+              <button onClick={() => { let out = jsonToXml(xjInput); if (out.startsWith('Invalid')) { out = jsonToXml(xjOutput) } setXjOutput(out); setXjStatus(out.startsWith('Invalid') ? 'error' : 'success') }} className="px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">JSON → XML</button>
             </div>
           </ToolCard>
         )
