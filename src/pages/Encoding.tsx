@@ -147,20 +147,47 @@ i3 =  N        & 0x3F`}
             </div>
           </ToolCard>
         )
-      case 'html':
+      case 'html': {
+        const description = 'Convert characters to and from HTML entity forms (e.g., <, >, &).'
         return (
-          <ToolCard title="HTML Entities" description="Convert characters to and from HTML entity forms (e.g., &lt;, &gt;, &amp;).">
-            <textarea value={input} onChange={e=>setInput(e.target.value)} placeholder="Enter text…" className="w-full h-28 rounded-xl border p-3 dark:bg-slate-900" />
+          <ToolCard
+            title="HTML Entities"
+            description={description}
+          >
+            <textarea
+              value={input}
+              onChange={e=>setInput(e.target.value)}
+              placeholder="Enter text…"
+              className="w-full h-28 rounded-xl border p-3 dark:bg-slate-900"
+            />
             <div className="grid md:grid-cols-2 gap-3">
-              <button onClick={()=>setHtml(htmlEncode(input))} className="px-4 py-2 rounded-xl bg-slate-900 text-white">Encode →</button>
-              <button onClick={()=>setHtml(htmlDecode(input))} className="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">← Decode</button>
+              <button
+                onClick={()=>setHtml(htmlEncode(input))}
+                className="px-4 py-2 rounded-xl bg-slate-900 text-white"
+              >
+                Encode →
+              </button>
+              <button
+                onClick={()=>setHtml(htmlDecode(input))}
+                className="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-800"
+              >
+                ← Decode
+              </button>
             </div>
             <div className="relative">
-              <textarea value={html} onChange={e=>setHtml(e.target.value)} placeholder="Output…" className="w-full h-28 rounded-xl border p-3 dark:bg-slate-900 pr-12" />
-              <div className="absolute top-2 right-2"><CopyButton value={html} /></div>
+              <textarea
+                value={html}
+                onChange={e=>setHtml(e.target.value)}
+                placeholder="Output…"
+                className="w-full h-28 rounded-xl border p-3 dark:bg-slate-900 pr-12"
+              />
+              <div className="absolute top-2 right-2">
+                <CopyButton value={html} />
+              </div>
             </div>
           </ToolCard>
         )
+      }
       case 'hexbin':
         return (
           <ToolCard title="Hex ↔ Binary ↔ Text" description="Convert between plain text, hexadecimal, and binary representations of data bytes.">
