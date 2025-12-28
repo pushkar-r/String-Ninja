@@ -147,12 +147,11 @@ i3 =  N        & 0x3F`}
             </div>
           </ToolCard>
         )
-      case 'html': {
-        const description = 'Convert characters to and from HTML entity forms (e.g., <, >, &).'
+      case 'html':
         return (
           <ToolCard
             title="HTML Entities"
-            description={description}
+            description="Convert characters to and from HTML entity forms (e.g., &lt;, &gt;, &amp;)."
           >
             <textarea
               value={input}
@@ -187,7 +186,6 @@ i3 =  N        & 0x3F`}
             </div>
           </ToolCard>
         )
-      }
       case 'hexbin':
         return (
           <ToolCard title="Hex ↔ Binary ↔ Text" description="Convert between plain text, hexadecimal, and binary representations of data bytes.">
