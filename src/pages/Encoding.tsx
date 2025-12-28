@@ -99,7 +99,7 @@ export default function Encoding() {
               </ul>
               <p className="font-semibold">Mathematical view</p>
               <p>
-                Let the three bytes be b0, b1, b2. Create a 24‑bit number: N = (b0 << 16) | (b1 << 8) | b2. Then extract indices:
+                Let the three bytes be b0, b1, b2. Create a 24‑bit number: N = (b0 &lt;&lt; 16) | (b1 &lt;&lt; 8) | b2. Then extract indices:
               </p>
               <pre className="bg-slate-100 dark:bg-slate-800 rounded p-3 overflow-auto text-xs">
 {`i0 = (N >> 18) & 0x3F
