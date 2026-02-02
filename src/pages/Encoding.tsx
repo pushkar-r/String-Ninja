@@ -404,7 +404,7 @@ v7 =  N        & 0x1F`}
               <p className="font-semibold">UTF‑16</p>
               <ul className="list-disc pl-5 space-y-1">
                 <li>Code points ≤ U+FFFF: one 16‑bit unit.</li>
-                <li>Code points ≥ U+10000: subtract 0x10000 → 20‑bit value y; emit surrogate pair: high = 0xD800 | (y >> 10), low = 0xDC00 | (y & 0x3FF).</li>
+                <li>Code points ≥ U+10000: subtract 0x10000 → 20‑bit value y; emit surrogate pair: high = 0xD800 | (y &gt;&gt; 10), low = 0xDC00 | (y & 0x3FF).</li>
                 <li>LE/BE control the byte order of each 16‑bit unit in the hex output.</li>
               </ul>
               <p className="font-semibold">UTF‑32</p>
