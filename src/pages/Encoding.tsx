@@ -145,6 +145,37 @@ i3 =  N        & 0x3F`}
               <textarea readOnly value={current.output} placeholder="Output…" className="w-full h-28 rounded-xl border p-3 dark:bg-slate-900 pr-12" />
               <div className="absolute top-2 right-2"><CopyButton value={current.output} /></div>
             </div>
+            <div className="mt-6 text-sm leading-6 text-slate-700 dark:text-slate-300 space-y-3">
+              <h3 className="text-base font-semibold">How Base32 works (algorithm and math)</h3>
+              <p>Base32 is a binary-to-text encoding that uses an alphabet of 32 symbols: A–Z and 2–7. It is useful in case-insensitive systems or where symbols like + and / are undesirable.</p>
+              <p className="font-semibold">Bit grouping</p>
+              <ul className="list-disc pl-5 space-y-1">
+                <li>Group input bytes into blocks of 5 bytes = 40 bits.</li>
+                <li>Split 40 bits into eight 5‑bit values (0–31), map each to the Base32 alphabet.</li>
+                <li>If fewer than 5 bytes remain, pad output with '=' so the final length is a multiple of 8.</li>
+              </ul>
+              <p className="font-semibold">Mathematical view</p>
+              <p>Let the five bytes be b0..b4 (missing bytes are treated as 0 when forming the block, and corresponding output positions are replaced with '='):</p>
+              <pre className="bg-slate-100 dark:bg-slate-800 rounded p-3 overflow-auto text-xs">
+{`N = (b0 << 32) | (b1 << 24) | (b2 << 16) | (b3 << 8) | b4
+v0 = (N >> 35) & 0x1F
+v1 = (N >> 30) & 0x1F
+v2 = (N >> 25) & 0x1F
+v3 = (N >> 20) & 0x1F
+v4 = (N >> 15) & 0x1F
+v5 = (N >> 10) & 0x1F
+v6 = (N >>  5) & 0x1F
+v7 =  N        & 0x1F`}
+              </pre>
+              <p className="font-semibold">Padding cases</p>
+              <ul className="list-disc pl-5 space-y-1">
+                <li>1 leftover byte → output 2 symbols + 6 '='</li>
+                <li>2 leftover bytes → 4 symbols + 4 '='</li>
+                <li>3 leftover bytes → 5 symbols + 3 '='</li>
+                <li>4 leftover bytes → 7 symbols + 1 '='</li>
+              </ul>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Decoding reverses the mapping, discarding '=' and reassembling 5‑bit values into bytes. Whitespace is typically ignored.</p>
+            </div>
           </ToolCard>
         )
       case 'url':
@@ -158,6 +189,27 @@ i3 =  N        & 0x3F`}
             <div className="relative">
               <textarea readOnly value={current.output} placeholder="Output…" className="w-full h-28 rounded-xl border p-3 dark:bg-slate-900 pr-12" />
               <div className="absolute top-2 right-2"><CopyButton value={current.output} /></div>
+            </div>
+            <div className="mt-6 text-sm leading-6 text-slate-700 dark:text-slate-300 space-y-3">
+              <h3 className="text-base font-semibold">How URL percent‑encoding works (RFC 3986)</h3>
+              <p>Percent‑encoding represents arbitrary bytes in URLs using % followed by two hex digits. It is applied to characters outside the unreserved set or when characters have a reserved meaning in a particular URL component.</p>
+              <p className="font-semibold">Character classes</p>
+              <ul className="list-disc pl-5 space-y-1">
+                <li><span className="font-semibold">Unreserved</span>: A–Z a–z 0–9 - _ . ~ (left as‑is)</li>
+                <li><span className="font-semibold">Reserved</span>: ! * ' ( ) ; : @ & = + $ , / ? # [ ] (may require encoding depending on context)</li>
+              </ul>
+              <p className="font-semibold">Algorithm</p>
+              <ul className="list-disc pl-5 space-y-1">
+                <li>Encode the string as UTF‑8 bytes.</li>
+                <li>For each byte b outside unreserved, output %HH where HH = b.toString(16).toUpperCase().</li>
+                <li>Unreserved bytes are emitted as characters unchanged.</li>
+              </ul>
+              <p className="font-semibold">Notes</p>
+              <ul className="list-disc pl-5 space-y-1">
+                <li>encodeURIComponent encodes all non‑unreserved characters. encodeURI is looser and preserves some reserved separators (/:?#[\]@) used in URL structure.</li>
+                <li>Spaces are encoded as %20. The + convention is for application/x-www-form-urlencoded, not for generic URLs.</li>
+                <li>Decoding replaces %HH with the corresponding byte sequence and then decodes UTF‑8 to text.</li>
+              </ul>
             </div>
           </ToolCard>
         )
@@ -198,6 +250,20 @@ i3 =  N        & 0x3F`}
                 <CopyButton value={current.output} />
               </div>
             </div>
+            <div className="mt-6 text-sm leading-6 text-slate-700 dark:text-slate-300 space-y-3">
+              <h3 className="text-base font-semibold">How HTML entities work</h3>
+              <p>HTML entities encode characters that would otherwise be interpreted by the HTML parser or are not easily typable on a keyboard.</p>
+              <ul className="list-disc pl-5 space-y-1">
+                <li><span className="font-semibold">Named</span>: &amp;lt; &amp;gt; &amp;amp; &amp;quot; &amp;apos; and many others defined by HTML specs.</li>
+                <li><span className="font-semibold">Numeric</span>: &#NNNN; (decimal) and &#xHHHH; (hex) refer to Unicode code points.</li>
+              </ul>
+              <p className="font-semibold">Algorithm</p>
+              <ul className="list-disc pl-5 space-y-1">
+                <li>Encoding replaces special characters with their named form when available, otherwise numeric form.</li>
+                <li>Decoding scans for &amp;...; sequences, resolves named references, or parses decimal/hex numbers to emit the corresponding Unicode characters.</li>
+              </ul>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Browsers are forgiving about missing semicolons for some legacy entities, but explicit semicolons are recommended for correctness.</p>
+            </div>
           </ToolCard>
         )
       case 'hexbin': {
@@ -220,6 +286,16 @@ i3 =  N        & 0x3F`}
               <textarea readOnly value={current.output} placeholder="Output…" className="w-full h-28 rounded-xl border p-3 dark:bg-slate-900 pr-12" />
               <div className="absolute top-2 right-2"><CopyButton value={current.output} /></div>
             </div>
+            <div className="mt-6 text-sm leading-6 text-slate-700 dark:text-slate-300 space-y-3">
+              <h3 className="text-base font-semibold">How hex / binary / text conversions work</h3>
+              <p>Conversions operate on raw bytes. Text is first encoded as UTF‑8 to obtain bytes, which can then be shown in hexadecimal or binary.</p>
+              <ul className="list-disc pl-5 space-y-1">
+                <li><span className="font-semibold">Text → Hex</span>: each byte → two hex digits (00–FF). Uppercase affects only A–F.</li>
+                <li><span className="font-semibold">Text → Binary</span>: each byte → 8 bits.</li>
+                <li><span className="font-semibold">Hex ↔ Binary</span>: per‑byte base conversion (base 16 ↔ base 2) for the same underlying byte value.</li>
+              </ul>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Invalid input (odd‑length hex, non‑hex symbols) cannot be parsed and yields empty/invalid results.</p>
+            </div>
           </ToolCard>
         )
       }
@@ -241,6 +317,16 @@ i3 =  N        & 0x3F`}
               <textarea readOnly value={current.output} placeholder="Output…" className="w-full h-28 rounded-xl border p-3 dark:bg-slate-900 pr-12" />
               <div className="absolute top-2 right-2"><CopyButton value={current.output} /></div>
             </div>
+            <div className="mt-6 text-sm leading-6 text-slate-700 dark:text-slate-300 space-y-3">
+              <h3 className="text-base font-semibold">How DEFLATE / Gzip work (high level)</h3>
+              <p>DEFLATE compresses data by replacing repeated substrings with references (LZ77) and then entropy‑coding literals/lengths/distances with Huffman codes. Gzip wraps DEFLATE with a header and trailer (CRC32 + length) for integrity.</p>
+              <ul className="list-disc pl-5 space-y-1">
+                <li><span className="font-semibold">LZ77</span>: sliding window searches for the longest previous match and emits (length, distance) pairs.</li>
+                <li><span className="font-semibold">Huffman coding</span>: variable‑length codes assign shorter codes to frequent symbols.</li>
+                <li><span className="font-semibold">Gzip format</span>: magic bytes 0x1F 0x8B, method=8 (DEFLATE), flags, optional fields, DEFLATE blocks, CRC32, ISIZE.</li>
+              </ul>
+              <p className="text-xs text-slate-500 dark:text-slate-400">This tool outputs compressed bytes as Base64 to make copy/paste easy. Decoding does the reverse: Base64 → bytes → inflate/gunzip.</p>
+            </div>
           </ToolCard>
         )
       }
@@ -256,6 +342,18 @@ i3 =  N        & 0x3F`}
               <textarea readOnly value={current.output} placeholder="Output…" className="w-full h-28 rounded-xl border p-3 dark:bg-slate-900 pr-12" />
               <div className="absolute top-2 right-2"><CopyButton value={current.output} /></div>
             </div>
+            <div className="mt-6 text-sm leading-6 text-slate-700 dark:text-slate-300 space-y-3">
+              <h3 className="text-base font-semibold">How Base58 works</h3>
+              <p>Base58 encodes a big integer using an alphabet without ambiguous characters (0, O, I, l). It is commonly used in Bitcoin addresses (with an additional checksum in Base58Check, not included here).</p>
+              <p className="font-semibold">Algorithm</p>
+              <ul className="list-disc pl-5 space-y-1">
+                <li>Interpret the input as a big‑endian integer N from its bytes.</li>
+                <li>Repeatedly divide N by 58; record the remainder r as an alphabet index. Continue with N = floor(N / 58) until N = 0.</li>
+                <li>Map remainders to characters; reverse the sequence to produce the string.</li>
+                <li>Preserve each leading 0x00 byte in input as a leading '1' in output.</li>
+              </ul>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Decoding multiplies by 58 and adds the digit value; leading '1's add leading zero bytes.</p>
+            </div>
           </ToolCard>
         )
       case 'b85':
@@ -269,6 +367,18 @@ i3 =  N        & 0x3F`}
             <div className="relative">
               <textarea readOnly value={current.output} placeholder="Output…" className="w-full h-28 rounded-xl border p-3 dark:bg-slate-900 pr-12" />
               <div className="absolute top-2 right-2"><CopyButton value={current.output} /></div>
+            </div>
+            <div className="mt-6 text-sm leading-6 text-slate-700 dark:text-slate-300 space-y-3">
+              <h3 className="text-base font-semibold">How Ascii85/Base85 works</h3>
+              <p>Ascii85 encodes 4 input bytes (32 bits) into 5 ASCII characters in the range ! (33) through u (117). It is more compact than Base64 and designed for text environments.</p>
+              <p className="font-semibold">Algorithm</p>
+              <ul className="list-disc pl-5 space-y-1">
+                <li>Interpret a 4‑byte group as a 32‑bit integer N.</li>
+                <li>Compute 5 digits d4..d0 such that N = ((((d4×85 + d3)×85 + d2)×85 + d1)×85 + d0).</li>
+                <li>Add 33 to each digit to map into printable ASCII.</li>
+                <li>Partial groups are padded with zeros during encode; output is truncated accordingly. All‑zero group may be shortened to 'z'.</li>
+              </ul>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Variants (Z85, RFC 1924) differ in alphabet and details; this tool uses conventional Ascii85.</p>
             </div>
           </ToolCard>
         )
@@ -288,6 +398,22 @@ i3 =  N        & 0x3F`}
               <textarea readOnly value={current.output} placeholder="Output…" className="w-full h-28 rounded-xl border p-3 dark:bg-slate-900 pr-12" />
               <div className="absolute top-2 right-2"><CopyButton value={current.output} /></div>
             </div>
+            <div className="mt-6 text-sm leading-6 text-slate-700 dark:text-slate-300 space-y-3">
+              <h3 className="text-base font-semibold">How UTF‑16 / UTF‑32 ↔ Hex works</h3>
+              <p>UTF encodings map Unicode code points (U+0000–U+10FFFF) to fixed‑width code units, then to bytes in a particular byte order (LE/BE). Hex is just a readable formatting of those bytes.</p>
+              <p className="font-semibold">UTF‑16</p>
+              <ul className="list-disc pl-5 space-y-1">
+                <li>Code points ≤ U+FFFF: one 16‑bit unit.</li>
+                <li>Code points ≥ U+10000: subtract 0x10000 → 20‑bit value y; emit surrogate pair: high = 0xD800 | (y >> 10), low = 0xDC00 | (y & 0x3FF).</li>
+                <li>LE/BE control the byte order of each 16‑bit unit in the hex output.</li>
+              </ul>
+              <p className="font-semibold">UTF‑32</p>
+              <ul className="list-disc pl-5 space-y-1">
+                <li>Always one 32‑bit unit equal to the code point value.</li>
+                <li>LE/BE control the byte order of the 4 bytes.</li>
+              </ul>
+              <p className="text-xs text-slate-500 dark:text-slate-400">BOMs (byte‑order marks) are not added here; we use explicit LE/BE selection.</p>
+            </div>
           </ToolCard>
         )
       case 'rot':
@@ -301,6 +427,20 @@ i3 =  N        & 0x3F`}
             <div className="relative">
               <textarea readOnly value={current.output} placeholder="Output…" className="w-full h-28 rounded-xl border p-3 dark:bg-slate-900 pr-12" />
               <div className="absolute top-2 right-2"><CopyButton value={current.output} /></div>
+            </div>
+            <div className="mt-6 text-sm leading-6 text-slate-700 dark:text-slate-300 space-y-3">
+              <h3 className="text-base font-semibold">How ROT13 / Caesar work</h3>
+              <p>Caesar ciphers shift letters by a fixed amount modulo 26, preserving case and leaving non‑letters untouched. ROT13 is the special case with a 13‑letter shift.</p>
+              <p className="font-semibold">Math</p>
+              <pre className="bg-slate-100 dark:bg-slate-800 rounded p-3 overflow-auto text-xs">
+{`A..Z → 0..25, a..z → 0..25
+Enc(k): x' = (x + k) mod 26
+Dec(k): x  = (x' - k) mod 26`}
+              </pre>
+              <ul className="list-disc pl-5 space-y-1">
+                <li>ROT13 is self‑inverse: applying it twice yields the original.</li>
+                <li>Only alphabetic letters are shifted; punctuation/digits/whitespace are unchanged.</li>
+              </ul>
             </div>
           </ToolCard>
         )

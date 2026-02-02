@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import ToolCard from '../components/ToolCard'
 import CopyButton from '../components/CopyButton'
@@ -21,6 +21,39 @@ export default function Security() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams])
   function selectTool(key: typeof active){ setActive(key); setSearchParams({ tool: key }) }
+
+  // Per-feature cache to keep state local to each tab and restore when revisiting
+  const [cache, setCache] = useState<Record<string, any>>({})
+  const prevActive = useRef(active)
+  useEffect(() => {
+    const prev = prevActive.current
+    // Save current common states under previous tool key
+    const nextCache = { ...cache, [prev]: { text, algo, password, cipher, jwt } }
+    const saved = nextCache[active] || {}
+
+    // Commit cache and restore for new active
+    setCache(nextCache)
+    setText(saved.text || '')
+    setAlgo(saved.algo || 'SHA256')
+    setPassword(saved.password || '')
+    setCipher(saved.cipher || '')
+    setJwt(saved.jwt || '')
+
+    // Ensure File Hashing starts clean on activation
+    if (active === 'filehash') {
+      setTimeout(() => {
+        const a = document.getElementById('fh-256') as HTMLInputElement | null
+        const b = document.getElementById('fh-512') as HTMLInputElement | null
+        if (a) a.value = ''
+        if (b) b.value = ''
+        const f = document.getElementById('fh-file') as HTMLInputElement | null
+        if (f) f.value = ''
+      }, 0)
+    }
+
+    prevActive.current = active
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active])
 
   const [text, setText] = useState('')
   const [algo, setAlgo] = useState<'MD5' | 'SHA1' | 'SHA256' | 'SHA512'>('SHA256')
