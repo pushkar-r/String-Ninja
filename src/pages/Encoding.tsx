@@ -47,7 +47,7 @@ export default function Encoding() {
   function selectTool(key: ToolKey){ setActive(key); setSearchParams({ tool: key }) }
 
   // Per-tool state map. Each tool stores its own input/output/options.
-  const [store, setStore] = useState<Record<ToolKey, ToolState>>({})
+  const [store, setStore] = useState<Partial<Record<ToolKey, ToolState>>>({})
 
   const current: ToolState = useMemo(() => (
     store[active] || { input: '', output: '', options: {} }
