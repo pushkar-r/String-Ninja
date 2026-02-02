@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import ToolCard from '../components/ToolCard'
 import CopyButton from '../components/CopyButton'
@@ -26,30 +26,41 @@ function safeBase64Decode(input: string) {
   }
 }
 
+type ToolKey = 'b64'|'b32'|'url'|'html'|'hexbin'|'rot'|'zip'|'b58'|'b85'|'utf'
+
+type ToolState = {
+  input: string
+  output: string
+  options?: Record<string, any>
+}
+
 export default function Encoding() {
   const [searchParams, setSearchParams] = useSearchParams()
-  const [active, setActive] = useState<'b64'|'b32'|'url'|'html'|'hexbin'|'rot'|'zip'|'b58'|'b85'|'utf'>(
-    (searchParams.get('tool') as any) || 'b64'
+  const [active, setActive] = useState<ToolKey>(
+    (searchParams.get('tool') as ToolKey) || 'b64'
   )
   useEffect(()=>{
-    const t = searchParams.get('tool') as any
+    const t = searchParams.get('tool') as ToolKey
     if (t && t !== active) setActive(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams])
-  function selectTool(key: typeof active){ setActive(key); setSearchParams({ tool: key }) }
+  function selectTool(key: ToolKey){ setActive(key); setSearchParams({ tool: key }) }
 
-  // Shared state across tools (keeps previous behavior and lets users reuse inputs)
-  const [input, setInput] = useState('')
-  const [b64, setB64] = useState('')
-  const [b64UrlSafe, setB64UrlSafe] = useState(false)
-  const [b64NoPad, setB64NoPad] = useState(false)
-  const [b32, setB32] = useState('')
-  const [urlEnc, setUrlEnc] = useState('')
-  const [html, setHtml] = useState('')
-  const [rot, setRot] = useState('')
-  const [hexUpper, setHexUpper] = useState(false)
+  // Per-tool state map. Each tool stores its own input/output/options.
+  const [store, setStore] = useState<Record<ToolKey, ToolState>>({})
 
-  const navItems: { key: typeof active, label: string }[] = [
+  const current: ToolState = useMemo(() => (
+    store[active] || { input: '', output: '', options: {} }
+  ), [store, active])
+
+  function updateCurrent(patch: Partial<ToolState>) {
+    setStore(prev => {
+      const prevForTool = prev[active] || { input: '', output: '', options: {} }
+      return { ...prev, [active]: { ...prevForTool, ...patch, options: { ...(prevForTool.options||{}), ...(patch.options||{}) } } }
+    })
+  }
+
+  const navItems: { key: ToolKey, label: string }[] = [
     { key: 'b64', label: 'Base64' },
     { key: 'b32', label: 'Base32' },
     { key: 'url', label: 'URL Encode/Decode' },
@@ -64,21 +75,23 @@ export default function Encoding() {
 
   function renderPanel() {
     switch (active) {
-      case 'b64':
+      case 'b64': {
+        const urlSafe = !!current.options?.b64UrlSafe
+        const noPad = !!current.options?.b64NoPad
         return (
           <ToolCard title="Base64" description="Base64 encodes data into a 64-character text alphabet so it can be safely stored or transmitted in text systems.">
-            <textarea value={input} onChange={e=>setInput(e.target.value)} placeholder="Enter text…" className="w-full h-28 rounded-xl border p-3 dark:bg-slate-900" />
+            <textarea value={current.input} onChange={e=>updateCurrent({ input: e.target.value })} placeholder="Enter text…" className="w-full h-28 rounded-xl border p-3 dark:bg-slate-900" />
             <div className="flex flex-wrap items-center gap-4 text-sm text-slate-600 dark:text-slate-400 mb-2">
-              <label className="inline-flex items-center gap-2"><input type="checkbox" checked={b64UrlSafe} onChange={e=>setB64UrlSafe(e.target.checked)} /> URL-safe (-/_)</label>
-              <label className="inline-flex items-center gap-2"><input type="checkbox" checked={b64NoPad} onChange={e=>setB64NoPad(e.target.checked)} /> Strip padding (=)</label>
+              <label className="inline-flex items-center gap-2"><input type="checkbox" checked={urlSafe} onChange={e=>updateCurrent({ options: { b64UrlSafe: e.target.checked } })} /> URL-safe (-/_)</label>
+              <label className="inline-flex items-center gap-2"><input type="checkbox" checked={noPad} onChange={e=>updateCurrent({ options: { b64NoPad: e.target.checked } })} /> Strip padding (=)</label>
             </div>
             <div className="grid md:grid-cols-2 gap-3">
-              <button onClick={()=>{ let v = safeBase64Encode(input); if (b64UrlSafe) v = v.replace(/\+/g,'-').replace(/\//g,'_'); if (b64NoPad) v = v.replace(/=+$/,''); setB64(v) }} className="px-4 py-2 rounded-xl bg-slate-900 text-white">Encode →</button>
-              <button onClick={()=>setB64(safeBase64Decode(input))} className="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">← Decode</button>
+              <button onClick={()=>{ let v = safeBase64Encode(current.input); if (urlSafe) v = v.replace(/\+/g,'-').replace(/\//g,'_'); if (noPad) v = v.replace(/=+$/,''); updateCurrent({ output: v }) }} className="px-4 py-2 rounded-xl bg-slate-900 text-white">Encode →</button>
+              <button onClick={()=>updateCurrent({ output: safeBase64Decode(current.input) })} className="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">← Decode</button>
             </div>
             <div className="relative">
-              <textarea value={b64} onChange={e=>setB64(e.target.value)} placeholder="Output…" className="w-full h-28 rounded-xl border p-3 dark:bg-slate-900 pr-12" />
-              <div className="absolute top-2 right-2"><CopyButton value={b64} /></div>
+              <textarea readOnly value={current.output} placeholder="Output…" className="w-full h-28 rounded-xl border p-3 dark:bg-slate-900 pr-12" />
+              <div className="absolute top-2 right-2"><CopyButton value={current.output} /></div>
             </div>
             <div className="mt-6 text-sm leading-6 text-slate-700 dark:text-slate-300 space-y-3">
               <h3 className="text-base font-semibold">How Base64 works (algorithm and math)</h3>
@@ -119,31 +132,32 @@ i3 =  N        & 0x3F`}
             </div>
           </ToolCard>
         )
+      }
       case 'b32':
         return (
           <ToolCard title="Base32" description="Base32 encodes data using A–Z and 2–7, useful in case-insensitive or restricted text environments.">
-            <textarea value={input} onChange={e=>setInput(e.target.value)} placeholder="Enter text…" className="w-full h-28 rounded-xl border p-3 dark:bg-slate-900" />
+            <textarea value={current.input} onChange={e=>updateCurrent({ input: e.target.value })} placeholder="Enter text…" className="w-full h-28 rounded-xl border p-3 dark:bg-slate-900" />
             <div className="grid md:grid-cols-2 gap-3">
-              <button onClick={()=>setB32(base32Encode(input))} className="px-4 py-2 rounded-xl bg-slate-900 text-white">Encode →</button>
-              <button onClick={()=>setB32(base32Decode(input))} className="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">← Decode</button>
+              <button onClick={()=>updateCurrent({ output: base32Encode(current.input) })} className="px-4 py-2 rounded-xl bg-slate-900 text-white">Encode →</button>
+              <button onClick={()=>updateCurrent({ output: base32Decode(current.input) })} className="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">← Decode</button>
             </div>
             <div className="relative">
-              <textarea value={b32} onChange={e=>setB32(e.target.value)} placeholder="Output…" className="w-full h-28 rounded-xl border p-3 dark:bg-slate-900 pr-12" />
-              <div className="absolute top-2 right-2"><CopyButton value={b32} /></div>
+              <textarea readOnly value={current.output} placeholder="Output…" className="w-full h-28 rounded-xl border p-3 dark:bg-slate-900 pr-12" />
+              <div className="absolute top-2 right-2"><CopyButton value={current.output} /></div>
             </div>
           </ToolCard>
         )
       case 'url':
         return (
           <ToolCard title="URL Encode/Decode" description="Percent-encoding for URLs and HTTP so special characters are safely represented.">
-            <textarea value={input} onChange={e=>setInput(e.target.value)} placeholder="Enter text…" className="w-full h-28 rounded-xl border p-3 dark:bg-slate-900" />
+            <textarea value={current.input} onChange={e=>updateCurrent({ input: e.target.value })} placeholder="Enter text…" className="w-full h-28 rounded-xl border p-3 dark:bg-slate-900" />
             <div className="grid md:grid-cols-2 gap-3">
-              <button onClick={()=>setUrlEnc(encodeURIComponent(input))} className="px-4 py-2 rounded-xl bg-slate-900 text-white">Encode →</button>
-              <button onClick={()=>setUrlEnc(decodeURIComponent(input))} className="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">← Decode</button>
+              <button onClick={()=>updateCurrent({ output: encodeURIComponent(current.input) })} className="px-4 py-2 rounded-xl bg-slate-900 text-white">Encode →</button>
+              <button onClick={()=>{ try { updateCurrent({ output: decodeURIComponent(current.input) }) } catch { updateCurrent({ output: 'Invalid percent-encoding' }) } }} className="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">← Decode</button>
             </div>
             <div className="relative">
-              <textarea value={urlEnc} onChange={e=>setUrlEnc(e.target.value)} placeholder="Output…" className="w-full h-28 rounded-xl border p-3 dark:bg-slate-900 pr-12" />
-              <div className="absolute top-2 right-2"><CopyButton value={urlEnc} /></div>
+              <textarea readOnly value={current.output} placeholder="Output…" className="w-full h-28 rounded-xl border p-3 dark:bg-slate-900 pr-12" />
+              <div className="absolute top-2 right-2"><CopyButton value={current.output} /></div>
             </div>
           </ToolCard>
         )
@@ -154,20 +168,20 @@ i3 =  N        & 0x3F`}
             description="Convert characters to and from HTML entity forms (e.g., &lt;, &gt;, &amp;)."
           >
             <textarea
-              value={input}
-              onChange={e=>setInput(e.target.value)}
+              value={current.input}
+              onChange={e=>updateCurrent({ input: e.target.value })}
               placeholder="Enter text…"
               className="w-full h-28 rounded-xl border p-3 dark:bg-slate-900"
             />
             <div className="grid md:grid-cols-2 gap-3">
               <button
-                onClick={()=>setHtml(htmlEncode(input))}
+                onClick={()=>updateCurrent({ output: htmlEncode(current.input) })}
                 className="px-4 py-2 rounded-xl bg-slate-900 text-white"
               >
                 Encode →
               </button>
               <button
-                onClick={()=>setHtml(htmlDecode(input))}
+                onClick={()=>updateCurrent({ output: htmlDecode(current.input) })}
                 className="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-800"
               >
                 ← Decode
@@ -175,115 +189,118 @@ i3 =  N        & 0x3F`}
             </div>
             <div className="relative">
               <textarea
-                value={html}
-                onChange={e=>setHtml(e.target.value)}
+                readOnly
+                value={current.output}
                 placeholder="Output…"
                 className="w-full h-28 rounded-xl border p-3 dark:bg-slate-900 pr-12"
               />
               <div className="absolute top-2 right-2">
-                <CopyButton value={html} />
+                <CopyButton value={current.output} />
               </div>
             </div>
           </ToolCard>
         )
-      case 'hexbin':
+      case 'hexbin': {
+        const hexUpper = !!current.options?.hexUpper
         return (
           <ToolCard title="Hex ↔ Binary ↔ Text" description="Convert between plain text, hexadecimal, and binary representations of data bytes.">
-            <textarea value={input} onChange={e=>setInput(e.target.value)} placeholder="Text…" className="w-full h-28 rounded-xl border p-3 dark:bg-slate-900" />
+            <textarea value={current.input} onChange={e=>updateCurrent({ input: e.target.value })} placeholder="Text…" className="w-full h-28 rounded-xl border p-3 dark:bg-slate-900" />
             <div className="flex flex-wrap items-center gap-4 text-sm text-slate-600 dark:text-slate-400 mb-2">
-              <label className="inline-flex items-center gap-2"><input type="checkbox" checked={hexUpper} onChange={e=>setHexUpper(e.target.checked)} /> Uppercase hex</label>
+              <label className="inline-flex items-center gap-2"><input type="checkbox" checked={hexUpper} onChange={e=>updateCurrent({ options: { hexUpper: e.target.checked } })} /> Uppercase hex</label>
             </div>
             <div className="grid md:grid-cols-3 gap-3">
-              <button onClick={()=>{ const v=textToHex(input); setHtml(hexUpper? v.toUpperCase(): v) }} className="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">Text → Hex</button>
-              <button onClick={()=>setHtml(textToBinary(input))} className="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">Text → Binary</button>
-              <button onClick={()=>setHtml(hexToText(input))} className="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">Hex → Text</button>
-              <button onClick={()=>setHtml(binaryToText(input))} className="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">Binary → Text</button>
-              <button onClick={()=>setHtml(hexToBinary(input))} className="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">Hex → Binary</button>
-              <button onClick={()=>{ const v=binaryToHex(input); setHtml(hexUpper? v.toUpperCase(): v) }} className="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">Binary → Hex</button>
+              <button onClick={()=>{ const v=textToHex(current.input); updateCurrent({ output: hexUpper? v.toUpperCase(): v }) }} className="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">Text → Hex</button>
+              <button onClick={()=>updateCurrent({ output: textToBinary(current.input) })} className="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">Text → Binary</button>
+              <button onClick={()=>updateCurrent({ output: hexToText(current.input) })} className="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">Hex → Text</button>
+              <button onClick={()=>updateCurrent({ output: binaryToText(current.input) })} className="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">Binary → Text</button>
+              <button onClick={()=>updateCurrent({ output: hexToBinary(current.input) })} className="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">Hex → Binary</button>
+              <button onClick={()=>{ const v=binaryToHex(current.input); updateCurrent({ output: hexUpper? v.toUpperCase(): v }) }} className="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">Binary → Hex</button>
             </div>
             <div className="relative">
-              <textarea value={html} onChange={e=>setHtml(e.target.value)} placeholder="Output…" className="w-full h-28 rounded-xl border p-3 dark:bg-slate-900 pr-12" />
-              <div className="absolute top-2 right-2"><CopyButton value={html} /></div>
+              <textarea readOnly value={current.output} placeholder="Output…" className="w-full h-28 rounded-xl border p-3 dark:bg-slate-900 pr-12" />
+              <div className="absolute top-2 right-2"><CopyButton value={current.output} /></div>
             </div>
           </ToolCard>
         )
-      case 'zip':
+      }
+      case 'zip': {
         function u8ToB64(u8: Uint8Array){ let bin=''; for (let i=0;i<u8.length;i++) bin += String.fromCharCode(u8[i]); return btoa(bin) }
         function b64ToU8(b64: string){ const bin = atob(b64.trim()); const u8 = new Uint8Array(bin.length); for (let i=0;i<bin.length;i++) u8[i] = bin.charCodeAt(i); return u8 }
         return (
           <ToolCard title="Gzip / Deflate" description="Gzip and Deflate are compression formats for reducing data size.">
-            <textarea value={input} onChange={e=>setInput(e.target.value)} placeholder="Text…" className="w-full h-28 rounded-xl border p-3 dark:bg-slate-900" />
+            <textarea value={current.input} onChange={e=>updateCurrent({ input: e.target.value })} placeholder="Text…" className="w-full h-28 rounded-xl border p-3 dark:bg-slate-900" />
             <div className="grid md:grid-cols-2 gap-3">
-              <button onClick={()=>{ try { const u8in = new TextEncoder().encode(input); const out = gzip(u8in); setHtml(u8ToB64(out)) } catch { setHtml('Gzip failed') } }} className="px-4 py-2 rounded-xl bg-slate-900 text-white">Gzip → Base64</button>
-              <button onClick={()=>{ try { const u8in = new TextEncoder().encode(input); const out = deflate(u8in); setHtml(u8ToB64(out)) } catch { setHtml('Deflate failed') } }} className="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">Deflate → Base64</button>
+              <button onClick={()=>{ try { const u8in = new TextEncoder().encode(current.input); const out = gzip(u8in); updateCurrent({ output: u8ToB64(out) }) } catch { updateCurrent({ output: 'Gzip failed' }) } }} className="px-4 py-2 rounded-xl bg-slate-900 text-white">Gzip → Base64</button>
+              <button onClick={()=>{ try { const u8in = new TextEncoder().encode(current.input); const out = deflate(u8in); updateCurrent({ output: u8ToB64(out) }) } catch { updateCurrent({ output: 'Deflate failed' }) } }} className="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">Deflate → Base64</button>
             </div>
             <div className="grid md:grid-cols-2 gap-3 mt-2">
-              <button onClick={()=>{ try { const u8 = b64ToU8(input); const txt = new TextDecoder().decode(ungzip(u8)); setHtml(txt) } catch { setHtml('Invalid gzip/Base64') } }} className="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">Gunzip (Base64) → Text</button>
-              <button onClick={()=>{ try { const u8 = b64ToU8(input); const txt = new TextDecoder().decode(inflate(u8)); setHtml(txt) } catch { setHtml('Invalid deflate/Base64') } }} className="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">Inflate (Base64) → Text</button>
+              <button onClick={()=>{ try { const u8 = b64ToU8(current.input); const txt = new TextDecoder().decode(ungzip(u8)); updateCurrent({ output: txt }) } catch { updateCurrent({ output: 'Invalid gzip/Base64' }) } }} className="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">Gunzip (Base64) → Text</button>
+              <button onClick={()=>{ try { const u8 = b64ToU8(current.input); const txt = new TextDecoder().decode(inflate(u8)); updateCurrent({ output: txt }) } catch { updateCurrent({ output: 'Invalid deflate/Base64' }) } }} className="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">Inflate (Base64) → Text</button>
             </div>
             <div className="relative mt-2">
-              <textarea value={html} onChange={e=>setHtml(e.target.value)} placeholder="Output…" className="w-full h-28 rounded-xl border p-3 dark:bg-slate-900 pr-12" />
-              <div className="absolute top-2 right-2"><CopyButton value={html} /></div>
+              <textarea readOnly value={current.output} placeholder="Output…" className="w-full h-28 rounded-xl border p-3 dark:bg-slate-900 pr-12" />
+              <div className="absolute top-2 right-2"><CopyButton value={current.output} /></div>
             </div>
           </ToolCard>
         )
+      }
       case 'b58':
         return (
           <ToolCard title="Base58 (Bitcoin alphabet)" description="Base58 is a text encoding that avoids ambiguous characters (used by Bitcoin).">
-            <textarea value={input} onChange={e=>setInput(e.target.value)} placeholder="Enter text…" className="w-full h-28 rounded-xl border p-3 dark:bg-slate-900" />
+            <textarea value={current.input} onChange={e=>updateCurrent({ input: e.target.value })} placeholder="Enter text…" className="w-full h-28 rounded-xl border p-3 dark:bg-slate-900" />
             <div className="grid md:grid-cols-2 gap-3">
-              <button onClick={()=>setB32(base58Encode(input))} className="px-4 py-2 rounded-xl bg-slate-900 text-white">Encode →</button>
-              <button onClick={()=>setB32(base58Decode(input))} className="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">← Decode</button>
+              <button onClick={()=>updateCurrent({ output: base58Encode(current.input) })} className="px-4 py-2 rounded-xl bg-slate-900 text-white">Encode →</button>
+              <button onClick={()=>updateCurrent({ output: base58Decode(current.input) })} className="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">← Decode</button>
             </div>
             <div className="relative">
-              <textarea value={b32} onChange={e=>setB32(e.target.value)} placeholder="Output…" className="w-full h-28 rounded-xl border p-3 dark:bg-slate-900 pr-12" />
-              <div className="absolute top-2 right-2"><CopyButton value={b32} /></div>
+              <textarea readOnly value={current.output} placeholder="Output…" className="w-full h-28 rounded-xl border p-3 dark:bg-slate-900 pr-12" />
+              <div className="absolute top-2 right-2"><CopyButton value={current.output} /></div>
             </div>
           </ToolCard>
         )
       case 'b85':
         return (
           <ToolCard title="Ascii85 (Base85)" description="Ascii85/Base85 encodes binary data into a compact ASCII representation.">
-            <textarea value={input} onChange={e=>setInput(e.target.value)} placeholder="Enter text…" className="w-full h-28 rounded-xl border p-3 dark:bg-slate-900" />
+            <textarea value={current.input} onChange={e=>updateCurrent({ input: e.target.value })} placeholder="Enter text…" className="w-full h-28 rounded-xl border p-3 dark:bg-slate-900" />
             <div className="grid md:grid-cols-2 gap-3">
-              <button onClick={()=>setB32(ascii85Encode(input))} className="px-4 py-2 rounded-xl bg-slate-900 text-white">Encode →</button>
-              <button onClick={()=>setB32(ascii85Decode(input))} className="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">← Decode</button>
+              <button onClick={()=>updateCurrent({ output: ascii85Encode(current.input) })} className="px-4 py-2 rounded-xl bg-slate-900 text-white">Encode →</button>
+              <button onClick={()=>updateCurrent({ output: ascii85Decode(current.input) })} className="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">← Decode</button>
             </div>
             <div className="relative">
-              <textarea value={b32} onChange={e=>setB32(e.target.value)} placeholder="Output…" className="w-full h-28 rounded-xl border p-3 dark:bg-slate-900 pr-12" />
-              <div className="absolute top-2 right-2"><CopyButton value={b32} /></div>
+              <textarea readOnly value={current.output} placeholder="Output…" className="w-full h-28 rounded-xl border p-3 dark:bg-slate-900 pr-12" />
+              <div className="absolute top-2 right-2"><CopyButton value={current.output} /></div>
             </div>
           </ToolCard>
         )
       case 'utf':
         return (
           <ToolCard title="UTF-16 / UTF-32 ↔ Hex" description="Represent Unicode text as UTF-16 or UTF-32 and convert to/from hexadecimal bytes.">
-            <textarea value={input} onChange={e=>setInput(e.target.value)} placeholder="Text or Hex…" className="w-full h-28 rounded-xl border p-3 dark:bg-slate-900" />
+            <textarea value={current.input} onChange={e=>updateCurrent({ input: e.target.value })} placeholder="Text or Hex…" className="w-full h-28 rounded-xl border p-3 dark:bg-slate-900" />
             <div className="grid md:grid-cols-3 gap-3">
               <div className="flex items-center gap-2"><label className="text-sm">Type</label><select id="utf-type" className="px-2 py-2 rounded-xl border dark:bg-slate-900"><option>UTF-16</option><option>UTF-32</option></select></div>
               <div className="flex items-center gap-2"><label className="text-sm">Endian</label><select id="utf-end" className="px-2 py-2 rounded-xl border dark:bg-slate-900"><option>LE</option><option>BE</option></select></div>
             </div>
             <div className="grid md:grid-cols-2 gap-3 mt-2">
-              <button onClick={()=>{ const t=(document.getElementById('utf-type') as HTMLSelectElement).value; const e=(document.getElementById('utf-end') as HTMLSelectElement).value as 'LE'|'BE'; const v = t==='UTF-16'? utf16ToHex(input, e) : utf32ToHex(input, e); setHtml(v) }} className="px-4 py-2 rounded-xl bg-slate-900 text-white">Text → Hex</button>
-              <button onClick={()=>{ const t=(document.getElementById('utf-type') as HTMLSelectElement).value; const e=(document.getElementById('utf-end') as HTMLSelectElement).value as 'LE'|'BE'; const v = t==='UTF-16'? hexToUtf16(input, e) : hexToUtf32(input, e); setHtml(v) }} className="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">Hex → Text</button>
+              <button onClick={()=>{ const t=(document.getElementById('utf-type') as HTMLSelectElement).value; const e=(document.getElementById('utf-end') as HTMLSelectElement).value as 'LE'|'BE'; const v = t==='UTF-16'? utf16ToHex(current.input, e) : utf32ToHex(current.input, e); updateCurrent({ output: v }) }} className="px-4 py-2 rounded-xl bg-slate-900 text-white">Text → Hex</button>
+              <button onClick={()=>{ const t=(document.getElementById('utf-type') as HTMLSelectElement).value; const e=(document.getElementById('utf-end') as HTMLSelectElement).value as 'LE'|'BE'; const v = t==='UTF-16'? hexToUtf16(current.input, e) : hexToUtf32(current.input, e); updateCurrent({ output: v }) }} className="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">Hex → Text</button>
             </div>
             <div className="relative mt-2">
-              <textarea value={html} onChange={e=>setHtml(e.target.value)} placeholder="Output…" className="w-full h-28 rounded-xl border p-3 dark:bg-slate-900 pr-12" />
-              <div className="absolute top-2 right-2"><CopyButton value={html} /></div>
+              <textarea readOnly value={current.output} placeholder="Output…" className="w-full h-28 rounded-xl border p-3 dark:bg-slate-900 pr-12" />
+              <div className="absolute top-2 right-2"><CopyButton value={current.output} /></div>
             </div>
           </ToolCard>
         )
       case 'rot':
         return (
           <ToolCard title="ROT13 / Caesar">
-            <textarea value={input} onChange={e=>setInput(e.target.value)} placeholder="Enter text…" className="w-full h-28 rounded-xl border p-3 dark:bg-slate-900" />
+            <textarea value={current.input} onChange={e=>updateCurrent({ input: e.target.value })} placeholder="Enter text…" className="w-full h-28 rounded-xl border p-3 dark:bg-slate-900" />
             <div className="grid md:grid-cols-2 gap-3">
-              <button onClick={()=>setRot(rotN(input, 13))} className="px-4 py-2 rounded-xl bg-slate-900 text-white">ROT13</button>
-              <button onClick={()=>setRot(rotN(input, 3))} className="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">Caesar (3)</button>
+              <button onClick={()=>updateCurrent({ output: rotN(current.input, 13) })} className="px-4 py-2 rounded-xl bg-slate-900 text-white">ROT13</button>
+              <button onClick={()=>updateCurrent({ output: rotN(current.input, 3) })} className="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">Caesar (3)</button>
             </div>
             <div className="relative">
-              <textarea value={rot} onChange={e=>setRot(e.target.value)} placeholder="Output…" className="w-full h-28 rounded-xl border p-3 dark:bg-slate-900 pr-12" />
-              <div className="absolute top-2 right-2"><CopyButton value={rot} /></div>
+              <textarea readOnly value={current.output} placeholder="Output…" className="w-full h-28 rounded-xl border p-3 dark:bg-slate-900 pr-12" />
+              <div className="absolute top-2 right-2"><CopyButton value={current.output} /></div>
             </div>
           </ToolCard>
         )

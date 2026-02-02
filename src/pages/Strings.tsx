@@ -23,7 +23,7 @@ function removeDiacritics(s: string){
 
 export default function Strings() {
   const [searchParams, setSearchParams] = useSearchParams()
-  const [active, setActive] = useState<'basic'|'case'|'unicode'|'delimiter'|'split'|'lines'|'find'|'wrap'|'freq'|'diacritics'>(
+  const [active, setActive] = useState<'basic'|'count'|'case'|'unicode'|'delimiter'|'split'|'lines'|'find'|'wrap'|'freq'|'diacritics'>(
     (searchParams.get('tool') as any) || 'basic'
   )
 
@@ -66,6 +66,38 @@ export default function Strings() {
               <button onClick={()=>setText(slugify(text))} className="px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">Slugify</button>
             </div>
             <div className="text-sm text-slate-600 dark:text-slate-400">Chars: {chars} • Words: {words}</div>
+          </ToolCard>
+        )
+      case 'count':
+        return (
+          <ToolCard title="Count characters / words" description="Get counts for characters, words, lines, and bytes.">
+            <div className="relative">
+              <textarea value={text} onChange={e=>setText(e.target.value)} placeholder="Enter text…" className="w-full h-40 rounded-xl border p-3 dark:bg-slate-900 pr-12" />
+              <div className="absolute top-2 right-2"><CopyButton value={text} /></div>
+            </div>
+            {(() => {
+              const lineCount = text.length ? text.split(/\r?\n/).length : 0
+              const nonSpaceChars = Array.from(text).filter(ch => !/\s/.test(ch)).length
+              const bytes = new TextEncoder().encode(text).length
+              return (
+                <div className="grid sm:grid-cols-2 gap-2 text-sm text-slate-700 dark:text-slate-300">
+                  <div className="rounded-xl border p-3 dark:border-slate-800">
+                    <div className="font-medium">Characters</div>
+                    <div className="text-slate-600 dark:text-slate-400">Total: {chars}</div>
+                    <div className="text-slate-600 dark:text-slate-400">Without whitespace: {nonSpaceChars}</div>
+                  </div>
+                  <div className="rounded-xl border p-3 dark:border-slate-800">
+                    <div className="font-medium">Words and lines</div>
+                    <div className="text-slate-600 dark:text-slate-400">Words: {words}</div>
+                    <div className="text-slate-600 dark:text-slate-400">Lines: {lineCount}</div>
+                  </div>
+                  <div className="rounded-xl border p-3 dark:border-slate-800">
+                    <div className="font-medium">Size</div>
+                    <div className="text-slate-600 dark:text-slate-400">Bytes (UTF-8): {bytes}</div>
+                  </div>
+                </div>
+              )
+            })()}
           </ToolCard>
         )
       case 'case':
@@ -267,6 +299,7 @@ export default function Strings() {
 
   const navItems: { key: typeof active, label: string }[] = [
     { key: 'basic', label: 'Basic operations' },
+    { key: 'count', label: 'Count characters / words' },
     { key: 'case', label: 'Case converters' },
     { key: 'unicode', label: 'Unicode / Code Points' },
     { key: 'delimiter', label: 'Add delimiter / Join lines' },

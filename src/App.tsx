@@ -34,6 +34,11 @@ export default function App() {
     { label: 'Encoding: ROT13 / Caesar', path: '/?tool=rot' },
     // Strings
     { label: 'Strings: Basic operations', path: '/strings?tool=basic' },
+    { label: 'Strings: Count characters / words', path: '/strings?tool=count' },
+    { label: 'Count characters', path: '/strings?tool=count' },
+    { label: 'Count words', path: '/strings?tool=count' },
+    { label: 'Word counter', path: '/strings?tool=count' },
+    { label: 'Character counter', path: '/strings?tool=count' },
     { label: 'Strings: Case converters', path: '/strings?tool=case' },
     { label: 'Strings: Unicode / Code Points', path: '/strings?tool=unicode' },
     { label: 'Strings: Add delimiter / Join lines', path: '/strings?tool=delimiter' },
