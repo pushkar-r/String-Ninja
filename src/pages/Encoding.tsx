@@ -451,9 +451,22 @@ Dec(k): x  = (x' - k) mod 26`}
     <>
       <Head title="String Ninja — Encoding Tools (Base64, Base32, URL, HTML, Hex/Binary)" description="Encode/decode Base64, Base32, URL, HTML entities; convert Hex/Binary/Text; ROT13/Caesar; gzip/deflate; Base58/Base85; UTF-16/UTF-32." />
       <div className="grid gap-6 md:grid-cols-[220px_1fr]">
-      <div className="bg-white dark:bg-slate-950 rounded-2xl p-3 shadow-sm border border-slate-200 dark:border-slate-800 h-fit sticky top-24">
-        <div className="text-sm font-semibold px-2 pb-2">Encoding Tools</div>
-        <ul className="grid gap-1">
+      <div className="bg-white dark:bg-slate-950 rounded-2xl p-3 shadow-sm border border-slate-200 dark:border-slate-800 h-fit md:sticky md:top-24">
+        <div className="flex items-center justify-between gap-2">
+          <div className="text-sm font-semibold px-2 pb-2 md:pb-2">Encoding Tools</div>
+          <div className="md:hidden w-full">
+            <select
+              value={active}
+              onChange={e=>selectTool(e.target.value as ToolKey)}
+              className="w-full mt-2 px-3 py-2 rounded-xl border dark:bg-slate-900"
+            >
+              {navItems.map(item => (
+                <option key={item.key} value={item.key}>{item.label}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+        <ul className="grid gap-1 hidden md:block">
           {navItems.map(item => (
             <li key={item.key}>
               <button
