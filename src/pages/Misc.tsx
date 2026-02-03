@@ -110,6 +110,14 @@ export default function Misc() {
               <input value={readable} onChange={e=>setReadable(e.target.value)} placeholder="YYYY-MM-DD..." className="w-full rounded-xl border p-3 dark:bg-slate-900" />
               <button onClick={()=>toUnix(readable)} className="px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">ISO → Unix</button>
             </div>
+            <div className="mt-6 text-sm leading-6 text-slate-700 dark:text-slate-300">
+              <h3 className="text-base font-semibold">How timestamps map</h3>
+              <ul className="list-disc pl-5 space-y-1">
+                <li>Unix timestamp is seconds since 1970-01-01T00:00:00Z (or ms variant); ISO strings are timezone-aware.</li>
+                <li>Parsing ISO uses the browser Date; invalid inputs return “Invalid”.</li>
+                <li>When ambiguous, values ≤ 10 digits treated as seconds, >10 as milliseconds.</li>
+              </ul>
+            </div>
           </ToolCard>
         )
       case 'pass':
@@ -133,6 +141,14 @@ export default function Misc() {
                 <div className="absolute top-2 right-2"><CopyButton value={pwdOut} /></div>
               </div>
             </div>
+            <div className="mt-6 text-sm leading-6 text-slate-700 dark:text-slate-300">
+              <h3 className="text-base font-semibold">Password guidance</h3>
+              <ul className="list-disc pl-5 space-y-1">
+                <li>Use high entropy: length matters most. 16+ is a good baseline.</li>
+                <li>Include multiple character classes or custom special characters where allowed.</li>
+                <li>For critical accounts, consider passphrases (4–6 random words) and a password manager.</li>
+              </ul>
+            </div>
           </ToolCard>
         )
       case 'rand':
@@ -144,6 +160,14 @@ export default function Misc() {
             </div>
             <div className="relative"><input readOnly value={rand} className="w-full rounded-xl border p-3 dark:bg-slate-900 pr-12" placeholder="Random" /><div className="absolute top-2 right-2"><CopyButton value={rand} /></div></div>
             <div className="relative"><input readOnly value={uuid} className="w-full rounded-xl border p-3 dark:bg-slate-900 pr-12" placeholder="UUID" /><div className="absolute top-2 right-2"><CopyButton value={uuid} /></div></div>
+            <div className="mt-6 text-sm leading-6 text-slate-700 dark:text-slate-300">
+              <h3 className="text-base font-semibold">Randomness and UUIDs</h3>
+              <ul className="list-disc pl-5 space-y-1">
+                <li>Random strings use crypto.getRandomValues for cryptographic randomness.</li>
+                <li>UUID v4 is 128-bit with fixed version/variant bits; it’s not a hash of input.</li>
+                <li>UUIDs are unique enough for most IDs but not for security tokens; use random bytes for secrets.</li>
+              </ul>
+            </div>
           </ToolCard>
         )
       case 'regex':
@@ -153,6 +177,14 @@ export default function Misc() {
             <textarea value={sample} onChange={e=>setSample(e.target.value)} placeholder="Sample text..." className="w-full h-28 rounded-xl border p-3 font-mono text-xs dark:bg-slate-900" />
             <button onClick={testRegex} className="px-3 py-2 rounded-xl bg-slate-900 text-white">Test</button>
             <div className="relative"><pre id="regex-matches" className="rounded-xl border p-3 overflow-auto text-xs dark:bg-slate-900 pr-12">{matches}</pre><div className="absolute top-2 right-2"><CopyButton getValue={()=> (document.getElementById('regex-matches') as HTMLElement)?.textContent || ''} /></div></div>
+            <div className="mt-6 text-sm leading-6 text-slate-700 dark:text-slate-300">
+              <h3 className="text-base font-semibold">Regex notes</h3>
+              <ul className="list-disc pl-5 space-y-1">
+                <li>Flags: g (global), i (case-insensitive), m (multiline), s (dotAll), u (Unicode), y (sticky).</li>
+                <li>Use non-greedy quantifiers (e.g., .*?) when matching minimal spans.</li>
+                <li>Escape special characters (e.g., \\., \\*, \\?, \\+) to match them literally.</li>
+              </ul>
+            </div>
           </ToolCard>
         )
       case 'stego':
@@ -167,6 +199,14 @@ export default function Misc() {
                 onClick={async ()=>{ if (!file) return; const t = await extractTextFromImage(file).catch(()=> 'Failed'); setText(t) }}>← Extract</button>
             </div>
             {outUrl && (<div className="grid gap-2"><img src={outUrl} className="max-h-80 rounded-xl border" /><a href={outUrl} download="stego.png" className="underline text-sm">Download stego.png</a></div>)}
+            <div className="mt-6 text-sm leading-6 text-slate-700 dark:text-slate-300">
+              <h3 className="text-base font-semibold">How LSB stego works</h3>
+              <ul className="list-disc pl-5 space-y-1">
+                <li>Least-significant bits of pixel channels encode message bits; visual changes are minimal.</li>
+                <li>Lossy formats (JPEG) can corrupt hidden data; prefer PNG. This demo supports only short text.</li>
+                <li>Steganography ≠ encryption; do not rely on it for secrecy without proper cryptography.</li>
+              </ul>
+            </div>
           </ToolCard>
         )
       // CSV Import feature removed
@@ -179,6 +219,14 @@ export default function Misc() {
               <button onClick={()=>{ const n=(document.getElementById('regex-name') as HTMLInputElement).value; const p=(document.getElementById('regex-pat') as HTMLInputElement).value; if(!n||!p) return; const store = JSON.parse(localStorage.getItem('savedRegex')||'{}'); store[n]=p; localStorage.setItem('savedRegex', JSON.stringify(store)); alert('Saved') }} className="px-3 py-2 rounded-xl bg-slate-900 text-white">Save</button>
               <button onClick={()=>{ const store = JSON.parse(localStorage.getItem('savedRegex')||'{}'); (document.getElementById('regex-pat') as HTMLInputElement).value = store[(document.getElementById('regex-name') as HTMLInputElement).value]||'' }} className="px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">Load</button>
               <button onClick={()=>{ localStorage.removeItem('savedRegex'); alert('Cleared') }} className="px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">Clear All</button>
+            </div>
+            <div className="mt-6 text-sm leading-6 text-slate-700 dark:text-slate-300">
+              <h3 className="text-base font-semibold">Storage details</h3>
+              <ul className="list-disc pl-5 space-y-1">
+                <li>Patterns are stored under localStorage key “savedRegex” on this browser only.</li>
+                <li>Use unique names to avoid overwriting; clear all removes the entire key.</li>
+                <li>Consider exporting patterns manually if you need backups or sync.</li>
+              </ul>
             </div>
           </ToolCard>
         )

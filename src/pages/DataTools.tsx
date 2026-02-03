@@ -83,6 +83,14 @@ export default function DataTools() {
               "w-full h-40 rounded-xl border p-3 font-mono text-xs pr-12 " +
               (jsonText.trim()==='' ? 'bg-white dark:bg-slate-900' : jsonStatus==='success' ? 'bg-emerald-50 dark:bg-emerald-950' : jsonStatus==='error' ? 'bg-red-50 dark:bg-red-950' : 'bg-white dark:bg-slate-900')
             } /><div className="absolute top-2 right-2"><CopyButton value={jsonOut} /></div></div>
+            <div className="mt-6 text-sm leading-6 text-slate-700 dark:text-slate-300">
+              <h3 className="text-base font-semibold">How JSON formatting works</h3>
+              <ul className="list-disc pl-5 space-y-1">
+                <li>Input is parsed per JSON standard (RFC 8259) – all keys and string values must be quoted with double quotes.</li>
+                <li>Format pretty-prints with indentation; Minify removes insignificant whitespace.</li>
+                <li>Errors show position, line and column to help fix invalid JSON.</li>
+              </ul>
+            </div>
           </ToolCard>
         )
       // case 'csv':
@@ -134,6 +142,14 @@ export default function DataTools() {
                 </div>
               </div>
             </div>
+            <div className="mt-6 text-sm leading-6 text-slate-700 dark:text-slate-300">
+              <h3 className="text-base font-semibold">How it works</h3>
+              <ul className="list-disc pl-5 space-y-1">
+                <li>Generator renders text into QR using standard black/white modules; longer text increases version and size.</li>
+                <li>Reader draws the image onto a canvas and scans pixels to locate and decode the QR pattern.</li>
+                <li>Decoding can fail on blurry/low-contrast images; try larger images and good lighting.</li>
+              </ul>
+            </div>
           </ToolCard>
         )
       case 'code':
@@ -152,6 +168,14 @@ export default function DataTools() {
               "w-full h-40 rounded-xl border p-3 font-mono text-xs pr-12 " +
               (codeIn.trim()==='' ? 'bg-white dark:bg-slate-900' : codeStatus==='success' ? 'bg-emerald-50 dark:bg-emerald-950' : codeStatus==='error' ? 'bg-red-50 dark:bg-red-950' : 'bg-white dark:bg-slate-900')
             } /><div className="absolute top-2 right-2"><CopyButton value={codeOut} /></div></div>
+            <div className="mt-6 text-sm leading-6 text-slate-700 dark:text-slate-300">
+              <h3 className="text-base font-semibold">Notes</h3>
+              <ul className="list-disc pl-5 space-y-1">
+                <li>Beautify re-formats code with indentation and spacing; Minify removes whitespace/comments.</li>
+                <li>Minifying can change semantics if code depends on whitespace (e.g., HTML text nodes) or undeclared globals.</li>
+                <li>Always keep an original for reference; this tool doesn’t rewrite imports or resolve modules.</li>
+              </ul>
+            </div>
           </ToolCard>
         )
       case 'xml':
@@ -168,6 +192,14 @@ export default function DataTools() {
               <button onClick={() => { const out = xmlToJson(xjInput); setXjOutput(out); setXjStatus(out.startsWith('Invalid') ? 'error' : 'success') }} className="px-3 py-2 rounded-xl bg-slate-900 text-white">XML → JSON</button>
               <button onClick={() => { let out = jsonToXml(xjInput); if (out.startsWith('Invalid')) { out = jsonToXml(xjOutput) } setXjOutput(out); setXjStatus(out.startsWith('Invalid') ? 'error' : 'success') }} className="px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">JSON → XML</button>
             </div>
+            <div className="mt-6 text-sm leading-6 text-slate-700 dark:text-slate-300">
+              <h3 className="text-base font-semibold">Conversion details</h3>
+              <ul className="list-disc pl-5 space-y-1">
+                <li>XML → JSON flattens attributes and children using a pragmatic mapping; information like ordering/whitespace may be lost.</li>
+                <li>JSON → XML expects objects/arrays and string/number/boolean values; invalid structures will be rejected.</li>
+                <li>Round‑trips may not be perfectly reversible due to representational differences.</li>
+              </ul>
+            </div>
           </ToolCard>
         )
       case 'norm':
@@ -181,6 +213,14 @@ export default function DataTools() {
               <button onClick={() => setNormOut(normalizeText(normIn, 'NFKD'))} className="px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">NFKD</button>
             </div>
             <div className="relative"><textarea readOnly value={normOut} className="w-full h-28 rounded-xl border p-3 dark:bg-slate-900 pr-12" /><div className="absolute top-2 right-2"><CopyButton value={normOut} /></div></div>
+            <div className="mt-6 text-sm leading-6 text-slate-700 dark:text-slate-300">
+              <h3 className="text-base font-semibold">About normalization</h3>
+              <ul className="list-disc pl-5 space-y-1">
+                <li>NFC/NFD keep canonical equivalence; NFKC/NFKD add compatibility mappings (e.g., ligatures → letters).</li>
+                <li>NFD/NFKD decompose to base + combining marks; NFC/NFKC recompose into precomposed characters where possible.</li>
+                <li>Use NFC for storage/search; use NFKC when visual equivalence matters more than strict code point equality.</li>
+              </ul>
+            </div>
           </ToolCard>
         )
     }
