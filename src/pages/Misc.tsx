@@ -115,7 +115,7 @@ export default function Misc() {
               <ul className="list-disc pl-5 space-y-1">
                 <li>Unix timestamp is seconds since 1970-01-01T00:00:00Z (or ms variant); ISO strings are timezone-aware.</li>
                 <li>Parsing ISO uses the browser Date; invalid inputs return “Invalid”.</li>
-                <li>When ambiguous, values ≤ 10 digits treated as seconds, >10 as milliseconds.</li>
+                <li>When ambiguous, values ≤ 10 digits treated as seconds, &gt;10 as milliseconds.</li>
               </ul>
             </div>
           </ToolCard>
