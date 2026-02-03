@@ -148,6 +148,15 @@ export default function Security() {
               <input readOnly value={text ? hashString(text, algo) : ''} className="w-full rounded-xl border p-3 font-mono text-xs dark:bg-slate-900 pr-12" />
               <div className="absolute top-2 right-2"><CopyButton value={text ? hashString(text, algo) : ''} /></div>
             </div>
+            <div className="mt-6 text-sm leading-6 text-slate-700 dark:text-slate-300 space-y-3">
+              <h3 className="text-base font-semibold">How hashing works</h3>
+              <ul className="list-disc pl-5 space-y-1">
+                <li>Hashes map arbitrary input to fixed-size output deterministically.</li>
+                <li>Small input changes cause unpredictable, large changes in the hash (avalanche effect).</li>
+                <li>MD5/SHA-1 are broken for collision resistance; prefer SHA-256/512.</li>
+              </ul>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Security tip: Hashing ≠ encryption. Use salted password hashing (bcrypt/Argon2) for passwords, not generic hashes.</p>
+            </div>
           </ToolCard>
         )
       case 'filehash':
@@ -156,12 +165,19 @@ export default function Security() {
             <input id="fh-file" type="file" className="block" onChange={async (e)=>{ const f = (e.target as HTMLInputElement).files?.[0]; if(!f) return; const res = await hashFile(f); (document.getElementById('fh-256') as HTMLInputElement).value = res.sha256; (document.getElementById('fh-512') as HTMLInputElement).value = res.sha512 }} />
             <div className="relative"><input id="fh-256" readOnly placeholder="SHA-256 (hex)" className="w-full rounded-xl border p-3 font-mono text-xs dark:bg-slate-900 pr-12" /><div className="absolute top-2 right-2"><CopyButton getValue={()=> (document.getElementById('fh-256') as HTMLInputElement)?.value || ''} /></div></div>
             <div className="relative"><input id="fh-512" readOnly placeholder="SHA-512 (hex)" className="w-full rounded-xl border p-3 font-mono text-xs dark:bg-slate-900 pr-12" /><div className="absolute top-2 right-2"><CopyButton getValue={()=> (document.getElementById('fh-512') as HTMLInputElement)?.value || ''} /></div></div>
+            <div className="mt-6 text-sm leading-6 text-slate-700 dark:text-slate-300 space-y-2">
+              <h3 className="text-base font-semibold">Integrity check</h3>
+              <ul className="list-disc pl-5 space-y-1">
+                <li>Compute a file hash locally and compare with a publisher-provided checksum.</li>
+                <li>Different algorithms produce different outputs; SHA-256 is commonly published.</li>
+              </ul>
+            </div>
           </ToolCard>
         )
       case 'aes':
         return (
           <ToolCard title="AES-GCM Encrypt/Decrypt (Password)" description="PBKDF2 100k, Base64 payload (salt+IV+cipher).">
-            <textarea value={text} onChange={e=>setText(e.target.value)} placeholder="Plaintext��" className="w-full h-28 rounded-xl border p-3 dark:bg-slate-900" />
+            <textarea value={text} onChange={e=>setText(e.target.value)} placeholder="Plaintext…" className="w-full h-28 rounded-xl border p-3 dark:bg-slate-900" />
             <input type="password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="Password…" className="w-full rounded-xl border p-3 dark:bg-slate-900" />
             <div className="grid md:grid-cols-2 gap-3">
               <button onClick={async ()=>setCipher(await aesEncrypt(text, password))} className="px-4 py-2 rounded-xl bg-slate-900 text-white">Encrypt →</button>
@@ -170,6 +186,15 @@ export default function Security() {
             <div className="relative">
               <textarea value={cipher} onChange={e=>setCipher(e.target.value)} placeholder="Cipher (Base64)…" className="w-full h-28 rounded-xl border p-3 font-mono text-xs dark:bg-slate-900 pr-12" />
               <div className="absolute top-2 right-2"><CopyButton value={cipher} /></div>
+            </div>
+            <div className="mt-6 text-sm leading-6 text-slate-700 dark:text-slate-300 space-y-3">
+              <h3 className="text-base font-semibold">How AES‑GCM with password works</h3>
+              <ul className="list-disc pl-5 space-y-1">
+                <li>Key derivation: password + random salt → PBKDF2 (100k) → 256‑bit key.</li>
+                <li>Encryption: AES‑GCM with a random 96‑bit IV; output includes salt, IV, cipher, tag.</li>
+                <li>Encoding: bytes packed and Base64‑encoded for copy/paste.</li>
+              </ul>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Security tip: Use a strong unique password; GCM provides integrity via its auth tag.</p>
             </div>
           </ToolCard>
         )
@@ -180,6 +205,15 @@ export default function Security() {
             <div className="relative">
               <pre id="jwt-decoded" className="rounded-xl border p-3 overflow-auto text-xs dark:bg-slate-900 pr-12">{decoded ? JSON.stringify(decoded, null, 2) : 'Invalid or empty JWT'}</pre>
               <div className="absolute top-2 right-2"><CopyButton getValue={()=> (document.getElementById('jwt-decoded') as HTMLElement)?.textContent || ''} /></div>
+            </div>
+            <div className="mt-6 text-sm leading-6 text-slate-700 dark:text-slate-300 space-y-2">
+              <h3 className="text-base font-semibold">JWT structure</h3>
+              <ul className="list-disc pl-5 space-y-1">
+                <li>header.payload.signature (Base64URL each)</li>
+                <li>Header: alg, typ; Payload: claims (iss, sub, exp…)</li>
+                <li>Signature = sign( base64url(header)+'.'+base64url(payload) )</li>
+              </ul>
+              <p className="text-xs text-slate-500 dark:text-slate-400">This decoder does not verify signatures. Use "JWT Verify" to validate.</p>
             </div>
           </ToolCard>
         )
@@ -194,6 +228,14 @@ export default function Security() {
             </div>
             <div className="relative"><input id="pw-out" readOnly className="w-full rounded-xl border p-3 dark:bg-slate-900 pr-12" placeholder="Hash output" /><div className="absolute top-2 right-2"><CopyButton getValue={()=> (document.getElementById('pw-out') as HTMLInputElement)?.value || ''} /></div></div>
             <div className="relative"><input id="pw-verify" readOnly className="w-full rounded-xl border p-3 dark:bg-slate-900 pr-12" placeholder="Verify result" /><div className="absolute top-2 right-2"><CopyButton getValue={()=> (document.getElementById('pw-verify') as HTMLInputElement)?.value || ''} /></div></div>
+            <div className="mt-6 text-sm leading-6 text-slate-700 dark:text-slate-300 space-y-3">
+              <h3 className="text-base font-semibold">Why bcrypt/Argon2 for passwords</h3>
+              <ul className="list-disc pl-5 space-y-1">
+                <li>Both are intentionally slow and use salt to resist rainbow tables.</li>
+                <li>Argon2 adds memory hardness against GPU/ASIC cracking.</li>
+                <li>Never use MD5/SHA directly for password storage.</li>
+              </ul>
+            </div>
           </ToolCard>
         )
       case 'jwtv':
@@ -207,6 +249,14 @@ export default function Security() {
               <button onClick={async () => { const token = (document.getElementById('jwt-verify-in') as HTMLInputElement).value; const pem = (document.getElementById('jwt-pem') as HTMLInputElement).value; const ok = await verifyRS256(token, pem); (document.getElementById('jwt-verify-out') as HTMLInputElement).value = ok ? 'Valid (RS256)' : 'Invalid' }} className="px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">Verify RS256</button>
             </div>
             <div className="relative"><input id="jwt-verify-out" readOnly className="w-full rounded-xl border p-3 dark:bg-slate-900 pr-12" /><div className="absolute top-2 right-2"><CopyButton getValue={()=> (document.getElementById('jwt-verify-out') as HTMLInputElement)?.value || ''} /></div></div>
+            <div className="mt-6 text-sm leading-6 text-slate-700 dark:text-slate-300 space-y-2">
+              <h3 className="text-base font-semibold">Verification steps</h3>
+              <ul className="list-disc pl-5 space-y-1">
+                <li>Parse token and decode header/payload.</li>
+                <li>Recompute signature on header.payload with the provided key.</li>
+                <li>Compare signature and validate exp/nbf/iss/aud as needed.</li>
+              </ul>
+            </div>
           </ToolCard>
         )
       case 'rsa':
@@ -223,6 +273,14 @@ export default function Security() {
             </div>
             <div className="relative"><textarea id="rsa-pub" readOnly placeholder="Public Key (PEM)" className="w-full h-40 rounded-xl border p-3 font-mono text-xs dark:bg-slate-900 pr-12" /><div className="absolute top-2 right-2"><CopyButton getValue={()=> (document.getElementById('rsa-pub') as HTMLTextAreaElement)?.value || ''} /></div></div>
             <div className="relative"><textarea id="rsa-priv" readOnly placeholder="Private Key (PEM)" className="w-full h-40 rounded-xl border p-3 font-mono text-xs dark:bg-slate-900 pr-12" /><div className="absolute top-2 right-2"><CopyButton getValue={()=> (document.getElementById('rsa-priv') as HTMLTextAreaElement)?.value || ''} /></div></div>
+            <div className="mt-6 text-sm leading-6 text-slate-700 dark:text-slate-300 space-y-2">
+              <h3 className="text-base font-semibold">RSA overview</h3>
+              <ul className="list-disc pl-5 space-y-1">
+                <li>Public key (n,e) and private key (n,d) over large primes p,q.</li>
+                <li>Key size controls security; 2048 is baseline, 3072/4096 stronger.</li>
+                <li>PEM is just Base64 of ASN.1 structures with header/footer.</li>
+              </ul>
+            </div>
           </ToolCard>
         )
       case 'x509':
@@ -233,6 +291,14 @@ export default function Security() {
             <div className="relative">
               <pre id="x509-out" className="rounded-xl border p-3 overflow-auto text-xs dark:bg-slate-900 pr-12"></pre>
               <div className="absolute top-2 right-2"><CopyButton getValue={()=> (document.getElementById('x509-out') as HTMLElement)?.textContent || ''} /></div>
+            </div>
+            <div className="mt-6 text-sm leading-6 text-slate-700 dark:text-slate-300 space-y-2">
+              <h3 className="text-base font-semibold">What is in a certificate</h3>
+              <ul className="list-disc pl-5 space-y-1">
+                <li>Subject/Issuer names, public key, validity (NotBefore/NotAfter).</li>
+                <li>Extensions: SAN, Key Usage, Basic Constraints, etc.</li>
+                <li>Signature over TBSCertificate by issuer using its private key.</li>
+              </ul>
             </div>
           </ToolCard>
         )
@@ -245,6 +311,14 @@ export default function Security() {
               <button onClick={()=>{ const v=(document.getElementById('saml-in') as HTMLTextAreaElement).value; (document.getElementById('saml-out') as HTMLTextAreaElement).value = decodeSAMLRedirect(v) }} className="px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">Decode (Redirect)</button>
             </div>
             <div className="relative"><textarea id="saml-out" readOnly className="w-full h-40 rounded-xl border p-3 font-mono text-xs dark:bg-slate-900 pr-12" /><div className="absolute top-2 right-2"><CopyButton getValue={()=> (document.getElementById('saml-out') as HTMLTextAreaElement)?.value || ''} /></div></div>
+            <div className="mt-6 text-sm leading-6 text-slate-700 dark:text-slate-300 space-y-2">
+              <h3 className="text-base font-semibold">Bindings overview</h3>
+              <ul className="list-disc pl-5 space-y-1">
+                <li>POST binding: Base64 XML in form field SAMLResponse.</li>
+                <li>Redirect binding: deflate + base64 + URL-encode in query param.</li>
+                <li>Signatures may be present via XML DSig or query-param sigs.</li>
+              </ul>
+            </div>
           </ToolCard>
         )
       case 'jwtSign':
@@ -269,6 +343,14 @@ export default function Security() {
               }} className="px-3 py-2 rounded-xl bg-slate-900 text-white">Sign</button>
             </div>
             <div className="relative"><textarea id="jwt-signed-out" readOnly placeholder="JWT (compact)" className="w-full h-28 rounded-xl border p-3 font-mono text-xs dark:bg-slate-900 pr-12" /><div className="absolute top-2 right-2"><CopyButton getValue={()=> (document.getElementById('jwt-signed-out') as HTMLTextAreaElement)?.value || ''} /></div></div>
+            <div className="mt-6 text-sm leading-6 text-slate-700 dark:text-slate-300 space-y-2">
+              <h3 className="text-base font-semibold">HS256 vs RS256</h3>
+              <ul className="list-disc pl-5 space-y-1">
+                <li>HS256: shared secret (HMAC-SHA256). Fast, symmetric.</li>
+                <li>RS256: RSA private key signs; public key verifies. Asymmetric.</li>
+                <li>Both sign base64url(header)+"."+base64url(payload).</li>
+              </ul>
+            </div>
           </ToolCard>
         )
       case 'hmac':
@@ -285,6 +367,14 @@ export default function Security() {
               <button onClick={()=>{ (document.getElementById('hmac-out') as HTMLInputElement).value = 'HMAC is under development' }} className="px-3 py-2 rounded-xl bg-slate-900 text-white">Compute</button>
             </div>
             <div className="relative"><input id="hmac-out" readOnly className="w-full rounded-xl border p-3 font-mono text-xs dark:bg-slate-900 pr-12" placeholder="HMAC (hex)" /><div className="absolute top-2 right-2"><CopyButton getValue={()=> (document.getElementById('hmac-out') as HTMLInputElement)?.value || ''} /></div></div>
+            <div className="mt-6 text-sm leading-6 text-slate-700 dark:text-slate-300 space-y-2">
+              <h3 className="text-base font-semibold">What HMAC provides</h3>
+              <ul className="list-disc pl-5 space-y-1">
+                <li>Integrity and authenticity using a shared secret.</li>
+                <li>HMAC = hash(key ⊕ opad, hash(key ⊕ ipad, message)).</li>
+                <li>Use different keys for different purposes (KDF separates keys).</li>
+              </ul>
+            </div>
           </ToolCard>
         )
       // case 'totp':
@@ -302,6 +392,14 @@ export default function Security() {
             </div>
             <div className="relative mt-2"><input id="pkce-verifier" placeholder="code_verifier" className="w-full rounded-xl border p-3 font-mono text-xs dark:bg-slate-900 pr-12" /><div className="absolute top-2 right-2"><CopyButton getValue={()=> (document.getElementById('pkce-verifier') as HTMLInputElement)?.value || ''} /></div></div>
             <div className="relative mt-2"><input id="pkce-challenge" readOnly placeholder="code_challenge (S256)" className="w-full rounded-xl border p-3 font-mono text-xs dark:bg-slate-900 pr-12" /><div className="absolute top-2 right-2"><CopyButton getValue={()=> (document.getElementById('pkce-challenge') as HTMLInputElement)?.value || ''} /></div></div>
+            <div className="mt-6 text-sm leading-6 text-slate-700 dark:text-slate-300 space-y-2">
+              <h3 className="text-base font-semibold">PKCE flow (S256)</h3>
+              <ul className="list-disc pl-5 space-y-1">
+                <li>Client creates random code_verifier and S256 code_challenge.</li>
+                <li>Authorize request includes code_challenge (+method=S256).</li>
+                <li>Token request proves possession by sending the original code_verifier.</li>
+              </ul>
+            </div>
           </ToolCard>
         )
       case 'ecc':
