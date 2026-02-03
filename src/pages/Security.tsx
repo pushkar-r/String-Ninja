@@ -133,14 +133,15 @@ export default function Security() {
   }
 
   function downloadBlob(data: string|Uint8Array, filename: string, mime='application/octet-stream'){
-    let part: BlobPart
+    let blob: Blob
     if (typeof data === 'string') {
-      part = data
+      blob = new Blob([data], { type: mime })
     } else {
-      // Use a sliced ArrayBuffer to match just this view's bytes
-      part = data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength)
+      // Create a fresh ArrayBuffer and copy to avoid SharedArrayBuffer union types
+      const ab = new ArrayBuffer(data.byteLength)
+      new Uint8Array(ab).set(data)
+      blob = new Blob([ab], { type: mime })
     }
-    const blob = new Blob([part], { type: mime })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
