@@ -12,7 +12,7 @@ import { base32Decode } from '../utils/conversions'
 
 export default function Security() {
   const [searchParams, setSearchParams] = useSearchParams()
-  const [active, setActive] = useState<'hash'|'aes'|'jwt'|'pw'|'jwtv'|'rsa'|'x509'|'saml'|'jwtSign'|'hmac'|'filehash'|'pkce'|'ecc'>(
+  const [active, setActive] = useState<'hash'|'aes'|'jwt'|'pw'|'jwtv'|'rsa'|'x509'|'saml'|'jwtSign'|'hmac'|'filehash'|'pkce'|'ecc'|'certconv'>(
     (searchParams.get('tool') as any) || 'hash'
   )
   useEffect(()=>{
@@ -130,6 +130,53 @@ export default function Security() {
     function toB64(u8: Uint8Array){ let bin=''; for(let i=0;i<u8.length;i++) bin+=String.fromCharCode(u8[i]); return btoa(bin) }
     function toPem(bodyB64: string, label: string){ const lines = bodyB64.match(/.{1,64}/g) || []; return `-----BEGIN ${label}-----\n${lines.join('\n')}\n-----END ${label}-----` }
     return { publicKey: toPem(toB64(spki), 'PUBLIC KEY'), privateKey: toPem(toB64(pkcs8), 'PRIVATE KEY') }
+  }
+
+  function downloadBlob(data: string|Uint8Array, filename: string, mime='application/octet-stream'){
+    const blob = new Blob([data instanceof Uint8Array? data : new TextEncoder().encode(data)], { type: mime })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    URL.revokeObjectURL(url)
+  }
+
+  function detectCertFormatByExt(name: string){
+    const ext = name.toLowerCase().split('.').pop() || ''
+    if (ext === 'pem') return 'PEM'
+    if (ext === 'der' || ext === 'cer' || ext === 'crt') return 'DER'
+    if (ext === 'p7b' || ext === 'p7c') return 'PKCS7'
+    if (ext === 'pfx' || ext === 'p12') return 'PKCS12'
+    return 'Unknown'
+  }
+
+  async function convertCert(inputBytes: Uint8Array, inFmt: 'PEM'|'DER'|'PKCS7'|'PKCS12'|'Unknown', outFmt: 'PEM'|'DER'){
+    function derToPem(der: Uint8Array, label='CERTIFICATE'){
+      let bin=''; for(let i=0;i<der.length;i++) bin+=String.fromCharCode(der[i])
+      const b64 = btoa(bin).replace(/(.{64})/g,'$1\n')
+      return `-----BEGIN ${label}-----\n${b64}\n-----END ${label}-----\n`
+    }
+    function pemToDer(pem: string){
+      const body = pem.replace(/-----BEGIN [^-]+-----/g,'').replace(/-----END [^-]+-----/g,'').replace(/\s+/g,'')
+      const bin = atob(body)
+      const u8 = new Uint8Array(bin.length)
+      for (let i=0;i<bin.length;i++) u8[i] = bin.charCodeAt(i)
+      return u8
+    }
+
+    if (outFmt === 'DER'){
+      if (inFmt === 'DER') return inputBytes
+      if (inFmt === 'PEM') return pemToDer(new TextDecoder().decode(inputBytes))
+      throw new Error('Only PEM/DER supported for conversion to DER')
+    } else if (outFmt === 'PEM'){
+      if (inFmt === 'PEM') return new TextDecoder().decode(inputBytes)
+      if (inFmt === 'DER') return derToPem(inputBytes)
+      throw new Error('Only PEM/DER supported for conversion to PEM')
+    }
+    throw new Error('Unsupported output format')
   }
 
   function renderPanel(){
@@ -402,6 +449,65 @@ export default function Security() {
             </div>
           </ToolCard>
         )
+      case 'certconv':
+        return (
+          <ToolCard title="Certificate Format Converter" description="Upload a certificate and convert between PEM and DER formats.">
+            <div className="grid gap-2">
+              <input id="cc-file" type="file" accept=".pem,.der,.cer,.crt,.p7b,.p7c,.pfx,.p12" className="block" onChange={async (e)=>{
+                const f = (e.target as HTMLInputElement).files?.[0]
+                if (!f) return
+                ;(document.getElementById('cc-infmt') as HTMLInputElement).value = detectCertFormatByExt(f.name)
+                const arr = new Uint8Array(await f.arrayBuffer())
+                ;(document.getElementById('cc-bytes') as HTMLTextAreaElement).value = Array.from(arr).slice(0,64).map(b=>b.toString(16).padStart(2,'0')).join(' ') + (arr.length>64? ' …' : '')
+              }} />
+              <div className="grid sm:grid-cols-2 gap-2 items-center">
+                <input id="cc-infmt" readOnly placeholder="Detected input format" className="w-full rounded-xl border p-3 text-sm dark:bg-slate-900" />
+                <select id="cc-outfmt" className="w-full rounded-xl border p-3 text-sm dark:bg-slate-900">
+                  <option value="PEM">PEM (.pem)</option>
+                  <option value="DER">DER (.der)</option>
+                  <option value="CER">DER (.cer)</option>
+                  <option value="CRT">DER (.crt)</option>
+                </select>
+              </div>
+              <div className="relative"><textarea id="cc-bytes" readOnly className="w-full h-24 rounded-xl border p-3 font-mono text-xs dark:bg-slate-900" placeholder="Input preview (first bytes)…" /></div>
+              <button className="px-3 py-2 rounded-xl bg-slate-900 text-white w-fit" onClick={async ()=>{
+                const file = (document.getElementById('cc-file') as HTMLInputElement).files?.[0]
+                if (!file) { alert('Upload a file first'); return }
+                const inFmt = (document.getElementById('cc-infmt') as HTMLInputElement).value as any
+                const outSel = (document.getElementById('cc-outfmt') as HTMLSelectElement).value as 'PEM'|'DER'|'CER'|'CRT'
+                const outType = outSel === 'PEM' ? 'PEM' : 'DER'
+                const bytes = new Uint8Array(await file.arrayBuffer())
+                try {
+                  const converted = await convertCert(bytes, inFmt, outType)
+                  const ext = outSel === 'PEM' ? '.pem' : outSel === 'DER' ? '.der' : outSel === 'CER' ? '.cer' : '.crt'
+                  const outName = file.name.replace(/\.[^.]+$/, '') + ext
+                  downloadBlob(converted as any, outName)
+                } catch (e:any){
+                  alert((e && e.message) || 'Conversion failed')
+                }
+              }}>Convert & Download</button>
+            </div>
+            <div className="mt-6 text-sm leading-6 text-slate-700 dark:text-slate-300 space-y-3">
+              <div>
+                <h3 className="text-base font-semibold">How formats work</h3>
+                <ul className="list-disc pl-5 space-y-1">
+                  <li><span className="font-medium">PEM</span>: Base64 text wrapping of the certificate bytes with BEGIN/END headers. Human‑readable; convenient for copy/paste.</li>
+                  <li><span className="font-medium">DER</span>: Raw binary ASN.1 encoding of the same certificate. Compact; commonly used on Windows and certain tooling.</li>
+                  <li><span className="font-medium">Extensions</span>: .cer and .crt are often just aliases for DER; the content is identical to .der. Some systems also use .crt for PEM; the extension alone doesn’t guarantee encoding.</li>
+                </ul>
+              </div>
+              <div>
+                <h3 className="text-base font-semibold">Scope and limitations</h3>
+                <ul className="list-disc pl-5 space-y-1">
+                  <li>Supported: lossless conversion between <span className="font-medium">PEM</span> and <span className="font-medium">DER</span> for a single X.509 certificate.</li>
+                  <li>Out of scope: PKCS#7 bundles (.p7b/.p7c), PKCS#12 keystores (.pfx/.p12), private keys, CSR files, and multi‑cert chains inside containers.</li>
+                  <li>Detection uses filename extension for UX. If the extension is wrong (e.g., DER bytes named .pem), pick the correct output/try the other encoding.</li>
+                  <li>Privacy: conversion runs 100% in your browser; no files are uploaded.</li>
+                </ul>
+              </div>
+            </div>
+          </ToolCard>
+        )
       case 'ecc':
         return (
           <ToolCard title="ECC Key Pair (P-256, PEM)" description="Generate an ECDSA P-256 key pair in PEM format.">
@@ -428,6 +534,7 @@ export default function Security() {
     // { key: 'totp', label: 'TOTP / HOTP' },
     { key: 'pkce', label: 'PKCE Generator' },
     { key: 'ecc', label: 'ECC Keygen (P-256)' },
+    { key: 'certconv', label: 'Cert Converter' },
   ]
 
   return (
