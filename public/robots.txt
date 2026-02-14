@@ -1,0 +1,6 @@
+# robots.txt for stringninja.in
+
+User-agent: *
+Allow: /
+
+Sitemap: https://stringninja.in/sitemap.xml
