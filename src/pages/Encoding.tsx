@@ -449,7 +449,7 @@ Dec(k): x  = (x' - k) mod 26`}
 
   return (
     <>
-      <Head title="String Ninja — Encoding Tools (Base64, Base32, URL, HTML, Hex/Binary)" description="Encode/decode Base64, Base32, URL, HTML entities; convert Hex/Binary/Text; ROT13/Caesar; gzip/deflate; Base58/Base85; UTF-16/UTF-32." />
+      <Head title="String Ninja — Encoding Tools: Base64, Base32, URL, Hex" description="Encode and decode Base64, Base32, URL encoding, HTML entities, convert between hex/binary/text, ROT13/Caesar cipher, Gzip/Deflate, Base58/Base85, and UTF-16/UTF-32 converters." />
       <div className="grid gap-6 md:grid-cols-[220px_1fr]">
       <div className="bg-white dark:bg-slate-950 rounded-2xl p-3 shadow-sm border border-slate-200 dark:border-slate-800 h-fit md:sticky md:top-24">
         <div className="flex items-center justify-between gap-2">

@@ -6,7 +6,7 @@ export default function Contact() {
   const linkedIn = 'https://linkedin.com/in/pushkarr'
   return (
     <>
-      <Head title="String Ninja — Contact" description="Contact the developer of String Ninja." />
+      <Head title="String Ninja — Contact: Connect With Developer" description="Get in touch with Pushkar Raj, developer behind String Ninja. View his LinkedIn profile to learn more about his expertise in Identity & Access Management, security automation, and enterprise security solutions. Reach out for collaboration or inquiries." />
       <ToolCard title="Contact" description="Reach out to the developer.">
         <div className="grid gap-3 text-sm">
           <div className="rounded-2xl border p-4 bg-white dark:bg-slate-950">

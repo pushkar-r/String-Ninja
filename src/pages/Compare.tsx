@@ -72,7 +72,7 @@ export default function Compare() {
   function renderPanel(){
     return (
       <>
-      <Head title="String Ninja — String Compare (Diff)" description="Visual diff between two texts by words, characters, or lines; inline or side-by-side." />
+      <Head title="String Ninja — Compare Two Texts: Diff Tool Online" description="Compare two texts and see visual differences by words, characters, or lines. View inline diffs or side-by-side comparison to easily spot changes between original and modified text content." />
       <ToolCard title="String Compare (Diff)" description="Visual diff between two texts by words, characters, or lines; inline or side-by-side.">
         <div className="flex flex-wrap gap-3 items-center mb-2">
           <div className="flex gap-2 items-center">

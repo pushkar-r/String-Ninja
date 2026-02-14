@@ -313,7 +313,7 @@ export default function Strings() {
 
   return (
     <>
-      <Head title="String Ninja — String Utilities (Transform, Regex, Wrap, Frequency)" description="Trim and clean text, convert cases, join lines, regex find/replace, wrap text, frequency analysis, remove accents, and more." />
+      <Head title="String Ninja — String Utilities: Transform, Regex, Wrap" description="Trim and clean text, convert between camel/snake/kebab/Title/sentence cases, join and split lines by delimiter, sort, deduplicate, regex find/replace, word/character wrap, frequency analysis, and remove diacritics from strings." />
       <div className="grid gap-6 md:grid-cols-[220px_1fr]">
       <div className="bg-white dark:bg-slate-950 rounded-2xl p-3 shadow-sm border border-slate-200 dark:border-slate-800 h-fit md:sticky md:top-24">
         <div className="flex items-center justify-between gap-2">

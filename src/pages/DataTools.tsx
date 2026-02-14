@@ -228,7 +228,7 @@ export default function DataTools() {
 
   return (
     <>
-      <Head title="String Ninja — Data Tools (JSON, QR, Code Formatters)" description="Format JSON, generate/scan QR, beautify/minify HTML/CSS/JS, and convert XML ↔ JSON." />
+      <Head title="String Ninja — Data Tools: JSON, QR Code, Formatters" description="Format and minify JSON documents, generate QR codes from text, scan QR codes from images, beautify and minify HTML/CSS/JavaScript code, convert bidirectionally between XML and JSON formats, and normalize Unicode text." />
       <div className="grid gap-6 md:grid-cols-[260px_1fr]">
       <div className="bg-white dark:bg-slate-950 rounded-2xl p-3 shadow-sm border border-slate-200 dark:border-slate-800 h-fit md:sticky md:top-24">
         <div className="flex items-center justify-between gap-2">

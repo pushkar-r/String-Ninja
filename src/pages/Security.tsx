@@ -547,7 +547,7 @@ export default function Security() {
 
   return (
     <>
-      <Head title="String Ninja — Security Tools (Hashing, AES, JWT, RSA, X.509, SAML)" description="Hashing (MD5/SHA), AES-GCM, JWT decode/verify/sign, bcrypt/Argon2, RSA/ECC keygen, X.509/SAML decoders, HMAC, PKCE, TOTP/HOTP, file hashing." />
+      <Head title="String Ninja — Security: Hash, AES, JWT, RSA, X.509, SAML" description="Compute MD5/SHA-1/256/512 hashes, AES-GCM encrypt/decrypt with PBKDF2, JWT decode/verify/sign tokens, bcrypt/Argon2 password hashing, RSA/ECC key pair generation, X.509 certificate decoder, SAML response decoder, HMAC, PKCE generator, and file hash tools." />
       <div className="grid gap-6 md:grid-cols-[260px_1fr]">
       <div className="bg-white dark:bg-slate-950 rounded-2xl p-3 shadow-sm border border-slate-200 dark:border-slate-800 h-fit md:sticky md:top-24">
         <div className="flex items-center justify-between gap-2">

@@ -245,7 +245,7 @@ export default function Misc() {
 
   return (
     <>
-      <Head title="String Ninja — Misc Tools (Timestamps, Passwords, Random, Regex, Stego)" description="Convert timestamps, generate secure passwords and UUIDs, test regex, and basic steganography demo." />
+      <Head title="String Ninja — Timestamp, Password, Random, Regex, Stego" description="Convert Unix timestamps to ISO dates and back, generate strong cryptographically secure passwords with custom options, create random strings and UUID v4 identifiers, test regular expressions against sample text, and hide/extract text in PNG images using steganography." />
       <div className="grid gap-6 md:grid-cols-[260px_1fr]">
       <div className="bg-white dark:bg-slate-950 rounded-2xl p-3 shadow-sm border border-slate-200 dark:border-slate-800 h-fit md:sticky md:top-24">
         <div className="flex items-center justify-between gap-2">
