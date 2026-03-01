@@ -12,6 +12,12 @@ import Security from './pages/Security'
 import DataTools from './pages/DataTools'
 import Misc from './pages/Misc'
 import Contact from './pages/Contact'
+import About from './pages/About'
+import Privacy from './pages/Privacy'
+import Terms from './pages/Terms'
+import Learn from './pages/Learn'
+import Base64Guide from './pages/Base64Guide'
+import JwtSecurityGuide from './pages/JwtSecurityGuide'
 
 const router = createBrowserRouter([
   {
@@ -25,6 +31,12 @@ const router = createBrowserRouter([
       { path: 'data', element: <DataTools /> },
       { path: 'misc', element: <Misc /> },
       { path: 'contact', element: <Contact /> },
+      { path: 'about', element: <About /> },
+      { path: 'privacy', element: <Privacy /> },
+      { path: 'terms', element: <Terms /> },
+      { path: 'learn', element: <Learn /> },
+      { path: 'learn/base64-guide', element: <Base64Guide /> },
+      { path: 'learn/jwt-security-guide', element: <JwtSecurityGuide /> },
     ]
   }
 ], { basename: import.meta.env.BASE_URL })

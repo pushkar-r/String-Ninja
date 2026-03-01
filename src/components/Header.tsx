@@ -84,6 +84,13 @@ export default function Header() {
     { label: 'Misc: Steganography', path: '/misc?tool=stego' },
 
     { label: 'Misc: Regex Save / Reuse', path: '/misc?tool=saved' },
+    { label: 'Learn: Guides', path: '/learn' },
+    { label: 'Guide: Base64 in Real Systems', path: '/learn/base64-guide' },
+    { label: 'Guide: JWT Security', path: '/learn/jwt-security-guide' },
+    { label: 'About String Ninja', path: '/about' },
+    { label: 'Privacy Policy', path: '/privacy' },
+    { label: 'Terms of Use', path: '/terms' },
+    { label: 'Contact', path: '/contact' },
   ]
 
   function goTo(query: string){
@@ -109,6 +116,7 @@ export default function Header() {
           <NavItem to="/security">Security</NavItem>
           <NavItem to="/data">Data</NavItem>
           <NavItem to="/misc">Misc</NavItem>
+          <NavItem to="/learn">Learn</NavItem>
         </nav>
         <div className="hidden md:block">
           <input
@@ -152,6 +160,7 @@ export default function Header() {
               <NavItem to="/security">Security</NavItem>
               <NavItem to="/data">Data</NavItem>
               <NavItem to="/misc">Misc</NavItem>
+              <NavItem to="/learn">Learn</NavItem>
               <div className="w-full">
                 <input
                   list="tool-suggestions-m"

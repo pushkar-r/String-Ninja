@@ -70,7 +70,50 @@
      crossorigin="anonymous"></script>
   </head>
   <body class="bg-slate-50 dark:bg-slate-900">
-    <div id="root"></div>
+    <div id="root">
+      <main style="max-width: 960px; margin: 0 auto; padding: 24px; font-family: Arial, sans-serif; line-height: 1.6;">
+        <h1>String Ninja: Client-Side Text, Security, and Data Tools</h1>
+        <p>
+          String Ninja is a browser-based utility toolkit for developers, security teams, support engineers, and learners.
+          It provides practical tools for encoding/decoding, hashing, text transformation, JSON formatting, regex testing,
+          QR workflows, certificate inspection, and data conversion tasks used in day-to-day software work.
+        </p>
+        <p>
+          The core design principle is a fast client-side workflow: you can paste data, run transformations, and copy results quickly.
+          Typical use cases include decoding JWT payloads during auth debugging, converting Base64 and URL-encoded values from logs,
+          normalizing Unicode for search consistency, cleaning malformed JSON payloads before API tests, and comparing two versions
+          of text to isolate changes.
+        </p>
+        <h2>Main Tool Sections</h2>
+        <ul>
+          <li><a href="/">Encoding Tools</a>: Base64, Base32, URL encoding, HTML entities, hex/binary/text conversion, and compression helpers.</li>
+          <li><a href="/strings">String Tools</a>: case conversion, delimiter operations, frequency analysis, wrapping, and regex find/replace.</li>
+          <li><a href="/compare">Compare Tools</a>: inline and side-by-side text diff views.</li>
+          <li><a href="/security">Security Tools</a>: hashing, AES helpers, JWT decode/verify workflows, X.509 decode, SAML decode, and key utilities.</li>
+          <li><a href="/data">Data Tools</a>: JSON formatting/minification, code formatting, XML/JSON conversion, QR generation and decode.</li>
+          <li><a href="/misc">Misc Tools</a>: timestamp conversion, password generation, random/UUID generation, regex testing, and steganography demo.</li>
+        </ul>
+        <h2>Guides and Policies</h2>
+        <ul>
+          <li><a href="/learn">Learn Hub</a></li>
+          <li><a href="/learn/base64-guide">Base64 in Real Systems Guide</a></li>
+          <li><a href="/learn/jwt-security-guide">JWT Security Guide</a></li>
+          <li><a href="/about">About</a></li>
+          <li><a href="/privacy">Privacy Policy</a></li>
+          <li><a href="/terms">Terms of Use</a></li>
+          <li><a href="/contact">Contact</a></li>
+        </ul>
+        <p>
+          For critical production use, always validate outputs with your own test suites and security controls.
+          Browser tools are excellent for speed and troubleshooting, but formal release decisions should rely on reproducible pipelines.
+        </p>
+      </main>
+      <noscript>
+        <main style="max-width: 960px; margin: 0 auto; padding: 24px; font-family: Arial, sans-serif;">
+          JavaScript is disabled. You can still access all major pages from the links above.
+        </main>
+      </noscript>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
