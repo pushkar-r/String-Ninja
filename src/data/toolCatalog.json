@@ -14,12 +14,12 @@
     ],
     "faqs": [
       {
-        "q": "Is encoding secure by itself?",
-        "a": "No. Encoding changes representation; it does not provide confidentiality or integrity."
+        "q": "Can this Base64 tool decode URL-safe tokens?",
+        "a": "Yes. It handles URL-safe variants and optional padding differences for common API/token payloads."
       },
       {
-        "q": "When should I prefer URL-safe output?",
-        "a": "Use URL-safe output when values are transported in URLs, token segments, or path/query fields."
+        "q": "Does Base64 encoding protect secrets?",
+        "a": "No. Base64 is an encoding format, not encryption. Treat encoded values as readable data."
       }
     ],
     "relatedGuide": "/learn/url-html-encoding-guide"
@@ -39,12 +39,12 @@
     ],
     "faqs": [
       {
-        "q": "Is encoding secure by itself?",
-        "a": "No. Encoding changes representation; it does not provide confidentiality or integrity."
+        "q": "When should I use Base32 instead of Base64?",
+        "a": "Use Base32 when you need case-insensitive text channels or restricted alphabets."
       },
       {
-        "q": "When should I prefer URL-safe output?",
-        "a": "Use URL-safe output when values are transported in URLs, token segments, or path/query fields."
+        "q": "Why does Base32 output include equals signs?",
+        "a": "Padding keeps output aligned to Base32 block boundaries for decoder compatibility."
       }
     ],
     "relatedGuide": "/learn/url-html-encoding-guide"
@@ -64,12 +64,12 @@
     ],
     "faqs": [
       {
-        "q": "Is encoding secure by itself?",
-        "a": "No. Encoding changes representation; it does not provide confidentiality or integrity."
+        "q": "Should I encode an entire URL or only parameter values?",
+        "a": "Encode individual components (especially query values), not whole URLs indiscriminately."
       },
       {
-        "q": "When should I prefer URL-safe output?",
-        "a": "Use URL-safe output when values are transported in URLs, token segments, or path/query fields."
+        "q": "Why do spaces become %20 here instead of +?",
+        "a": "This tool uses standard URI encoding rules; plus is specific to form-url-encoded contexts."
       }
     ],
     "relatedGuide": "/learn/url-html-encoding-guide"
@@ -89,12 +89,12 @@
     ],
     "faqs": [
       {
-        "q": "Is encoding secure by itself?",
-        "a": "No. Encoding changes representation; it does not provide confidentiality or integrity."
+        "q": "When should I encode HTML entities?",
+        "a": "Encode when rendering untrusted text into HTML contexts to avoid tag interpretation."
       },
       {
-        "q": "When should I prefer URL-safe output?",
-        "a": "Use URL-safe output when values are transported in URLs, token segments, or path/query fields."
+        "q": "Will entity decoding remove XSS risk?",
+        "a": "No. Decoding reverses escaping. Always apply context-appropriate output encoding at render time."
       }
     ],
     "relatedGuide": "/learn/url-html-encoding-guide"
@@ -114,12 +114,12 @@
     ],
     "faqs": [
       {
-        "q": "Is encoding secure by itself?",
-        "a": "No. Encoding changes representation; it does not provide confidentiality or integrity."
+        "q": "Why does text-to-hex output vary by character set?",
+        "a": "This tool uses UTF-8 byte representation, so multibyte characters produce longer hex output."
       },
       {
-        "q": "When should I prefer URL-safe output?",
-        "a": "Use URL-safe output when values are transported in URLs, token segments, or path/query fields."
+        "q": "What causes invalid hex conversion errors?",
+        "a": "Odd-length hex strings or non-hex characters break byte parsing and must be corrected."
       }
     ],
     "relatedGuide": "/learn/url-html-encoding-guide"
@@ -139,12 +139,12 @@
     ],
     "faqs": [
       {
-        "q": "Is encoding secure by itself?",
-        "a": "No. Encoding changes representation; it does not provide confidentiality or integrity."
+        "q": "Is ROT13 suitable for secure encryption?",
+        "a": "No. ROT13/Caesar are educational substitution ciphers and are trivially reversible."
       },
       {
-        "q": "When should I prefer URL-safe output?",
-        "a": "Use URL-safe output when values are transported in URLs, token segments, or path/query fields."
+        "q": "Why are punctuation and numbers unchanged?",
+        "a": "The transform only rotates alphabetic characters and leaves non-letters untouched."
       }
     ],
     "relatedGuide": "/learn/url-html-encoding-guide"
@@ -164,12 +164,12 @@
     ],
     "faqs": [
       {
-        "q": "Is encoding secure by itself?",
-        "a": "No. Encoding changes representation; it does not provide confidentiality or integrity."
+        "q": "What is the difference between gzip and deflate here?",
+        "a": "Gzip includes wrapper metadata and checksum; deflate is the compressed stream itself."
       },
       {
-        "q": "When should I prefer URL-safe output?",
-        "a": "Use URL-safe output when values are transported in URLs, token segments, or path/query fields."
+        "q": "Why is compressed output shown in Base64?",
+        "a": "Compressed bytes are binary, so Base64 makes them safe for copy/paste text workflows."
       }
     ],
     "relatedGuide": "/learn/url-html-encoding-guide"
@@ -189,12 +189,12 @@
     ],
     "faqs": [
       {
-        "q": "Is encoding secure by itself?",
-        "a": "No. Encoding changes representation; it does not provide confidentiality or integrity."
+        "q": "Why use Base58 for identifiers?",
+        "a": "It avoids ambiguous characters like 0/O/I/l, reducing transcription errors."
       },
       {
-        "q": "When should I prefer URL-safe output?",
-        "a": "Use URL-safe output when values are transported in URLs, token segments, or path/query fields."
+        "q": "Is this Base58Check with checksum validation?",
+        "a": "No. This tool handles Base58 encoding/decoding, not blockchain-specific checksum variants."
       }
     ],
     "relatedGuide": "/learn/url-html-encoding-guide"
@@ -214,12 +214,12 @@
     ],
     "faqs": [
       {
-        "q": "Is encoding secure by itself?",
-        "a": "No. Encoding changes representation; it does not provide confidentiality or integrity."
+        "q": "When is Ascii85 useful?",
+        "a": "Ascii85 is useful when you need compact ASCII representation of binary-like content."
       },
       {
-        "q": "When should I prefer URL-safe output?",
-        "a": "Use URL-safe output when values are transported in URLs, token segments, or path/query fields."
+        "q": "Can I interchange all Base85 variants?",
+        "a": "No. Different Base85 alphabets exist; match the variant expected by your system."
       }
     ],
     "relatedGuide": "/learn/url-html-encoding-guide"
@@ -239,12 +239,12 @@
     ],
     "faqs": [
       {
-        "q": "Is encoding secure by itself?",
-        "a": "No. Encoding changes representation; it does not provide confidentiality or integrity."
+        "q": "Why does endianness matter in UTF-16/UTF-32 hex?",
+        "a": "Byte order determines how code units are interpreted; wrong endianness yields garbled text."
       },
       {
-        "q": "When should I prefer URL-safe output?",
-        "a": "Use URL-safe output when values are transported in URLs, token segments, or path/query fields."
+        "q": "Does this tool add BOM markers automatically?",
+        "a": "No. It converts explicit bytes; include BOM manually only if your target format requires it."
       }
     ],
     "relatedGuide": "/learn/url-html-encoding-guide"
@@ -264,12 +264,12 @@
     ],
     "faqs": [
       {
-        "q": "Are these transformations always reversible?",
-        "a": "No. Several cleanup operations are lossy unless the original text is preserved."
+        "q": "When should I use slugify from this tool?",
+        "a": "Use slugify for URL labels, filenames, and normalized identifiers from free text."
       },
       {
-        "q": "Should I run replacements directly on production data?",
-        "a": "Prefer staged validation and backups before irreversible transformations."
+        "q": "Can whitespace cleanup change meaning?",
+        "a": "Yes. Normalization can alter formatting-sensitive content, so review output before publishing."
       }
     ],
     "relatedGuide": "/learn/regex-text-guide"
@@ -289,12 +289,12 @@
     ],
     "faqs": [
       {
-        "q": "Are these transformations always reversible?",
-        "a": "No. Several cleanup operations are lossy unless the original text is preserved."
+        "q": "How are words counted here?",
+        "a": "Word count is whitespace-delimited, which is practical for most prose and log text."
       },
       {
-        "q": "Should I run replacements directly on production data?",
-        "a": "Prefer staged validation and backups before irreversible transformations."
+        "q": "Why is byte size different from character count?",
+        "a": "UTF-8 uses variable-length bytes, so non-ASCII characters increase byte length."
       }
     ],
     "relatedGuide": "/learn/regex-text-guide"
@@ -314,12 +314,12 @@
     ],
     "faqs": [
       {
-        "q": "Are these transformations always reversible?",
-        "a": "No. Several cleanup operations are lossy unless the original text is preserved."
+        "q": "Which case should I use for JavaScript variable names?",
+        "a": "camelCase is typical for JavaScript variables; PascalCase is common for component/class names."
       },
       {
-        "q": "Should I run replacements directly on production data?",
-        "a": "Prefer staged validation and backups before irreversible transformations."
+        "q": "Does case conversion preserve acronyms exactly?",
+        "a": "Not always. Review transformed output when acronym casing is semantically important."
       }
     ],
     "relatedGuide": "/learn/regex-text-guide"
@@ -339,12 +339,12 @@
     ],
     "faqs": [
       {
-        "q": "Are these transformations always reversible?",
-        "a": "No. Several cleanup operations are lossy unless the original text is preserved."
+        "q": "Why inspect Unicode code points?",
+        "a": "Code points reveal hidden characters and look-alike glyphs that break validation or matching."
       },
       {
-        "q": "Should I run replacements directly on production data?",
-        "a": "Prefer staged validation and backups before irreversible transformations."
+        "q": "Can this help debug normalization bugs?",
+        "a": "Yes. Comparing code points helps detect composed vs decomposed Unicode representations."
       }
     ],
     "relatedGuide": "/learn/regex-text-guide"
@@ -364,12 +364,12 @@
     ],
     "faqs": [
       {
-        "q": "Are these transformations always reversible?",
-        "a": "No. Several cleanup operations are lossy unless the original text is preserved."
+        "q": "How do I make SQL-friendly quoted lists?",
+        "a": "Use prefix/suffix options to wrap each value, then join with comma delimiter."
       },
       {
-        "q": "Should I run replacements directly on production data?",
-        "a": "Prefer staged validation and backups before irreversible transformations."
+        "q": "What does ignore empty lines do?",
+        "a": "It drops blank entries so output lists do not contain unintended empty items."
       }
     ],
     "relatedGuide": "/learn/regex-text-guide"
@@ -389,12 +389,12 @@
     ],
     "faqs": [
       {
-        "q": "Are these transformations always reversible?",
-        "a": "No. Several cleanup operations are lossy unless the original text is preserved."
+        "q": "Can I split using tab or newline delimiters?",
+        "a": "Yes. Use escaped delimiters like \\t or \\n for structured splitting."
       },
       {
-        "q": "Should I run replacements directly on production data?",
-        "a": "Prefer staged validation and backups before irreversible transformations."
+        "q": "Why are some split results missing?",
+        "a": "Trim and ignore-empty options can remove whitespace-only or empty segments by design."
       }
     ],
     "relatedGuide": "/learn/regex-text-guide"
@@ -414,12 +414,12 @@
     ],
     "faqs": [
       {
-        "q": "Are these transformations always reversible?",
-        "a": "No. Several cleanup operations are lossy unless the original text is preserved."
+        "q": "Does unique preserve original order?",
+        "a": "It keeps first occurrences and removes later duplicates in encountered order."
       },
       {
-        "q": "Should I run replacements directly on production data?",
-        "a": "Prefer staged validation and backups before irreversible transformations."
+        "q": "Is sorting numeric-aware?",
+        "a": "No. Sorting is lexical/locale-based, so numeric strings may need preprocessing."
       }
     ],
     "relatedGuide": "/learn/regex-text-guide"
@@ -439,12 +439,12 @@
     ],
     "faqs": [
       {
-        "q": "Are these transformations always reversible?",
-        "a": "No. Several cleanup operations are lossy unless the original text is preserved."
+        "q": "How can I preview matches before replacing?",
+        "a": "Run find first to inspect match objects, then apply replace once scope looks correct."
       },
       {
-        "q": "Should I run replacements directly on production data?",
-        "a": "Prefer staged validation and backups before irreversible transformations."
+        "q": "Which flags matter most for multiline data?",
+        "a": "g for global, i for case-insensitive, and m when anchors should work per line."
       }
     ],
     "relatedGuide": "/learn/regex-text-guide"
@@ -464,12 +464,12 @@
     ],
     "faqs": [
       {
-        "q": "Are these transformations always reversible?",
-        "a": "No. Several cleanup operations are lossy unless the original text is preserved."
+        "q": "Will wrap break very long unspaced tokens?",
+        "a": "Very long tokens may exceed width because wrapping is token-based, not hard character slicing."
       },
       {
-        "q": "Should I run replacements directly on production data?",
-        "a": "Prefer staged validation and backups before irreversible transformations."
+        "q": "What width should I choose?",
+        "a": "Use your target style guideline, such as 72 or 80 columns for plain-text readability."
       }
     ],
     "relatedGuide": "/learn/regex-text-guide"
@@ -489,12 +489,12 @@
     ],
     "faqs": [
       {
-        "q": "Are these transformations always reversible?",
-        "a": "No. Several cleanup operations are lossy unless the original text is preserved."
+        "q": "Does word mode treat Apple and apple separately?",
+        "a": "Word mode lowercases tokens first, so case variants are counted together."
       },
       {
-        "q": "Should I run replacements directly on production data?",
-        "a": "Prefer staged validation and backups before irreversible transformations."
+        "q": "What is character mode useful for?",
+        "a": "Character mode helps spot repeated symbols, spacing anomalies, and encoding artifacts."
       }
     ],
     "relatedGuide": "/learn/regex-text-guide"
@@ -514,12 +514,12 @@
     ],
     "faqs": [
       {
-        "q": "Are these transformations always reversible?",
-        "a": "No. Several cleanup operations are lossy unless the original text is preserved."
+        "q": "When should I remove diacritics?",
+        "a": "Use it for tolerant search keys, slugs, or normalization pipelines requiring plain ASCII output."
       },
       {
-        "q": "Should I run replacements directly on production data?",
-        "a": "Prefer staged validation and backups before irreversible transformations."
+        "q": "Can diacritic removal change language meaning?",
+        "a": "Yes. Some languages rely on accents semantically, so keep originals where meaning matters."
       }
     ],
     "relatedGuide": "/learn/regex-text-guide"
@@ -539,12 +539,12 @@
     ],
     "faqs": [
       {
-        "q": "Which mode should I start with?",
-        "a": "Start with line mode for large text, then switch to words/chars for precision."
+        "q": "When should I use line mode vs word mode?",
+        "a": "Use line mode for logs/configs and word mode for prose-style text edits."
       },
       {
-        "q": "Can this export a patch file?",
-        "a": "No. It is a visual aid; apply changes in your source-control workflow."
+        "q": "Why do removed sections appear struck-through?",
+        "a": "Visual markers highlight deletions distinctly from additions for easier review."
       }
     ],
     "relatedGuide": "/learn/compare-diff-guide"
@@ -564,12 +564,12 @@
     ],
     "faqs": [
       {
-        "q": "Is decode output enough for trust decisions?",
-        "a": "No. You must verify signatures and validate required claims/policies."
+        "q": "Which hash should I prefer for integrity checks?",
+        "a": "Prefer SHA-256 or SHA-512 over MD5/SHA-1 for modern integrity workflows."
       },
       {
-        "q": "Can browser helpers replace production security controls?",
-        "a": "No. Use audited libraries, key management, and CI validation in production."
+        "q": "Can I use this hash output for password storage?",
+        "a": "No. Password storage requires slow salted algorithms like bcrypt or Argon2."
       }
     ],
     "relatedGuide": "/learn/jwt-security-guide"
@@ -589,12 +589,12 @@
     ],
     "faqs": [
       {
-        "q": "Is decode output enough for trust decisions?",
-        "a": "No. You must verify signatures and validate required claims/policies."
+        "q": "How do I verify a downloaded file with this tool?",
+        "a": "Compare the computed checksum with a trusted publisher checksum for the same algorithm."
       },
       {
-        "q": "Can browser helpers replace production security controls?",
-        "a": "No. Use audited libraries, key management, and CI validation in production."
+        "q": "Why do SHA-256 and SHA-512 outputs differ?",
+        "a": "They are different algorithms with different digest lengths and output values."
       }
     ],
     "relatedGuide": "/learn/jwt-security-guide"
@@ -614,12 +614,12 @@
     ],
     "faqs": [
       {
-        "q": "Is decode output enough for trust decisions?",
-        "a": "No. You must verify signatures and validate required claims/policies."
+        "q": "Why does AES-GCM output change for same plaintext?",
+        "a": "Random IV and salt are generated per encryption, so ciphertext should vary each run."
       },
       {
-        "q": "Can browser helpers replace production security controls?",
-        "a": "No. Use audited libraries, key management, and CI validation in production."
+        "q": "What causes AES-GCM decryption failure?",
+        "a": "Wrong password, altered payload, or malformed Base64 structure will fail authentication."
       }
     ],
     "relatedGuide": "/learn/jwt-security-guide"
@@ -639,12 +639,12 @@
     ],
     "faqs": [
       {
-        "q": "Is decode output enough for trust decisions?",
-        "a": "No. You must verify signatures and validate required claims/policies."
+        "q": "Does JWT decoding verify signature validity?",
+        "a": "No. Decoder shows header/payload only; use verification before trusting claims."
       },
       {
-        "q": "Can browser helpers replace production security controls?",
-        "a": "No. Use audited libraries, key management, and CI validation in production."
+        "q": "Why might decoded claims still be unsafe?",
+        "a": "Claims can be tampered without valid signature checks and issuer/audience validation."
       }
     ],
     "relatedGuide": "/learn/jwt-security-guide"
@@ -664,12 +664,12 @@
     ],
     "faqs": [
       {
-        "q": "Is decode output enough for trust decisions?",
-        "a": "No. You must verify signatures and validate required claims/policies."
+        "q": "Should I choose bcrypt or Argon2 for new systems?",
+        "a": "Argon2 is generally preferred when supported; bcrypt remains widely acceptable."
       },
       {
-        "q": "Can browser helpers replace production security controls?",
-        "a": "No. Use audited libraries, key management, and CI validation in production."
+        "q": "Why are password hashes different for same password?",
+        "a": "Salt is unique per hash, so outputs differ while verification still succeeds."
       }
     ],
     "relatedGuide": "/learn/jwt-security-guide"
@@ -689,12 +689,12 @@
     ],
     "faqs": [
       {
-        "q": "Is decode output enough for trust decisions?",
-        "a": "No. You must verify signatures and validate required claims/policies."
+        "q": "How do I choose HS256 vs RS256 verification here?",
+        "a": "Use HS256 with shared secret tokens and RS256 with issuer public key tokens."
       },
       {
-        "q": "Can browser helpers replace production security controls?",
-        "a": "No. Use audited libraries, key management, and CI validation in production."
+        "q": "Why can signature verify but auth still fail?",
+        "a": "Applications must also validate exp, nbf, iss, aud, and policy-specific claims."
       }
     ],
     "relatedGuide": "/learn/jwt-security-guide"
@@ -714,12 +714,12 @@
     ],
     "faqs": [
       {
-        "q": "Is decode output enough for trust decisions?",
-        "a": "No. You must verify signatures and validate required claims/policies."
+        "q": "Which RSA key size is practical today?",
+        "a": "2048 is baseline; 3072/4096 increase security margin at computational cost."
       },
       {
-        "q": "Can browser helpers replace production security controls?",
-        "a": "No. Use audited libraries, key management, and CI validation in production."
+        "q": "Can generated keys be used directly in production?",
+        "a": "Use controlled key management and rotation policies before production adoption."
       }
     ],
     "relatedGuide": "/learn/jwt-security-guide"
@@ -739,12 +739,12 @@
     ],
     "faqs": [
       {
-        "q": "Is decode output enough for trust decisions?",
-        "a": "No. You must verify signatures and validate required claims/policies."
+        "q": "What should I inspect first in decoded certificates?",
+        "a": "Start with validity dates, subject/SAN names, and issuer chain expectations."
       },
       {
-        "q": "Can browser helpers replace production security controls?",
-        "a": "No. Use audited libraries, key management, and CI validation in production."
+        "q": "Does decoding confirm certificate trust?",
+        "a": "No. Trust requires full chain validation and policy checks in your TLS environment."
       }
     ],
     "relatedGuide": "/learn/jwt-security-guide"
@@ -764,12 +764,12 @@
     ],
     "faqs": [
       {
-        "q": "Is decode output enough for trust decisions?",
-        "a": "No. You must verify signatures and validate required claims/policies."
+        "q": "When should I use POST vs Redirect decode mode?",
+        "a": "Use POST for Base64 form payloads and Redirect for deflated URL parameter payloads."
       },
       {
-        "q": "Can browser helpers replace production security controls?",
-        "a": "No. Use audited libraries, key management, and CI validation in production."
+        "q": "Is decoded SAML XML automatically trusted?",
+        "a": "No. Always verify signatures, destination, audience, and timing constraints."
       }
     ],
     "relatedGuide": "/learn/jwt-security-guide"
@@ -789,12 +789,12 @@
     ],
     "faqs": [
       {
-        "q": "Is decode output enough for trust decisions?",
-        "a": "No. You must verify signatures and validate required claims/policies."
+        "q": "When should I sign JWTs in this tool?",
+        "a": "Use it for test token generation and interoperability troubleshooting workflows."
       },
       {
-        "q": "Can browser helpers replace production security controls?",
-        "a": "No. Use audited libraries, key management, and CI validation in production."
+        "q": "What mistakes break signed token interoperability?",
+        "a": "Incorrect algorithm/key pairing and malformed JSON claims commonly cause failures."
       }
     ],
     "relatedGuide": "/learn/jwt-security-guide"
@@ -814,12 +814,12 @@
     ],
     "faqs": [
       {
-        "q": "Is decode output enough for trust decisions?",
-        "a": "No. You must verify signatures and validate required claims/policies."
+        "q": "What does HMAC protect against?",
+        "a": "HMAC provides integrity and authenticity for message + shared-secret combinations."
       },
       {
-        "q": "Can browser helpers replace production security controls?",
-        "a": "No. Use audited libraries, key management, and CI validation in production."
+        "q": "Can I reuse one HMAC key for all systems?",
+        "a": "Avoid key reuse across contexts; derive scoped keys for different integrations."
       }
     ],
     "relatedGuide": "/learn/jwt-security-guide"
@@ -839,12 +839,12 @@
     ],
     "faqs": [
       {
-        "q": "Is decode output enough for trust decisions?",
-        "a": "No. You must verify signatures and validate required claims/policies."
+        "q": "What pair does this PKCE tool create?",
+        "a": "It generates a high-entropy code_verifier and corresponding S256 code_challenge."
       },
       {
-        "q": "Can browser helpers replace production security controls?",
-        "a": "No. Use audited libraries, key management, and CI validation in production."
+        "q": "Why does PKCE matter for OAuth public clients?",
+        "a": "PKCE mitigates authorization-code interception by proving verifier possession."
       }
     ],
     "relatedGuide": "/learn/jwt-security-guide"
@@ -864,12 +864,12 @@
     ],
     "faqs": [
       {
-        "q": "Is decode output enough for trust decisions?",
-        "a": "No. You must verify signatures and validate required claims/policies."
+        "q": "Why choose P-256 ECC keys?",
+        "a": "P-256 offers strong security with smaller key sizes and broad interoperability."
       },
       {
-        "q": "Can browser helpers replace production security controls?",
-        "a": "No. Use audited libraries, key management, and CI validation in production."
+        "q": "Are ECC keys interchangeable with RSA workflows?",
+        "a": "Not always. Ensure target systems explicitly support EC keys and algorithms."
       }
     ],
     "relatedGuide": "/learn/jwt-security-guide"
@@ -889,12 +889,12 @@
     ],
     "faqs": [
       {
-        "q": "Is decode output enough for trust decisions?",
-        "a": "No. You must verify signatures and validate required claims/policies."
+        "q": "What is the main difference between PEM and DER?",
+        "a": "PEM is Base64 text with headers; DER is raw binary ASN.1 encoding."
       },
       {
-        "q": "Can browser helpers replace production security controls?",
-        "a": "No. Use audited libraries, key management, and CI validation in production."
+        "q": "Will extension alone confirm certificate format?",
+        "a": "No. File extensions can be misleading; validate actual content encoding."
       }
     ],
     "relatedGuide": "/learn/jwt-security-guide"
@@ -914,12 +914,12 @@
     ],
     "faqs": [
       {
-        "q": "Should I format or minify first?",
-        "a": "Format first for review and validation, then minify for transport."
+        "q": "Why does formatter report line and column errors?",
+        "a": "It pinpoints syntax issues so malformed JSON can be corrected quickly."
       },
       {
-        "q": "Will XML to JSON always preserve exact structure?",
-        "a": "Not always. Data models differ and some context can be lost in conversion."
+        "q": "When should I minify JSON output?",
+        "a": "Minify after validation when you need compact payloads for transport/storage."
       }
     ],
     "relatedGuide": "/learn/json-data-guide"
@@ -939,12 +939,12 @@
     ],
     "faqs": [
       {
-        "q": "Should I format or minify first?",
-        "a": "Format first for review and validation, then minify for transport."
+        "q": "Why might QR decode fail on an image?",
+        "a": "Low contrast, blur, or partial clipping can prevent reliable pattern detection."
       },
       {
-        "q": "Will XML to JSON always preserve exact structure?",
-        "a": "Not always. Data models differ and some context can be lost in conversion."
+        "q": "Can I encode long payloads in one QR?",
+        "a": "Longer payloads increase QR density and scanning difficulty; keep content concise."
       }
     ],
     "relatedGuide": "/learn/json-data-guide"
@@ -964,12 +964,12 @@
     ],
     "faqs": [
       {
-        "q": "Should I format or minify first?",
-        "a": "Format first for review and validation, then minify for transport."
+        "q": "When should I beautify before minifying?",
+        "a": "Beautify first for review/debugging, then minify for distribution payload size."
       },
       {
-        "q": "Will XML to JSON always preserve exact structure?",
-        "a": "Not always. Data models differ and some context can be lost in conversion."
+        "q": "Can minification change behavior?",
+        "a": "Yes, edge cases exist; always test critical code paths after minification."
       }
     ],
     "relatedGuide": "/learn/json-data-guide"
@@ -989,12 +989,12 @@
     ],
     "faqs": [
       {
-        "q": "Should I format or minify first?",
-        "a": "Format first for review and validation, then minify for transport."
+        "q": "Why is XML to JSON conversion sometimes imperfect?",
+        "a": "Attributes, ordering, and mixed content may not map one-to-one across formats."
       },
       {
-        "q": "Will XML to JSON always preserve exact structure?",
-        "a": "Not always. Data models differ and some context can be lost in conversion."
+        "q": "How should I validate converted output?",
+        "a": "Check required keys/types against target schema before using converted payloads."
       }
     ],
     "relatedGuide": "/learn/json-data-guide"
@@ -1014,12 +1014,12 @@
     ],
     "faqs": [
       {
-        "q": "Should I format or minify first?",
-        "a": "Format first for review and validation, then minify for transport."
+        "q": "When should I use NFC versus NFKC?",
+        "a": "Use NFC for canonical storage; NFKC when compatibility folding is acceptable."
       },
       {
-        "q": "Will XML to JSON always preserve exact structure?",
-        "a": "Not always. Data models differ and some context can be lost in conversion."
+        "q": "Can normalization affect search and equality?",
+        "a": "Yes. Consistent normalization is essential for stable matching and indexing."
       }
     ],
     "relatedGuide": "/learn/json-data-guide"
@@ -1039,12 +1039,12 @@
     ],
     "faqs": [
       {
-        "q": "Are generated values always suitable for security use?",
-        "a": "Validate entropy, policy, and compliance requirements for your environment."
+        "q": "Does this tool interpret Unix input as seconds or milliseconds?",
+        "a": "It infers based on length and converts to ISO datetime accordingly."
       },
       {
-        "q": "Is browser local storage a backup mechanism?",
-        "a": "No. It is convenience storage and can be cleared by browser policy."
+        "q": "Why can timezone confusion happen with timestamps?",
+        "a": "Unix values are UTC-based; display context may differ by local timezone."
       }
     ],
     "relatedGuide": "/learn/utility-workflows-guide"
@@ -1064,12 +1064,12 @@
     ],
     "faqs": [
       {
-        "q": "Are generated values always suitable for security use?",
-        "a": "Validate entropy, policy, and compliance requirements for your environment."
+        "q": "What settings improve generated password strength?",
+        "a": "Increase length and include multiple character classes where policy allows."
       },
       {
-        "q": "Is browser local storage a backup mechanism?",
-        "a": "No. It is convenience storage and can be cleared by browser policy."
+        "q": "Should generated passwords be reused across accounts?",
+        "a": "No. Use unique passwords per account and store them in a password manager."
       }
     ],
     "relatedGuide": "/learn/utility-workflows-guide"
@@ -1089,12 +1089,12 @@
     ],
     "faqs": [
       {
-        "q": "Are generated values always suitable for security use?",
-        "a": "Validate entropy, policy, and compliance requirements for your environment."
+        "q": "When should I use UUID vs random string?",
+        "a": "UUIDs are good identifiers; random strings are better for custom token formats."
       },
       {
-        "q": "Is browser local storage a backup mechanism?",
-        "a": "No. It is convenience storage and can be cleared by browser policy."
+        "q": "Is UUID v4 enough for secret tokens?",
+        "a": "For sensitive secrets, prefer dedicated high-entropy random byte/token generation."
       }
     ],
     "relatedGuide": "/learn/utility-workflows-guide"
@@ -1114,12 +1114,12 @@
     ],
     "faqs": [
       {
-        "q": "Are generated values always suitable for security use?",
-        "a": "Validate entropy, policy, and compliance requirements for your environment."
+        "q": "How can I reduce catastrophic regex behavior?",
+        "a": "Use precise patterns, avoid overly greedy constructs, and test incrementally."
       },
       {
-        "q": "Is browser local storage a backup mechanism?",
-        "a": "No. It is convenience storage and can be cleared by browser policy."
+        "q": "Why are expected matches missing?",
+        "a": "Flag choices and escaping often cause misses; verify pattern and options carefully."
       }
     ],
     "relatedGuide": "/learn/utility-workflows-guide"
@@ -1139,12 +1139,12 @@
     ],
     "faqs": [
       {
-        "q": "Are generated values always suitable for security use?",
-        "a": "Validate entropy, policy, and compliance requirements for your environment."
+        "q": "Why is PNG preferred for this steganography tool?",
+        "a": "PNG is lossless, preserving hidden bit patterns better than JPEG compression."
       },
       {
-        "q": "Is browser local storage a backup mechanism?",
-        "a": "No. It is convenience storage and can be cleared by browser policy."
+        "q": "Does steganography alone secure confidential data?",
+        "a": "No. Use encryption if secrecy is required; steganography only hides presence."
       }
     ],
     "relatedGuide": "/learn/utility-workflows-guide"
@@ -1164,12 +1164,12 @@
     ],
     "faqs": [
       {
-        "q": "Are generated values always suitable for security use?",
-        "a": "Validate entropy, policy, and compliance requirements for your environment."
+        "q": "Where are saved regex patterns stored?",
+        "a": "Patterns are stored in browser local storage on the current device/profile."
       },
       {
-        "q": "Is browser local storage a backup mechanism?",
-        "a": "No. It is convenience storage and can be cleared by browser policy."
+        "q": "How can I avoid losing saved patterns?",
+        "a": "Export critical patterns manually; browser storage can be cleared unexpectedly."
       }
     ],
     "relatedGuide": "/learn/utility-workflows-guide"
