@@ -295,7 +295,7 @@ function applyHeadMetadata(html, meta) {
 function buildFallbackMain(meta) {
   const links = meta.links.map(([href, label]) => `<li><a href="${href}">${escapeHtml(label)}</a></li>`).join('')
   const extra = meta.type === 'tool'
-    ? `<h2>Quick Example</h2><p>Input: Sample input text</p><p>Output: Transformed output based on selected options.</p><h2>Common mistakes</h2><ul><li>Avoid irreversible transformations without preserving originals.</li><li>Validate outputs before production use.</li><li>Use the right mode/format for your target system.</li></ul>`
+    ? `<h2>Quick Example</h2><p>Input: ${escapeHtml(meta.exampleInput || 'Sample input text')}</p><p>Output: ${escapeHtml(meta.exampleOutput || 'Transformed output based on selected options.')}</p><h2>Common mistakes</h2><ul>${(meta.mistakes || []).map((m) => `<li>${escapeHtml(m)}</li>`).join('')}</ul>`
     : ''
   return `<main style="max-width: 960px; margin: 0 auto; padding: 24px; font-family: Arial, sans-serif; line-height: 1.6;"><h1>${escapeHtml(meta.heading)}</h1><p>${escapeHtml(meta.intro)}</p><h2>Quick Links</h2><ul>${links}</ul>${extra}<p>String Ninja tools run in the browser for practical text, security, and data workflows. For critical production decisions, validate outcomes in controlled pipelines.</p></main>`
 }
@@ -340,7 +340,7 @@ function buildSchema(meta) {
   }
 
   if (meta.type === 'tool') {
-    const faqs = categoryFaq[meta.category] || categoryFaq.Misc
+    const faqs = (meta.faqs && meta.faqs.length ? meta.faqs.map((f) => [f.q, f.a]) : (categoryFaq[meta.category] || categoryFaq.Misc))
     schemas.push({
       '@context': 'https://schema.org',
       '@type': 'FAQPage',
@@ -376,10 +376,14 @@ const toolRoutes = toolCatalog.map((tool) => ({
   links: [
     [tool.appPath, `Open ${tool.name}`],
     ['/tools', 'All Tools Hub'],
-    ['/learn', 'Learn Hub']
+    [tool.relatedGuide || '/learn', 'Related Guide']
   ],
   type: 'tool',
-  category: tool.category
+  category: tool.category,
+  exampleInput: tool.exampleInput,
+  exampleOutput: tool.exampleOutput,
+  mistakes: tool.mistakes || [],
+  faqs: tool.faqs || []
 }))
 
 const renderRoutes = [...staticRoutes, ...toolRoutes]
