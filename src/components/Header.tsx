@@ -118,7 +118,7 @@ export default function Header() {
             <span className="text-xl md:text-2xl font-black italic tracking-wider text-slate-900 dark:text-emerald-300">Ninja</span>
           </div>
         </div>
-        <nav className="hidden md:flex gap-2 overflow-x-auto whitespace-nowrap min-w-0">
+        <nav className="hidden md:flex flex-1 gap-2 overflow-x-auto whitespace-nowrap min-w-0">
           <NavItem to="/">Encoding</NavItem>
           <NavItem to="/strings">Strings</NavItem>
           <NavItem to="/compare">Compare</NavItem>
@@ -150,7 +150,7 @@ export default function Header() {
               }
             }}
             placeholder="Search features..."
-            className="px-3 py-2 rounded-xl text-sm border dark:bg-slate-900 w-56 lg:w-64"
+            className="px-3 py-2 rounded-xl text-sm border dark:bg-slate-900 w-36 lg:w-44 xl:w-56"
           />
           <datalist id="tool-suggestions">
             {tools.map(t => <option key={t.path} value={t.label} />)}
