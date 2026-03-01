@@ -16,6 +16,10 @@ export default function Learn() {
             These guides explain the practical concepts behind common text and security tooling tasks. They are written for engineers,
             support teams, and learners who want both conceptual clarity and immediately usable workflows.
           </p>
+          <p className="mt-3 text-sm leading-6 text-slate-700 dark:text-slate-300">
+            Looking for specific utilities? Browse the complete tool index at{' '}
+            <Link to="/tools" className="underline text-emerald-700 dark:text-emerald-400">/tools</Link>.
+          </p>
         </header>
 
         <section className="grid gap-4">

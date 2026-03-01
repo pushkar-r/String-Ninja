@@ -25,6 +25,9 @@ import HashingPasswordGuide from './pages/HashingPasswordGuide'
 import CertSamlGuide from './pages/CertSamlGuide'
 import CompareDiffGuide from './pages/CompareDiffGuide'
 import UtilityWorkflowsGuide from './pages/UtilityWorkflowsGuide'
+import ToolsHub from './pages/ToolsHub'
+import ToolLandingPage from './pages/ToolLandingPage'
+import LinkResources from './pages/LinkResources'
 
 const router = createBrowserRouter([
   {
@@ -51,6 +54,9 @@ const router = createBrowserRouter([
       { path: 'learn/cert-saml-guide', element: <CertSamlGuide /> },
       { path: 'learn/compare-diff-guide', element: <CompareDiffGuide /> },
       { path: 'learn/utility-workflows-guide', element: <UtilityWorkflowsGuide /> },
+      { path: 'tools', element: <ToolsHub /> },
+      { path: 'tools/:slug', element: <ToolLandingPage /> },
+      { path: 'resources', element: <LinkResources /> },
     ]
   }
 ], { basename: import.meta.env.BASE_URL })

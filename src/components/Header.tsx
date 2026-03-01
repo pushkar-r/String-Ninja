@@ -94,6 +94,8 @@ export default function Header() {
     { label: 'Guide: X.509 and SAML Troubleshooting', path: '/learn/cert-saml-guide' },
     { label: 'Guide: Text Diff and Comparison', path: '/learn/compare-diff-guide' },
     { label: 'Guide: Developer Utility Workflows', path: '/learn/utility-workflows-guide' },
+    { label: 'All Tools Hub', path: '/tools' },
+    { label: 'Link and Press Resources', path: '/resources' },
     { label: 'About String Ninja', path: '/about' },
     { label: 'Privacy Policy', path: '/privacy' },
     { label: 'Terms of Use', path: '/terms' },
@@ -123,6 +125,7 @@ export default function Header() {
           <NavItem to="/security">Security</NavItem>
           <NavItem to="/data">Data</NavItem>
           <NavItem to="/misc">Misc</NavItem>
+          <NavItem to="/tools">Tools</NavItem>
           <NavItem to="/learn">Learn</NavItem>
         </nav>
         <div className="hidden md:block">
@@ -167,6 +170,7 @@ export default function Header() {
               <NavItem to="/security">Security</NavItem>
               <NavItem to="/data">Data</NavItem>
               <NavItem to="/misc">Misc</NavItem>
+              <NavItem to="/tools">Tools</NavItem>
               <NavItem to="/learn">Learn</NavItem>
               <div className="w-full">
                 <input

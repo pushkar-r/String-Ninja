@@ -8,6 +8,8 @@ A fast, 100% client‑side toolbox for developers and power users. Encode/decode
 - Organized by category with a left‑side feature menu
 - Global search bar (desktop) with deep links (e.g. `/security?tool=rsa`)
 - Dark/light theme persisted in localStorage
+- SEO landing pages for all tools under `/tools/*` with route-level metadata
+- Build-time prerender for key routes and auto-generated sitemap with `lastmod`
 
 
 ## Feature Map
@@ -213,4 +215,3 @@ Node version mismatches
 
 ## License
 MIT
-
