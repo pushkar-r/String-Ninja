@@ -51,6 +51,41 @@
     <priority>0.7</priority>
   </url>
   <url>
+    <loc>https://stringninja.in/learn/url-html-encoding-guide</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://stringninja.in/learn/json-data-guide</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://stringninja.in/learn/regex-text-guide</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://stringninja.in/learn/hashing-password-guide</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://stringninja.in/learn/cert-saml-guide</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://stringninja.in/learn/compare-diff-guide</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://stringninja.in/learn/utility-workflows-guide</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
     <loc>https://stringninja.in/about</loc>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>

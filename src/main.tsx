@@ -18,6 +18,13 @@ import Terms from './pages/Terms'
 import Learn from './pages/Learn'
 import Base64Guide from './pages/Base64Guide'
 import JwtSecurityGuide from './pages/JwtSecurityGuide'
+import UrlHtmlEncodingGuide from './pages/UrlHtmlEncodingGuide'
+import JsonDataGuide from './pages/JsonDataGuide'
+import RegexTextGuide from './pages/RegexTextGuide'
+import HashingPasswordGuide from './pages/HashingPasswordGuide'
+import CertSamlGuide from './pages/CertSamlGuide'
+import CompareDiffGuide from './pages/CompareDiffGuide'
+import UtilityWorkflowsGuide from './pages/UtilityWorkflowsGuide'
 
 const router = createBrowserRouter([
   {
@@ -37,6 +44,13 @@ const router = createBrowserRouter([
       { path: 'learn', element: <Learn /> },
       { path: 'learn/base64-guide', element: <Base64Guide /> },
       { path: 'learn/jwt-security-guide', element: <JwtSecurityGuide /> },
+      { path: 'learn/url-html-encoding-guide', element: <UrlHtmlEncodingGuide /> },
+      { path: 'learn/json-data-guide', element: <JsonDataGuide /> },
+      { path: 'learn/regex-text-guide', element: <RegexTextGuide /> },
+      { path: 'learn/hashing-password-guide', element: <HashingPasswordGuide /> },
+      { path: 'learn/cert-saml-guide', element: <CertSamlGuide /> },
+      { path: 'learn/compare-diff-guide', element: <CompareDiffGuide /> },
+      { path: 'learn/utility-workflows-guide', element: <UtilityWorkflowsGuide /> },
     ]
   }
 ], { basename: import.meta.env.BASE_URL })

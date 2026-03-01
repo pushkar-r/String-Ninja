@@ -33,6 +33,55 @@ export default function Learn() {
               A practical guide to JWT structure, signature validation, expiry handling, claim checks, and common implementation hazards.
             </p>
           </Link>
+
+          <Link to="/learn/url-html-encoding-guide" className="block rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 p-6 hover:border-emerald-400 transition">
+            <h2 className="text-xl font-semibold">URL and HTML Encoding Guide</h2>
+            <p className="mt-2 text-sm leading-6 text-slate-700 dark:text-slate-300">
+              Learn where percent-encoding and HTML entity encoding differ, and how to avoid double-encoding or unsafe decode flows.
+            </p>
+          </Link>
+
+          <Link to="/learn/json-data-guide" className="block rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 p-6 hover:border-emerald-400 transition">
+            <h2 className="text-xl font-semibold">JSON and Data Formatting Guide</h2>
+            <p className="mt-2 text-sm leading-6 text-slate-700 dark:text-slate-300">
+              A practical reference for pretty-printing, minification, validation order, and XML/JSON conversion caveats.
+            </p>
+          </Link>
+
+          <Link to="/learn/regex-text-guide" className="block rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 p-6 hover:border-emerald-400 transition">
+            <h2 className="text-xl font-semibold">Regex and Text Processing Guide</h2>
+            <p className="mt-2 text-sm leading-6 text-slate-700 dark:text-slate-300">
+              Safe find/replace workflow, text cleanup sequencing, and common regex failure modes.
+            </p>
+          </Link>
+
+          <Link to="/learn/hashing-password-guide" className="block rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 p-6 hover:border-emerald-400 transition">
+            <h2 className="text-xl font-semibold">Hashing and Password Security Guide</h2>
+            <p className="mt-2 text-sm leading-6 text-slate-700 dark:text-slate-300">
+              Understand integrity hashing vs password hashing and why bcrypt/Argon2 must replace fast hash usage for credentials.
+            </p>
+          </Link>
+
+          <Link to="/learn/cert-saml-guide" className="block rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 p-6 hover:border-emerald-400 transition">
+            <h2 className="text-xl font-semibold">X.509 and SAML Troubleshooting Guide</h2>
+            <p className="mt-2 text-sm leading-6 text-slate-700 dark:text-slate-300">
+              Decode-first methods for certificate and federation debugging with practical checks that prevent trust misconfiguration.
+            </p>
+          </Link>
+
+          <Link to="/learn/compare-diff-guide" className="block rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 p-6 hover:border-emerald-400 transition">
+            <h2 className="text-xl font-semibold">Text Diff and Comparison Guide</h2>
+            <p className="mt-2 text-sm leading-6 text-slate-700 dark:text-slate-300">
+              Choose the right diff granularity and view mode for faster, safer reviews of logs, payloads, and content changes.
+            </p>
+          </Link>
+
+          <Link to="/learn/utility-workflows-guide" className="block rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 p-6 hover:border-emerald-400 transition">
+            <h2 className="text-xl font-semibold">Developer Utility Workflows Guide</h2>
+            <p className="mt-2 text-sm leading-6 text-slate-700 dark:text-slate-300">
+              End-to-end tool chaining patterns for incident triage, auth debugging, and migration data cleanup.
+            </p>
+          </Link>
         </section>
       </article>
     </>
