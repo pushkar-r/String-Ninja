@@ -98,6 +98,18 @@ export default function Compare() {
         <div className="mt-3">
           {view==='inline' ? <InlineDiff/> : <SideBySideDiff/>}
         </div>
+        <div className="mt-6 text-sm leading-6 text-slate-700 dark:text-slate-300 space-y-2">
+          <h3 className="text-base font-semibold">How this diff works</h3>
+          <ul className="list-disc pl-5 space-y-1">
+            <li>`words` mode compares token-by-token, useful for prose and documentation edits.</li>
+            <li>`chars` mode shows fine-grained changes, useful for IDs, code snippets, and short strings.</li>
+            <li>`lines` mode compares line blocks, useful for logs and config files.</li>
+            <li>Inline view is compact; side-by-side view is easier for reviewing larger multiline changes.</li>
+          </ul>
+          <p className="text-xs text-slate-500 dark:text-slate-400">
+            This is a visual comparison helper and does not apply patches automatically.
+          </p>
+        </div>
       </ToolCard>
       </>
     )

@@ -522,6 +522,14 @@ export default function Security() {
             <button onClick={async ()=>{ const { publicKey, privateKey } = await generateECDSAKeyPairPEM(); (document.getElementById('ecc-pub') as HTMLTextAreaElement).value = publicKey; (document.getElementById('ecc-priv') as HTMLTextAreaElement).value = privateKey }} className="px-3 py-2 rounded-xl bg-slate-900 text-white">Generate</button>
             <div className="relative mt-2"><textarea id="ecc-pub" readOnly placeholder="Public Key (PEM)" className="w-full h-40 rounded-xl border p-3 font-mono text-xs dark:bg-slate-900 pr-12" /><div className="absolute top-2 right-2"><CopyButton getValue={()=> (document.getElementById('ecc-pub') as HTMLTextAreaElement)?.value || ''} /></div></div>
             <div className="relative mt-2"><textarea id="ecc-priv" readOnly placeholder="Private Key (PEM)" className="w-full h-40 rounded-xl border p-3 font-mono text-xs dark:bg-slate-900 pr-12" /><div className="absolute top-2 right-2"><CopyButton getValue={()=> (document.getElementById('ecc-priv') as HTMLTextAreaElement)?.value || ''} /></div></div>
+            <div className="mt-6 text-sm leading-6 text-slate-700 dark:text-slate-300 space-y-2">
+              <h3 className="text-base font-semibold">Why ECC P-256</h3>
+              <ul className="list-disc pl-5 space-y-1">
+                <li>ECC gives strong security with smaller keys than RSA, which helps performance and payload size.</li>
+                <li>P-256 is widely supported for signatures and modern authentication protocols.</li>
+                <li>Keep private keys secret and rotate keys according to your environment policy.</li>
+              </ul>
+            </div>
           </ToolCard>
         )
     }

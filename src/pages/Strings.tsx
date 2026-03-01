@@ -66,6 +66,14 @@ export default function Strings() {
               <button onClick={()=>setText(slugify(text))} className="px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">Slugify</button>
             </div>
             <div className="text-sm text-slate-600 dark:text-slate-400">Chars: {chars} • Words: {words}</div>
+            <div className="mt-6 text-sm leading-6 text-slate-700 dark:text-slate-300 space-y-2">
+              <h3 className="text-base font-semibold">What this tool is good for</h3>
+              <ul className="list-disc pl-5 space-y-1">
+                <li>Clean copied text from emails, spreadsheets, and log viewers.</li>
+                <li>Normalize text before indexing or comparing content.</li>
+                <li>Create URL-friendly slugs by removing symbols and accents.</li>
+              </ul>
+            </div>
           </ToolCard>
         )
       case 'count':
@@ -98,6 +106,14 @@ export default function Strings() {
                 </div>
               )
             })()}
+            <div className="mt-6 text-sm leading-6 text-slate-700 dark:text-slate-300 space-y-2">
+              <h3 className="text-base font-semibold">Counting rules used here</h3>
+              <ul className="list-disc pl-5 space-y-1">
+                <li>Word count is whitespace-based, so punctuation remains part of the token.</li>
+                <li>Character count uses Unicode-aware iteration for non-space count.</li>
+                <li>Byte size is UTF-8 encoded length, which can be larger than character count.</li>
+              </ul>
+            </div>
           </ToolCard>
         )
       case 'case':
@@ -118,6 +134,14 @@ export default function Strings() {
               <textarea readOnly value={out} placeholder="Output…" className="w-full h-20 rounded-xl border p-3 dark:bg-slate-900 pr-12" />
               <div className="absolute top-2 right-2"><CopyButton value={out} /></div>
             </div>
+            <div className="mt-6 text-sm leading-6 text-slate-700 dark:text-slate-300 space-y-2">
+              <h3 className="text-base font-semibold">Naming style guidance</h3>
+              <ul className="list-disc pl-5 space-y-1">
+                <li>Use camelCase and PascalCase mostly in JavaScript and TypeScript codebases.</li>
+                <li>Use snake_case often for SQL columns and environment variables.</li>
+                <li>Use kebab-case for URL paths and CSS utility naming.</li>
+              </ul>
+            </div>
           </ToolCard>
         )
       case 'unicode':
@@ -128,6 +152,14 @@ export default function Strings() {
             <div className="relative">
               <textarea readOnly value={codepoints} className="w-full h-32 rounded-xl border p-3 font-mono text-xs dark:bg-slate-900 pr-12" />
               <div className="absolute top-2 right-2"><CopyButton value={codepoints} /></div>
+            </div>
+            <div className="mt-6 text-sm leading-6 text-slate-700 dark:text-slate-300 space-y-2">
+              <h3 className="text-base font-semibold">When code points help</h3>
+              <ul className="list-disc pl-5 space-y-1">
+                <li>Detect hidden whitespace and look-alike characters in user input.</li>
+                <li>Troubleshoot Unicode issues in identifiers and filenames.</li>
+                <li>Verify exact symbols before applying security or normalization rules.</li>
+              </ul>
             </div>
           </ToolCard>
         )
@@ -175,6 +207,14 @@ export default function Strings() {
               <div className="absolute top-2 right-2"><CopyButton value={out} /></div>
             </div>
             <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">Tip: Use \\t for tab, \\n for newline in the delimiter.</div>
+            <div className="mt-6 text-sm leading-6 text-slate-700 dark:text-slate-300 space-y-2">
+              <h3 className="text-base font-semibold">Practical examples</h3>
+              <ul className="list-disc pl-5 space-y-1">
+                <li>Convert newline lists into comma-separated values for SQL IN clauses.</li>
+                <li>Add quote wrappers using prefix and suffix (for example single quotes).</li>
+                <li>Generate pipe-delimited rows for quick import experiments.</li>
+              </ul>
+            </div>
           </ToolCard>
         )
       case 'split':
@@ -216,6 +256,14 @@ export default function Strings() {
               <div className="absolute top-2 right-2"><CopyButton value={out} /></div>
             </div>
             <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">Tip: Use \\t for tab, \\n for newline in the delimiter.</div>
+            <div className="mt-6 text-sm leading-6 text-slate-700 dark:text-slate-300 space-y-2">
+              <h3 className="text-base font-semibold">Use this before cleanup steps</h3>
+              <ul className="list-disc pl-5 space-y-1">
+                <li>Split CSV-like fields into line-by-line records for review.</li>
+                <li>Trim and ignore empty values to normalize inconsistent input.</li>
+                <li>Pair with Line operations for sort and dedupe workflows.</li>
+              </ul>
+            </div>
           </ToolCard>
         )
       case 'lines':
@@ -231,6 +279,14 @@ export default function Strings() {
             <div className="relative mt-2">
               <textarea value={out} onChange={e=>setOut(e.target.value)} placeholder="Output…" className="w-full h-28 rounded-xl border p-3 font-mono text-xs dark:bg-slate-900 pr-12" />
               <div className="absolute top-2 right-2"><CopyButton value={out} /></div>
+            </div>
+            <div className="mt-6 text-sm leading-6 text-slate-700 dark:text-slate-300 space-y-2">
+              <h3 className="text-base font-semibold">Line-order caveats</h3>
+              <ul className="list-disc pl-5 space-y-1">
+                <li>Sort uses locale-aware string comparison, not numeric sorting.</li>
+                <li>Unique keeps the first occurrence and removes later duplicates.</li>
+                <li>Blank-line removal helps normalize pasted logs and config blocks.</li>
+              </ul>
             </div>
           </ToolCard>
         )
@@ -251,6 +307,14 @@ export default function Strings() {
               <textarea value={out} onChange={e=>setOut(e.target.value)} placeholder="Output…" className="w-full h-40 rounded-xl border p-3 font-mono text-xs dark:bg-slate-900 pr-12" />
               <div className="absolute top-2 right-2"><CopyButton value={out} /></div>
             </div>
+            <div className="mt-6 text-sm leading-6 text-slate-700 dark:text-slate-300 space-y-2">
+              <h3 className="text-base font-semibold">Regex safety tips</h3>
+              <ul className="list-disc pl-5 space-y-1">
+                <li>Start with small test input before running broad global replacements.</li>
+                <li>Use explicit flags like `g`, `i`, and `m` based on expected behavior.</li>
+                <li>Escape special characters when matching literal symbols.</li>
+              </ul>
+            </div>
           </ToolCard>
         )
       case 'wrap':
@@ -265,6 +329,14 @@ export default function Strings() {
             <div className="relative mt-2">
               <textarea value={out} onChange={e=>setOut(e.target.value)} placeholder="Output…" className="w-full h-40 rounded-xl border p-3 font-mono text-xs dark:bg-slate-900 pr-12" />
               <div className="absolute top-2 right-2"><CopyButton value={out} /></div>
+            </div>
+            <div className="mt-6 text-sm leading-6 text-slate-700 dark:text-slate-300 space-y-2">
+              <h3 className="text-base font-semibold">Wrap behavior</h3>
+              <ul className="list-disc pl-5 space-y-1">
+                <li>Wrapping is token-based and preserves words where possible.</li>
+                <li>Very long tokens longer than width stay as-is and may exceed the limit.</li>
+                <li>Useful for commit messages, markdown notes, and readable plaintext output.</li>
+              </ul>
             </div>
           </ToolCard>
         )
@@ -281,6 +353,14 @@ export default function Strings() {
               <textarea value={out} onChange={e=>setOut(e.target.value)} placeholder="[ [token, count], ... ]" className="w-full h-40 rounded-xl border p-3 font-mono text-xs dark:bg-slate-900 pr-12" />
               <div className="absolute top-2 right-2"><CopyButton value={out} /></div>
             </div>
+            <div className="mt-6 text-sm leading-6 text-slate-700 dark:text-slate-300 space-y-2">
+              <h3 className="text-base font-semibold">Analysis notes</h3>
+              <ul className="list-disc pl-5 space-y-1">
+                <li>Word mode lowercases text before counting for simpler grouping.</li>
+                <li>Character mode includes whitespace and punctuation as separate characters.</li>
+                <li>Output is sorted by frequency descending for quick hotspot inspection.</li>
+              </ul>
+            </div>
           </ToolCard>
         )
       case 'diacritics':
@@ -291,6 +371,14 @@ export default function Strings() {
             <div className="relative mt-2">
               <textarea value={out} onChange={e=>setOut(e.target.value)} placeholder="Output…" className="w-full h-28 rounded-xl border p-3 font-mono text-xs dark:bg-slate-900 pr-12" />
               <div className="absolute top-2 right-2"><CopyButton value={out} /></div>
+            </div>
+            <div className="mt-6 text-sm leading-6 text-slate-700 dark:text-slate-300 space-y-2">
+              <h3 className="text-base font-semibold">Why diacritic removal is useful</h3>
+              <ul className="list-disc pl-5 space-y-1">
+                <li>Improve search matching when users type plain ASCII keyboards.</li>
+                <li>Create stable slugs and identifiers across mixed language inputs.</li>
+                <li>Keep in mind this can change meaning in some languages.</li>
+              </ul>
             </div>
           </ToolCard>
         )
