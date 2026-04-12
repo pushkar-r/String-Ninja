@@ -71,7 +71,7 @@ export default function Terms() {
           <p className="text-sm leading-6 text-slate-700 dark:text-slate-300">
             Questions about these terms can be raised through:
             {' '}
-            <a href="/contact" className="underline text-emerald-700 dark:text-emerald-400">/contact</a>.
+            <a href="/contact/" className="underline text-emerald-700 dark:text-emerald-400">/contact/</a>.
           </p>
         </section>
       </article>

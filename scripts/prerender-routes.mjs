@@ -272,20 +272,41 @@ function escapeHtml(value) {
     .replaceAll("'", '&#39;')
 }
 
+function normalizeRoute(route) {
+  if (!route || route === '/') return '/'
+  const [pathPart, queryPart] = route.split('?')
+  const cleanPath = pathPart.replace(/\/{2,}/g, '/')
+  const normalizedPath = cleanPath.endsWith('/') ? cleanPath : `${cleanPath}/`
+  return queryPart ? `${normalizedPath}?${queryPart}` : normalizedPath
+}
+
+function normalizeDescription(description) {
+  const compact = String(description || '').trim().replace(/\s+/g, ' ')
+  if (compact.length >= 70 && compact.length <= 158) return compact
+  if (compact.length < 70) {
+    return `${compact} Includes practical examples, pitfalls, and workflow guidance.`.slice(0, 158)
+  }
+  const hardTrim = compact.slice(0, 155)
+  const safeTrim = hardTrim.includes(' ') ? hardTrim.slice(0, hardTrim.lastIndexOf(' ')) : hardTrim
+  return `${safeTrim}...`
+}
+
 function withAbsoluteUrl(route) {
-  return route === '/' ? siteUrl : `${siteUrl}${route}`
+  const normalized = normalizeRoute(route)
+  return normalized === '/' ? `${siteUrl}/` : `${siteUrl}${normalized}`
 }
 
 function applyHeadMetadata(html, meta) {
   const routeUrl = withAbsoluteUrl(meta.route)
+  const description = normalizeDescription(meta.description)
   let next = html
   next = next.replace(/<title>[\s\S]*?<\/title>/, `<title>${escapeHtml(meta.title)}</title>`)
-  next = next.replace(/<meta name="description" content="[\s\S]*?"\/>/, `<meta name="description" content="${escapeHtml(meta.description)}"/>`)
+  next = next.replace(/<meta name="description" content="[\s\S]*?"\/>/, `<meta name="description" content="${escapeHtml(description)}"/>`)
   next = next.replace(/<meta property="og:title" content="[\s\S]*?" \/>/, `<meta property="og:title" content="${escapeHtml(meta.title)}" />`)
-  next = next.replace(/<meta property="og:description" content="[\s\S]*?" \/>/, `<meta property="og:description" content="${escapeHtml(meta.description)}" />`)
+  next = next.replace(/<meta property="og:description" content="[\s\S]*?" \/>/, `<meta property="og:description" content="${escapeHtml(description)}" />`)
   next = next.replace(/<meta property="og:url" content="[\s\S]*?" \/>/, `<meta property="og:url" content="${routeUrl}" />`)
   next = next.replace(/<meta name="twitter:title" content="[\s\S]*?" \/>/, `<meta name="twitter:title" content="${escapeHtml(meta.title)}" />`)
-  next = next.replace(/<meta name="twitter:description" content="[\s\S]*?" \/>/, `<meta name="twitter:description" content="${escapeHtml(meta.description)}" />`)
+  next = next.replace(/<meta name="twitter:description" content="[\s\S]*?" \/>/, `<meta name="twitter:description" content="${escapeHtml(description)}" />`)
   next = next.replace(/<link rel="canonical" href="[\s\S]*?" \/>/, `<link rel="canonical" href="${routeUrl}" />`)
   next = next.replace(/<meta property="og:image" content="[\s\S]*?" \/>/, `<meta property="og:image" content="${ogImage}" />`)
   next = next.replace(/<meta name="twitter:image" content="[\s\S]*?" \/>/, `<meta name="twitter:image" content="${ogImage}" />`)
@@ -293,7 +314,7 @@ function applyHeadMetadata(html, meta) {
 }
 
 function buildFallbackMain(meta) {
-  const links = meta.links.map(([href, label]) => `<li><a href="${href}">${escapeHtml(label)}</a></li>`).join('')
+  const links = meta.links.map(([href, label]) => `<li><a href="${escapeHtml(normalizeRoute(href))}">${escapeHtml(label)}</a></li>`).join('')
   const extra = meta.type === 'tool'
     ? `<h2>Quick Example</h2><p>Input: ${escapeHtml(meta.exampleInput || 'Sample input text')}</p><p>Output: ${escapeHtml(meta.exampleOutput || 'Transformed output based on selected options.')}</p><h2>Common mistakes</h2><ul>${(meta.mistakes || []).map((m) => `<li>${escapeHtml(m)}</li>`).join('')}</ul>`
     : ''
@@ -302,12 +323,13 @@ function buildFallbackMain(meta) {
 
 function buildSchema(meta) {
   const routeUrl = withAbsoluteUrl(meta.route)
+  const description = normalizeDescription(meta.description)
   const schemas = [
     {
       '@context': 'https://schema.org',
       '@type': 'WebPage',
       name: meta.title,
-      description: meta.description,
+      description,
       url: routeUrl,
       isPartOf: { '@type': 'WebSite', name: 'String Ninja', url: siteUrl }
     }
@@ -319,7 +341,7 @@ function buildSchema(meta) {
         '@context': 'https://schema.org',
         '@type': 'TechArticle',
         headline: meta.heading,
-        description: meta.description,
+        description,
         author: { '@type': 'Person', name: 'Pushkar Raj' },
         publisher: { '@type': 'Organization', name: 'String Ninja', url: siteUrl },
         datePublished: today,
@@ -331,8 +353,8 @@ function buildSchema(meta) {
         '@context': 'https://schema.org',
         '@type': 'BreadcrumbList',
         itemListElement: [
-          { '@type': 'ListItem', position: 1, name: 'Home', item: siteUrl },
-          { '@type': 'ListItem', position: 2, name: 'Learn', item: `${siteUrl}/learn` },
+          { '@type': 'ListItem', position: 1, name: 'Home', item: `${siteUrl}/` },
+          { '@type': 'ListItem', position: 2, name: 'Learn', item: `${siteUrl}/learn/` },
           { '@type': 'ListItem', position: 3, name: meta.heading, item: routeUrl }
         ]
       }
@@ -348,7 +370,7 @@ function buildSchema(meta) {
     })
   }
 
-  return schemas.map((schema) => `<script type="application/ld+json">${JSON.stringify(schema)}</script>`).join('')
+  return schemas.map((schema) => `<script type="application/ld+json">${JSON.stringify(schema).replaceAll('</script>', '<\\/script>')}</script>`).join('')
 }
 
 function applyFallbackContent(html, meta) {
@@ -358,7 +380,12 @@ function applyFallbackContent(html, meta) {
 
 function buildSitemapXml(routes) {
   const rows = routes
-    .map((route) => `  <url>\n    <loc>${withAbsoluteUrl(route)}</loc>\n    <lastmod>${today}</lastmod>\n    <changefreq>${route.startsWith('/tools/') || route.startsWith('/learn/') ? 'monthly' : 'weekly'}</changefreq>\n    <priority>${route === '/' ? '1.0' : route === '/tools' || route === '/learn' ? '0.9' : route.startsWith('/tools/') || route.startsWith('/learn/') ? '0.7' : '0.8'}</priority>\n  </url>`)
+    .map((route) => {
+      const normalizedRoute = normalizeRoute(route)
+      const isToolOrGuide = normalizedRoute.startsWith('/tools/') || normalizedRoute.startsWith('/learn/')
+      const priority = normalizedRoute === '/' ? '1.0' : normalizedRoute === '/tools/' || normalizedRoute === '/learn/' ? '0.9' : isToolOrGuide ? '0.7' : '0.8'
+      return `  <url>\n    <loc>${withAbsoluteUrl(normalizedRoute)}</loc>\n    <lastmod>${today}</lastmod>\n    <changefreq>${isToolOrGuide ? 'monthly' : 'weekly'}</changefreq>\n    <priority>${priority}</priority>\n  </url>`
+    })
     .join('\n')
 
   return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${rows}\n</urlset>\n`

@@ -20,7 +20,7 @@ export default function ToolsHub() {
       <Head
         title="All Developer Tools - String Ninja"
         description="Browse all String Ninja features with dedicated tool pages, practical examples, common mistakes, and direct links to each tool."
-        canonical="https://stringninja.in/tools"
+        canonical="https://stringninja.in/tools/"
       />
       <article className="max-w-5xl mx-auto grid gap-6">
         <header className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 p-6">
@@ -40,7 +40,7 @@ export default function ToolsHub() {
               <ul className="grid gap-3 md:grid-cols-2">
                 {grouped.map((tool) => (
                   <li key={tool.slug} className="rounded-xl border border-slate-200 dark:border-slate-800 p-4">
-                    <Link to={`/tools/${tool.slug}`} className="font-semibold underline text-emerald-700 dark:text-emerald-400">
+                    <Link to={`/tools/${tool.slug}/`} className="font-semibold underline text-emerald-700 dark:text-emerald-400">
                       {tool.name}
                     </Link>
                     <p className="mt-2 text-sm text-slate-700 dark:text-slate-300 leading-6">{tool.summary}</p>

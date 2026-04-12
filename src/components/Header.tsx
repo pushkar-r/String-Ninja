@@ -84,22 +84,22 @@ export default function Header() {
     { label: 'Misc: Steganography', path: '/misc?tool=stego' },
 
     { label: 'Misc: Regex Save / Reuse', path: '/misc?tool=saved' },
-    { label: 'Learn: Guides', path: '/learn' },
-    { label: 'Guide: Base64 in Real Systems', path: '/learn/base64-guide' },
-    { label: 'Guide: JWT Security', path: '/learn/jwt-security-guide' },
-    { label: 'Guide: URL and HTML Encoding', path: '/learn/url-html-encoding-guide' },
-    { label: 'Guide: JSON and Data Formatting', path: '/learn/json-data-guide' },
-    { label: 'Guide: Regex and Text Processing', path: '/learn/regex-text-guide' },
-    { label: 'Guide: Hashing and Password Security', path: '/learn/hashing-password-guide' },
-    { label: 'Guide: X.509 and SAML Troubleshooting', path: '/learn/cert-saml-guide' },
-    { label: 'Guide: Text Diff and Comparison', path: '/learn/compare-diff-guide' },
-    { label: 'Guide: Developer Utility Workflows', path: '/learn/utility-workflows-guide' },
-    { label: 'All Tools Hub', path: '/tools' },
-    { label: 'Link and Press Resources', path: '/resources' },
-    { label: 'About String Ninja', path: '/about' },
-    { label: 'Privacy Policy', path: '/privacy' },
-    { label: 'Terms of Use', path: '/terms' },
-    { label: 'Contact', path: '/contact' },
+    { label: 'Learn: Guides', path: '/learn/' },
+    { label: 'Guide: Base64 in Real Systems', path: '/learn/base64-guide/' },
+    { label: 'Guide: JWT Security', path: '/learn/jwt-security-guide/' },
+    { label: 'Guide: URL and HTML Encoding', path: '/learn/url-html-encoding-guide/' },
+    { label: 'Guide: JSON and Data Formatting', path: '/learn/json-data-guide/' },
+    { label: 'Guide: Regex and Text Processing', path: '/learn/regex-text-guide/' },
+    { label: 'Guide: Hashing and Password Security', path: '/learn/hashing-password-guide/' },
+    { label: 'Guide: X.509 and SAML Troubleshooting', path: '/learn/cert-saml-guide/' },
+    { label: 'Guide: Text Diff and Comparison', path: '/learn/compare-diff-guide/' },
+    { label: 'Guide: Developer Utility Workflows', path: '/learn/utility-workflows-guide/' },
+    { label: 'All Tools Hub', path: '/tools/' },
+    { label: 'Link and Press Resources', path: '/resources/' },
+    { label: 'About String Ninja', path: '/about/' },
+    { label: 'Privacy Policy', path: '/privacy/' },
+    { label: 'Terms of Use', path: '/terms/' },
+    { label: 'Contact', path: '/contact/' },
   ]
 
   function goTo(query: string){
@@ -120,13 +120,13 @@ export default function Header() {
         </div>
         <nav className="hidden md:flex flex-1 gap-2 overflow-x-auto whitespace-nowrap min-w-0">
           <NavItem to="/">Encoding</NavItem>
-          <NavItem to="/strings">Strings</NavItem>
-          <NavItem to="/compare">Compare</NavItem>
-          <NavItem to="/security">Security</NavItem>
-          <NavItem to="/data">Data</NavItem>
-          <NavItem to="/misc">Misc</NavItem>
-          <NavItem to="/tools">Tools</NavItem>
-          <NavItem to="/learn">Learn</NavItem>
+          <NavItem to="/strings/">Strings</NavItem>
+          <NavItem to="/compare/">Compare</NavItem>
+          <NavItem to="/security/">Security</NavItem>
+          <NavItem to="/data/">Data</NavItem>
+          <NavItem to="/misc/">Misc</NavItem>
+          <NavItem to="/tools/">Tools</NavItem>
+          <NavItem to="/learn/">Learn</NavItem>
         </nav>
         <div className="hidden md:flex items-center gap-2 ml-auto shrink-0">
           <input
@@ -170,13 +170,13 @@ export default function Header() {
           <div className="md:hidden border-t border-slate-200 dark:border-slate-800">
             <div className="max-w-6xl mx-auto px-4 py-2 flex flex-wrap gap-2">
               <NavItem to="/">Encoding</NavItem>
-              <NavItem to="/strings">Strings</NavItem>
-              <NavItem to="/compare">Compare</NavItem>
-              <NavItem to="/security">Security</NavItem>
-              <NavItem to="/data">Data</NavItem>
-              <NavItem to="/misc">Misc</NavItem>
-              <NavItem to="/tools">Tools</NavItem>
-              <NavItem to="/learn">Learn</NavItem>
+              <NavItem to="/strings/">Strings</NavItem>
+              <NavItem to="/compare/">Compare</NavItem>
+              <NavItem to="/security/">Security</NavItem>
+              <NavItem to="/data/">Data</NavItem>
+              <NavItem to="/misc/">Misc</NavItem>
+              <NavItem to="/tools/">Tools</NavItem>
+              <NavItem to="/learn/">Learn</NavItem>
               <div className="w-full">
                 <input
                   list="tool-suggestions-m"

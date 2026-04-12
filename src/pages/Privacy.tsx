@@ -85,7 +85,7 @@ export default function Privacy() {
           <p className="text-sm leading-6 text-slate-700 dark:text-slate-300">
             For privacy-related questions, use the contact page:
             {' '}
-            <a href="/contact" className="underline text-emerald-700 dark:text-emerald-400">/contact</a>.
+            <a href="/contact/" className="underline text-emerald-700 dark:text-emerald-400">/contact/</a>.
           </p>
         </section>
       </article>

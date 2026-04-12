@@ -2,14 +2,14 @@ import React from 'react'
 import Head from '../components/Head'
 
 export default function LinkResources() {
-  const htmlSnippet = `<a href=\"https://stringninja.in/tools/base64-encoder-decoder\">Base64 Encoder/Decoder - String Ninja</a>`
+  const htmlSnippet = `<a href=\"https://stringninja.in/tools/base64-encoder-decoder/\">Base64 Encoder/Decoder - String Ninja</a>`
 
   return (
     <>
       <Head
         title="Link and Press Resources - String Ninja"
         description="Reference links, tool citations, and share snippets for communities and documentation pages linking to String Ninja resources."
-        canonical="https://stringninja.in/resources"
+        canonical="https://stringninja.in/resources/"
       />
       <article className="max-w-4xl mx-auto grid gap-6">
         <header className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 p-6">
@@ -23,11 +23,11 @@ export default function LinkResources() {
         <section className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 p-6">
           <h2 className="text-xl font-semibold">Recommended landing URLs</h2>
           <ul className="list-disc pl-5 mt-3 text-sm leading-6 text-slate-700 dark:text-slate-300 space-y-1">
-            <li>https://stringninja.in/tools</li>
-            <li>https://stringninja.in/learn</li>
-            <li>https://stringninja.in/tools/base64-encoder-decoder</li>
-            <li>https://stringninja.in/tools/json-formatter-minifier</li>
-            <li>https://stringninja.in/tools/jwt-decoder</li>
+            <li>https://stringninja.in/tools/</li>
+            <li>https://stringninja.in/learn/</li>
+            <li>https://stringninja.in/tools/base64-encoder-decoder/</li>
+            <li>https://stringninja.in/tools/json-formatter-minifier/</li>
+            <li>https://stringninja.in/tools/jwt-decoder/</li>
           </ul>
         </section>
 

@@ -52,12 +52,17 @@ const categoryUseCases: Record<string, string[]> = {
 }
 
 const categoryGuide: Record<string, { href: string; label: string }> = {
-  Encoding: { href: '/learn/url-html-encoding-guide', label: 'Encoding Guide' },
-  Strings: { href: '/learn/regex-text-guide', label: 'Regex and Text Guide' },
-  Compare: { href: '/learn/compare-diff-guide', label: 'Diff Guide' },
-  Security: { href: '/learn/jwt-security-guide', label: 'Security Guide' },
-  Data: { href: '/learn/json-data-guide', label: 'Data Guide' },
-  Misc: { href: '/learn/utility-workflows-guide', label: 'Workflow Guide' }
+  Encoding: { href: '/learn/url-html-encoding-guide/', label: 'Encoding Guide' },
+  Strings: { href: '/learn/regex-text-guide/', label: 'Regex and Text Guide' },
+  Compare: { href: '/learn/compare-diff-guide/', label: 'Diff Guide' },
+  Security: { href: '/learn/jwt-security-guide/', label: 'Security Guide' },
+  Data: { href: '/learn/json-data-guide/', label: 'Data Guide' },
+  Misc: { href: '/learn/utility-workflows-guide/', label: 'Workflow Guide' }
+}
+
+function normalizePath(path: string) {
+  if (!path || path === '/' || path.includes('?') || path.includes('#')) return path
+  return path.endsWith('/') ? path : `${path}/`
 }
 
 export default function ToolLandingPage() {
@@ -69,14 +74,14 @@ export default function ToolLandingPage() {
       <article className="max-w-3xl mx-auto rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 p-6">
         <h1 className="text-2xl font-bold">Tool page not found</h1>
         <p className="mt-3 text-sm text-slate-700 dark:text-slate-300">This tool landing page does not exist.</p>
-        <Link to="/tools" className="inline-block mt-4 underline text-emerald-700 dark:text-emerald-400">Back to All Tools</Link>
+        <Link to="/tools/" className="inline-block mt-4 underline text-emerald-700 dark:text-emerald-400">Back to All Tools</Link>
       </article>
     )
   }
 
   const title = `${tool.name} - String Ninja`
   const description = `${tool.summary} Includes practical usage guidance, examples, mistakes to avoid, and direct access to the live tool.`
-  const canonical = `https://stringninja.in/tools/${tool.slug}`
+  const canonical = `https://stringninja.in/tools/${tool.slug}/`
   const useCases = categoryUseCases[tool.category] || categoryUseCases.Misc
   const guide = categoryGuide[tool.category] || categoryGuide.Misc
 
@@ -90,8 +95,8 @@ export default function ToolLandingPage() {
           <p className="mt-3 text-sm leading-6 text-slate-700 dark:text-slate-300">{tool.summary}</p>
           <div className="mt-4 flex flex-wrap gap-3">
             <Link to={tool.appPath} className="px-4 py-2 rounded-xl bg-slate-900 text-white text-sm">Open Tool</Link>
-            <Link to="/tools" className="px-4 py-2 rounded-xl border text-sm">All Tools</Link>
-            <Link to={tool.relatedGuide || guide.href} className="px-4 py-2 rounded-xl border text-sm">{guide.label}</Link>
+            <Link to="/tools/" className="px-4 py-2 rounded-xl border text-sm">All Tools</Link>
+            <Link to={normalizePath(tool.relatedGuide || guide.href)} className="px-4 py-2 rounded-xl border text-sm">{guide.label}</Link>
           </div>
         </header>
 
