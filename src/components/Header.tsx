@@ -29,7 +29,10 @@ const tools = [
   { label: 'Frequency Analysis', path: '/strings?tool=freq', category: 'Strings' },
   { label: 'Remove Diacritics', path: '/strings?tool=diacritics', category: 'Strings' },
   // Compare
-  { label: 'Text Compare / Diff', path: '/compare?tool=diff', category: 'Compare' },
+  { label: 'String Compare / Diff', path: '/strings?tool=diff', category: 'Strings' },
+  { label: 'String Escape / Unescape', path: '/strings?tool=escape', category: 'Strings' },
+  { label: 'Number Base Converter', path: '/strings?tool=numbase', category: 'Strings' },
+  { label: 'Color Format Converter', path: '/strings?tool=color', category: 'Strings' },
   // Security
   { label: 'Hash (MD5, SHA)', path: '/security?tool=hash', category: 'Security' },
   { label: 'AES-GCM Encrypt/Decrypt', path: '/security?tool=aes', category: 'Security' },
@@ -46,6 +49,10 @@ const tools = [
   { label: 'PKCE Generator', path: '/security?tool=pkce', category: 'Security' },
   // Data
   { label: 'JSON Formatter / Minifier', path: '/data?tool=json', category: 'Data' },
+  { label: 'YAML to JSON', path: '/data?tool=yaml', category: 'Data' },
+  { label: 'JSON to YAML', path: '/data?tool=yaml', category: 'Data' },
+  { label: 'CSV to JSON', path: '/data?tool=csv', category: 'Data' },
+  { label: 'JSON to CSV', path: '/data?tool=csv', category: 'Data' },
   { label: 'Markdown to HTML', path: '/data?tool=md', category: 'Data' },
   { label: 'QR Code Generator', path: '/data?tool=qr', category: 'Data' },
   { label: 'Beautify / Minify Code', path: '/data?tool=code', category: 'Data' },
@@ -53,10 +60,12 @@ const tools = [
   { label: 'Unicode Normalizer', path: '/data?tool=norm', category: 'Data' },
   // Misc
   { label: 'Timestamp Converter', path: '/misc?tool=ts', category: 'Misc' },
-  { label: 'Password Generator', path: '/misc?tool=pass', category: 'Misc' },
+  { label: 'Password Generator', path: '/security?tool=passgen', category: 'Security' },
+  { label: 'TOTP / OTP Generator', path: '/security?tool=totp', category: 'Security' },
+  { label: 'UUID v3 / v4 / v5', path: '/security?tool=uuidtools', category: 'Security' },
   { label: 'UUID / Random Generator', path: '/misc?tool=rand', category: 'Misc' },
   { label: 'Regex Tester', path: '/misc?tool=regex', category: 'Misc' },
-  { label: 'Image Steganography', path: '/misc?tool=stego', category: 'Misc' },
+  { label: 'Image Steganography', path: '/security?tool=stego', category: 'Security' },
   { label: 'Regex Save / Reuse', path: '/misc?tool=saved', category: 'Misc' },
   // Pages
   { label: 'All Tools', path: '/tools/', category: 'Pages' },
@@ -215,7 +224,7 @@ export default function Header() {
           <img
             src={`${import.meta.env.BASE_URL}logo1-nobg.png`}
             alt="String Ninja"
-            className="h-10 w-auto object-contain dark:[filter:brightness(0)_invert(1)]"
+            className="h-10 w-auto object-contain dark:invert"
           />
         </Link>
 

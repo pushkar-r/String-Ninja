@@ -10,6 +10,7 @@ import jsQR from 'jsqr'
 import { beautifyCode, minifyCode } from '../utils/formatters'
 import { xmlToJson, jsonToXml } from '../utils/xmljson'
 import { normalizeText } from '../utils/unicode'
+import * as yaml from 'js-yaml'
 
 function describeJsonError(jsonText: string, err: any): string {
   try {
@@ -33,7 +34,7 @@ function describeJsonError(jsonText: string, err: any): string {
   }
 }
 export default function DataTools() {
-  const [active, setActive] = useState<'json'|'qr'|'code'|'xml'|'norm'>('json')
+  const [active, setActive] = useState<'json'|'yaml'|'csv'|'md'|'qr'|'code'|'xml'|'norm'>('json')
 
   // States preserved from original implementation
   const [jsonText, setJsonText] = useState('')
@@ -55,6 +56,19 @@ export default function DataTools() {
   const [xjOutput, setXjOutput] = useState('')
   const [normIn, setNormIn] = useState('')
   const [normOut, setNormOut] = useState('')
+  // YAML ↔ JSON
+  const [yamlIn, setYamlIn] = useState('')
+  const [yamlOut, setYamlOut] = useState('')
+  const [yamlStatus, setYamlStatus] = useState<'idle'|'success'|'error'>('idle')
+  // CSV ↔ JSON
+  const [csvIn, setCsvIn] = useState('')
+  const [csvOut, setCsvOut] = useState('')
+  const [csvHasHeader, setCsvHasHeader] = useState(true)
+  const [csvDelimiter, setCsvDelimiter] = useState(',')
+  const [csvConvStatus, setCsvConvStatus] = useState<'idle'|'success'|'error'>('idle')
+  // Markdown
+  const [mdIn, setMdIn] = useState('')
+  const [mdOut, setMdOut] = useState('')
   const [jsonStatus, setJsonStatus] = useState<'idle'|'success'|'error'>('idle')
   const [csvStatus, setCsvStatus] = useState<'idle'|'success'|'error'>('idle')
   const [codeStatus, setCodeStatus] = useState<'idle'|'success'|'error'>('idle')
@@ -62,8 +76,9 @@ export default function DataTools() {
 
   const navItems: { key: typeof active, label: string }[] = [
     { key: 'json', label: 'JSON Formatter / Minifier' },
-    // { key: 'csv', label: 'CSV ↔ JSON Converter' },
-    // { key: 'md', label: 'Markdown → HTML' },
+    { key: 'yaml', label: 'YAML ↔ JSON' },
+    { key: 'csv', label: 'CSV ↔ JSON' },
+    { key: 'md', label: 'Markdown → HTML' },
     { key: 'qr', label: 'QR Code Tools' },
     { key: 'code', label: 'Beautify / Minify' },
     { key: 'xml', label: 'XML ↔ JSON' },
@@ -94,18 +109,154 @@ export default function DataTools() {
             </div>
           </ToolCard>
         )
-      // case 'csv':
-      //   return (
-      //     <ToolCard title="CSV ↔ JSON Converter" description="Convert between CSV (comma/tab-delimited) and JSON arrays of objects.">
-      //       ... feature removed ...
-      //     </ToolCard>
-      //   )
-      // case 'md':
-      //   return (
-      //     <ToolCard title="Markdown → HTML" description="Render Markdown text as HTML for preview or conversion.">
-      //       ... feature removed ...
-      //     </ToolCard>
-      //   )
+      case 'yaml':
+        return (
+          <ToolCard title="YAML ↔ JSON Converter" description="Bidirectional conversion between YAML and JSON — useful for Kubernetes configs, GitHub Actions, and any config-heavy workflow.">
+            <div className="grid md:grid-cols-2 gap-3">
+              <div className="relative">
+                <textarea value={yamlIn} onChange={e=>setYamlIn(e.target.value)} placeholder="Paste YAML or JSON here…" className="w-full h-48 rounded-xl border p-3 font-mono text-xs pr-12 dark:bg-slate-900" />
+                <div className="absolute top-2 right-2"><CopyButton value={yamlIn} /></div>
+              </div>
+              <div className="relative">
+                <textarea readOnly value={yamlOut} placeholder="Output appears here…" className={
+                  "w-full h-48 rounded-xl border p-3 font-mono text-xs pr-12 " +
+                  (yamlIn.trim()==='' ? 'dark:bg-slate-900' : yamlStatus==='success' ? 'bg-emerald-50 dark:bg-emerald-950' : yamlStatus==='error' ? 'bg-red-50 dark:bg-red-950' : 'dark:bg-slate-900')
+                } />
+                <div className="absolute top-2 right-2"><CopyButton value={yamlOut} /></div>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button onClick={()=>{
+                try {
+                  const parsed = yaml.load(yamlIn)
+                  setYamlOut(JSON.stringify(parsed, null, 2))
+                  setYamlStatus('success')
+                } catch(e: any) {
+                  setYamlOut('Error: ' + (e.message || String(e)))
+                  setYamlStatus('error')
+                }
+              }} className="px-3 py-2 rounded-xl bg-slate-900 text-white">YAML → JSON</button>
+              <button onClick={()=>{
+                try {
+                  const parsed = JSON.parse(yamlIn)
+                  setYamlOut(yaml.dump(parsed))
+                  setYamlStatus('success')
+                } catch(e: any) {
+                  setYamlOut('Error: ' + (e.message || String(e)))
+                  setYamlStatus('error')
+                }
+              }} className="px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">JSON → YAML</button>
+            </div>
+            <div className="mt-6 text-sm leading-6 text-slate-700 dark:text-slate-300 space-y-2">
+              <h3 className="text-base font-semibold">About YAML and JSON</h3>
+              <p>YAML (YAML Ain't Markup Language) is a human-friendly data serialisation format used heavily in DevOps tooling — Kubernetes manifests, GitHub Actions workflows, Docker Compose files, Ansible playbooks, and more. JSON is the de facto format for APIs and web services.</p>
+              <ul className="list-disc pl-5 space-y-1">
+                <li><strong>YAML → JSON</strong> parses the full YAML spec including multi-document, anchors (&amp;) and aliases (*), block scalars, and inline flow style.</li>
+                <li><strong>JSON → YAML</strong> outputs clean block-style YAML. Nested objects become indented mappings; arrays become block sequences.</li>
+                <li>YAML is a superset of JSON — all valid JSON is valid YAML, so you can paste JSON on the left and convert it to idiomatic YAML.</li>
+                <li>Null, boolean, and numeric types are preserved in both directions. Dates and timestamps are kept as strings to avoid silent type coercion.</li>
+                <li>Common use case: copy a Kubernetes manifest, convert to JSON for programmatic editing, then convert back to YAML for deployment.</li>
+              </ul>
+            </div>
+          </ToolCard>
+        )
+      case 'csv':
+        return (
+          <ToolCard title="CSV ↔ JSON Converter" description="Convert between CSV (comma/tab/semicolon-delimited) and a JSON array of objects, or a JSON array of arrays.">
+            <div className="flex flex-wrap gap-4 mb-2 text-sm items-center">
+              <div className="flex items-center gap-2">
+                <label className="font-medium">Delimiter:</label>
+                <select value={csvDelimiter} onChange={e=>setCsvDelimiter(e.target.value)} className="px-2 py-1 rounded-xl border dark:bg-slate-900 text-sm">
+                  <option value=",">Comma (,)</option>
+                  <option value="\t">Tab</option>
+                  <option value=";">Semicolon (;)</option>
+                  <option value="|">Pipe (|)</option>
+                </select>
+              </div>
+              <label className="inline-flex items-center gap-2">
+                <input type="checkbox" checked={csvHasHeader} onChange={e=>setCsvHasHeader(e.target.checked)} />
+                First row is header
+              </label>
+            </div>
+            <div className="grid md:grid-cols-2 gap-3">
+              <div className="relative">
+                <textarea value={csvIn} onChange={e=>setCsvIn(e.target.value)} placeholder="Paste CSV or JSON here…" className="w-full h-48 rounded-xl border p-3 font-mono text-xs pr-12 dark:bg-slate-900" />
+                <div className="absolute top-2 right-2"><CopyButton value={csvIn} /></div>
+              </div>
+              <div className="relative">
+                <textarea readOnly value={csvOut} placeholder="Output appears here…" className={
+                  "w-full h-48 rounded-xl border p-3 font-mono text-xs pr-12 " +
+                  (csvIn.trim()==='' ? 'dark:bg-slate-900' : csvConvStatus==='success' ? 'bg-emerald-50 dark:bg-emerald-950' : csvConvStatus==='error' ? 'bg-red-50 dark:bg-red-950' : 'dark:bg-slate-900')
+                } />
+                <div className="absolute top-2 right-2"><CopyButton value={csvOut} /></div>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button onClick={()=>{
+                try {
+                  const result = Papa.parse(csvIn, { header: csvHasHeader, delimiter: csvDelimiter === '\\t' ? '\t' : csvDelimiter, skipEmptyLines: true, dynamicTyping: true })
+                  if (result.errors.length > 0 && result.data.length === 0) throw new Error(result.errors[0].message)
+                  setCsvOut(JSON.stringify(result.data, null, 2))
+                  setCsvConvStatus('success')
+                } catch(e: any) {
+                  setCsvOut('Error: ' + (e.message || String(e)))
+                  setCsvConvStatus('error')
+                }
+              }} className="px-3 py-2 rounded-xl bg-slate-900 text-white">CSV → JSON</button>
+              <button onClick={()=>{
+                try {
+                  const parsed = JSON.parse(csvIn)
+                  if (!Array.isArray(parsed)) throw new Error('Input must be a JSON array')
+                  const result = Papa.unparse(parsed, { delimiter: csvDelimiter === '\\t' ? '\t' : csvDelimiter })
+                  setCsvOut(result)
+                  setCsvConvStatus('success')
+                } catch(e: any) {
+                  setCsvOut('Error: ' + (e.message || String(e)))
+                  setCsvConvStatus('error')
+                }
+              }} className="px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-800">JSON → CSV</button>
+            </div>
+            <div className="mt-6 text-sm leading-6 text-slate-700 dark:text-slate-300 space-y-2">
+              <h3 className="text-base font-semibold">About CSV and JSON conversion</h3>
+              <p>CSV (Comma-Separated Values) is the universal interchange format for spreadsheets, databases, and data pipelines. Converting to JSON makes it easy to process in JavaScript, Python, or any API.</p>
+              <ul className="list-disc pl-5 space-y-1">
+                <li><strong>CSV → JSON</strong> with header row produces an array of objects where each key is the column name. Without header, produces an array of arrays.</li>
+                <li><strong>JSON → CSV</strong> expects a JSON array. Objects become rows with the first object's keys as headers. Nested objects are stringified.</li>
+                <li>Dynamic typing is on by default: numeric strings become numbers, "true"/"false" become booleans, empty cells become null.</li>
+                <li>Supports comma, tab (TSV), semicolon (European locale), and pipe delimiters.</li>
+                <li>Common workflow: export data from a database as CSV → convert to JSON → feed into an API or chart library.</li>
+              </ul>
+            </div>
+          </ToolCard>
+        )
+      case 'md':
+        return (
+          <ToolCard title="Markdown → HTML" description="Render GitHub-flavoured Markdown to HTML for preview, publishing, or CMS integration.">
+            <div className="grid md:grid-cols-2 gap-3">
+              <textarea value={mdIn} onChange={e=>setMdIn(e.target.value)} placeholder="# Hello&#10;&#10;Write **Markdown** here…" className="w-full h-64 rounded-xl border p-3 font-mono text-xs dark:bg-slate-900" />
+              <div className="relative">
+                <div className="rounded-xl border p-3 h-64 overflow-auto text-sm prose prose-sm dark:prose-invert max-w-none" dangerouslySetInnerHTML={{ __html: mdIn ? String(marked(mdIn)) : '<p class="text-slate-400">Preview will appear here…</p>' }} />
+              </div>
+            </div>
+            <div className="relative mt-3">
+              <textarea readOnly value={mdIn ? String(marked(mdIn)) : ''} placeholder="Raw HTML output…" className="w-full h-32 rounded-xl border p-3 font-mono text-xs pr-12 dark:bg-slate-900" />
+              <div className="absolute top-2 right-2"><CopyButton value={mdIn ? String(marked(mdIn)) : ''} /></div>
+            </div>
+            <div className="mt-6 text-sm leading-6 text-slate-700 dark:text-slate-300 space-y-2">
+              <h3 className="text-base font-semibold">About Markdown</h3>
+              <p>Markdown is a lightweight markup language created by John Gruber in 2004. It is the standard format for README files, documentation, GitHub issues and PRs, and many static site generators (Hugo, Jekyll, Docusaurus, MkDocs).</p>
+              <ul className="list-disc pl-5 space-y-1">
+                <li>Headings: <code># H1</code>, <code>## H2</code>, <code>### H3</code></li>
+                <li>Emphasis: <code>**bold**</code>, <code>*italic*</code>, <code>~~strikethrough~~</code></li>
+                <li>Lists: <code>- item</code> for unordered, <code>1. item</code> for ordered</li>
+                <li>Links: <code>[text](url)</code> — Images: <code>![alt](url)</code></li>
+                <li>Code: backtick for inline, triple backtick for fenced code blocks</li>
+                <li>Tables: pipe-delimited rows with a header separator line</li>
+                <li>This tool uses the <strong>marked</strong> library which follows the CommonMark spec and supports GFM (GitHub Flavoured Markdown) extensions.</li>
+              </ul>
+            </div>
+          </ToolCard>
+        )
       case 'qr':
         return (
           <ToolCard title="QR Code Tools" description="Generate QR codes from text and decode them from uploaded images.">
