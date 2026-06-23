@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import ToolCard from '../components/ToolCard'
+import ToolLayout from '../components/ToolLayout'
 import CopyButton from '../components/CopyButton'
 import Head from '../components/Head'
 import { hashString, aesEncrypt, aesDecrypt, jwtDecode, generateRSAKeyPairPEM } from '../utils/crypto'
@@ -556,44 +557,14 @@ export default function Security() {
   return (
     <>
       <Head title="String Ninja — Security: Hash, AES, JWT, RSA, X.509, SAML" description="Compute MD5/SHA-1/256/512 hashes, AES-GCM encrypt/decrypt with PBKDF2, JWT decode/verify/sign tokens, bcrypt/Argon2 password hashing, RSA/ECC key pair generation, X.509 certificate decoder, SAML response decoder, HMAC, PKCE generator, and file hash tools." />
-      <div className="grid gap-6 md:grid-cols-[260px_1fr]">
-      <div className="bg-white dark:bg-slate-950 rounded-2xl p-3 shadow-sm border border-slate-200 dark:border-slate-800 h-fit md:sticky md:top-24">
-        <div className="flex items-center justify-between gap-2">
-          <div className="text-sm font-semibold px-2 pb-2 md:pb-2">Security Tools</div>
-          <div className="md:hidden w-full">
-            <select
-              value={active}
-              onChange={e=>selectTool(e.target.value as any)}
-              className="w-full mt-2 px-3 py-2 rounded-xl border dark:bg-slate-900"
-            >
-              {navItems.map(item => (
-                <option key={item.key} value={item.key}>{item.label}</option>
-              ))}
-            </select>
-          </div>
-        </div>
-        <ul className="grid gap-1 hidden md:block">
-          {navItems.map(item => (
-            <li key={item.key}>
-              <button
-                onClick={()=>selectTool(item.key)}
-                className={
-                  'w-full text-left px-3 py-2 rounded-lg text-sm transition ' +
-                  (active===item.key
-                    ? 'bg-slate-900 text-white'
-                    : 'hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200')
-                }
-              >
-                {item.label}
-              </button>
-            </li>
-          ))}
-        </ul>
-      </div>
-      <div className="min-w-0">
+      <ToolLayout
+        title="Security Tools"
+        activeKey={active}
+        navItems={navItems}
+        onSelect={key => selectTool(key as any)}
+      >
         {renderPanel()}
-      </div>
-    </div>
+      </ToolLayout>
     </>
   )
 }

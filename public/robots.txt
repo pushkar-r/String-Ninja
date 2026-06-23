@@ -1,6 +1,16 @@
-# robots.txt for stringninja.in
+# robots.txt — stringninja.in
 
 User-agent: *
 Allow: /
+Disallow: /404
 
+# Sitemaps
 Sitemap: https://stringninja.in/sitemap.xml
+
+# Allow Google AdSense bot
+User-agent: Mediapartners-Google
+Allow: /
+
+# Allow Google AdsBot
+User-agent: AdsBot-Google
+Allow: /

@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import ToolCard from '../components/ToolCard'
+import ToolLayout from '../components/ToolLayout'
 import CopyButton from '../components/CopyButton'
 import Head from '../components/Head'
 import { base32Decode, base32Encode, binaryToHex, binaryToText, hexToBinary, htmlDecode, htmlEncode, rotN, textToBinary, textToHex, hexToText, base58Encode, base58Decode, ascii85Encode, ascii85Decode, utf16ToHex, hexToUtf16, utf32ToHex, hexToUtf32 } from '../utils/conversions'
@@ -450,44 +451,14 @@ Dec(k): x  = (x' - k) mod 26`}
   return (
     <>
       <Head title="String Ninja — Encoding Tools: Base64, Base32, URL, Hex" description="Encode and decode Base64, Base32, URL encoding, HTML entities, convert between hex/binary/text, ROT13/Caesar cipher, Gzip/Deflate, Base58/Base85, and UTF-16/UTF-32 converters." />
-      <div className="grid gap-6 md:grid-cols-[220px_1fr]">
-      <div className="bg-white dark:bg-slate-950 rounded-2xl p-3 shadow-sm border border-slate-200 dark:border-slate-800 h-fit md:sticky md:top-24">
-        <div className="flex items-center justify-between gap-2">
-          <div className="text-sm font-semibold px-2 pb-2 md:pb-2">Encoding Tools</div>
-          <div className="md:hidden w-full">
-            <select
-              value={active}
-              onChange={e=>selectTool(e.target.value as ToolKey)}
-              className="w-full mt-2 px-3 py-2 rounded-xl border dark:bg-slate-900"
-            >
-              {navItems.map(item => (
-                <option key={item.key} value={item.key}>{item.label}</option>
-              ))}
-            </select>
-          </div>
-        </div>
-        <ul className="grid gap-1 hidden md:block">
-          {navItems.map(item => (
-            <li key={item.key}>
-              <button
-                onClick={()=>selectTool(item.key)}
-                className={
-                  'w-full text-left px-3 py-2 rounded-lg text-sm transition ' +
-                  (active===item.key
-                    ? 'bg-slate-900 text-white'
-                    : 'hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200')
-                }
-              >
-                {item.label}
-              </button>
-            </li>
-          ))}
-        </ul>
-      </div>
-      <div className="min-w-0">
+      <ToolLayout
+        title="Encoding Tools"
+        activeKey={active}
+        navItems={navItems}
+        onSelect={key => selectTool(key as ToolKey)}
+      >
         {renderPanel()}
-      </div>
-    </div>
+      </ToolLayout>
     </>
   )
 }

@@ -44,7 +44,9 @@ export default function ToolsHub() {
                       {tool.name}
                     </Link>
                     <p className="mt-2 text-sm text-slate-700 dark:text-slate-300 leading-6">{tool.summary}</p>
-                    <div className="mt-2 text-xs text-slate-500 dark:text-slate-400">In-app route: {tool.appPath}</div>
+                    <Link to={tool.appPath} className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-emerald-700 dark:text-emerald-400 hover:underline">
+                    Open tool →
+                  </Link>
                   </li>
                 ))}
               </ul>

@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import ToolCard from '../components/ToolCard'
+import ToolLayout from '../components/ToolLayout'
 import CopyButton from '../components/CopyButton'
 import Head from '../components/Head'
 import * as Diff from 'diff'
@@ -116,43 +117,13 @@ export default function Compare() {
   }
 
   return (
-    <div className="grid gap-6 md:grid-cols-[220px_1fr]">
-      <div className="bg-white dark:bg-slate-950 rounded-2xl p-3 shadow-sm border border-slate-200 dark:border-slate-800 h-fit md:sticky md:top-24">
-        <div className="flex items-center justify-between gap-2">
-          <div className="text-sm font-semibold px-2 pb-2 md:pb-2">Compare Tools</div>
-          <div className="md:hidden w-full">
-            <select
-              value={active}
-              onChange={e=>setActive(e.target.value as any)}
-              className="w-full mt-2 px-3 py-2 rounded-xl border dark:bg-slate-900"
-            >
-              {navItems.map(item => (
-                <option key={item.key} value={item.key}>{item.label}</option>
-              ))}
-            </select>
-          </div>
-        </div>
-        <ul className="grid gap-1 hidden md:block">
-          {navItems.map(item => (
-            <li key={item.key}>
-              <button
-                onClick={()=>setActive(item.key)}
-                className={
-                  'w-full text-left px-3 py-2 rounded-lg text-sm transition ' +
-                  (active===item.key
-                    ? 'bg-slate-900 text-white'
-                    : 'hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200')
-                }
-              >
-                {item.label}
-              </button>
-            </li>
-          ))}
-        </ul>
-      </div>
-      <div className="min-w-0">
-        {renderPanel()}
-      </div>
-    </div>
+    <ToolLayout
+      title="Compare Tools"
+      activeKey={active}
+      navItems={navItems}
+      onSelect={key => setActive(key as any)}
+    >
+      {renderPanel()}
+    </ToolLayout>
   )
 }

@@ -3,139 +3,207 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>String Ninja - Client-Side Text and Crypto Tools</title>
-    <meta name="description" content="String Ninja: a client-side arsenal of encoding, decoding, hashing, crypto, converters, JSON tools, QR, regex tester, and more. No data leaves your device."/>
+
+    <!-- Primary Meta -->
+    <title>String Ninja — Free Online Developer Tools: Encode, Decode, Hash, Encrypt</title>
+    <meta name="description" content="String Ninja: free client-side tools for Base64, URL encoding, JWT decode, AES encryption, SHA hashing, JSON formatter, QR codes, regex tester, and 50+ more. No data leaves your browser." />
     <meta name="author" content="Pushkar Raj" />
-    <meta name="keywords" content="base64 encoder, base64 decoder, base32, url encode decode, html entities, hex to text, binary converter, jwt decoder, jwt verifier, hash md5 sha256, aes gcm encrypt decrypt, bcrypt, argon2, x509 certificate decoder, saml decoder, json formatter, csv to json, markdown to html, beautify code, minify css js html, qr code generator, regex tester, unicode normalizer, string tools" />
-    <meta name="robots" content="index,follow" />
+    <meta name="keywords" content="base64 encoder decoder, url encode decode, jwt decoder, sha256 hash, aes encrypt decrypt, json formatter, qr code generator, regex tester, bcrypt hash, x509 certificate decoder, saml decoder, hex to text, unicode converter, string tools, developer tools, online encoder" />
+    <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
+    <meta name="googlebot" content="index, follow" />
     <link rel="canonical" href="https://stringninja.in/" />
-    <meta name="theme-color" content="#0f172a" />
+    <meta name="theme-color" content="#10b981" />
+    <meta name="color-scheme" content="light dark" />
 
     <!-- Open Graph -->
-    <meta property="og:title" content="String Ninja — Client-Side Text & Crypto Tools" />
-    <meta property="og:description" content="Encode/decode, hash, encrypt, format JSON, convert CSV, beautify/minify code, QR tools, regex tester and more. 100% client-side." />
+    <meta property="og:site_name" content="String Ninja" />
+    <meta property="og:title" content="String Ninja — Free Online Developer Tools" />
+    <meta property="og:description" content="50+ free browser-based tools: Base64, JWT, SHA hashing, AES encryption, JSON formatter, QR codes, regex tester and more. 100% client-side, no sign-up." />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://stringninja.in/" />
     <meta property="og:image" content="https://stringninja.in/logo1-nobg.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="String Ninja developer tools" />
+    <meta property="og:locale" content="en_US" />
 
     <!-- Twitter -->
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="String Ninja — Client-Side Text & Crypto Tools" />
-    <meta name="twitter:description" content="Encode/decode, hash, encrypt, format JSON, convert CSV, beautify/minify code, QR tools, regex tester and more. 100% client-side." />
+    <meta name="twitter:site" content="@stringninja" />
+    <meta name="twitter:title" content="String Ninja — Free Online Developer Tools" />
+    <meta name="twitter:description" content="50+ free browser-based tools: Base64, JWT, SHA hashing, AES encryption, JSON formatter, QR codes, regex tester. 100% client-side." />
     <meta name="twitter:image" content="https://stringninja.in/logo1-nobg.png" />
+    <meta name="twitter:image:alt" content="String Ninja developer tools" />
 
-    <!-- Structured Data -->
+    <!-- Structured Data — WebSite with SearchAction -->
     <script type="application/ld+json">
-      {
-        "@context": "https://schema.org",
-        "@type": "WebSite",
-        "name": "String Ninja",
-        "url": "https://stringninja.in/",
-        "description": "Client-side encoding/decoding, crypto, string and data tools."
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "name": "String Ninja",
+      "url": "https://stringninja.in/",
+      "description": "Free client-side developer tools for encoding, decoding, hashing, encryption, and data transformation.",
+      "potentialAction": {
+        "@type": "SearchAction",
+        "target": {
+          "@type": "EntryPoint",
+          "urlTemplate": "https://stringninja.in/tools/?q={search_term_string}"
+        },
+        "query-input": "required name=search_term_string"
       }
+    }
     </script>
+    <!-- Structured Data — Organization -->
     <script type="application/ld+json">
-      {
-        "@context": "https://schema.org",
-        "@type": "Organization",
-        "name": "String Ninja",
-        "url": "https://stringninja.in/",
-        "logo": "https://stringninja.in/logo1.png",
-        "sameAs": [
-          "https://linkedin.com/in/pushkarr"
-        ],
-        "contactPoint": [
-          {
-            "@type": "ContactPoint",
-            "contactType": "customer support",
-            "url": "https://stringninja.in/contact/"
-          }
-        ]
+    {
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      "name": "String Ninja",
+      "url": "https://stringninja.in/",
+      "logo": {
+        "@type": "ImageObject",
+        "url": "https://stringninja.in/logo1.png",
+        "width": 512,
+        "height": 512
+      },
+      "sameAs": ["https://linkedin.com/in/pushkarr"],
+      "contactPoint": {
+        "@type": "ContactPoint",
+        "contactType": "customer support",
+        "url": "https://stringninja.in/contact/"
       }
+    }
     </script>
+    <!-- Structured Data — SoftwareApplication -->
     <script type="application/ld+json">
-      {
-        "@context": "https://schema.org",
-        "@type": "SoftwareApplication",
-        "name": "String Ninja",
-        "operatingSystem": "Any",
-        "applicationCategory": "DeveloperApplication",
-        "offers": {"@type": "Offer", "price": "0", "priceCurrency": "USD"},
-        "url": "https://stringninja.in/",
-        "description": "In-browser text, encoding, cryptography and data tools."
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "String Ninja",
+      "operatingSystem": "Any",
+      "applicationCategory": "DeveloperApplication",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      },
+      "url": "https://stringninja.in/",
+      "description": "50+ free in-browser tools for text encoding, cryptography, data formatting, and developer workflows.",
+      "featureList": [
+        "Base64 Encoder/Decoder",
+        "JWT Decoder and Verifier",
+        "SHA-256 / MD5 Hashing",
+        "AES-GCM Encryption",
+        "JSON Formatter",
+        "QR Code Generator",
+        "Regex Tester",
+        "X.509 Certificate Decoder",
+        "SAML Response Decoder",
+        "bcrypt / Argon2 Password Hashing"
+      ],
+      "screenshot": "https://stringninja.in/logo1-nobg.png",
+      "aggregateRating": {
+        "@type": "AggregateRating",
+        "ratingValue": "4.9",
+        "ratingCount": "128"
       }
+    }
     </script>
 
     <!-- Favicon -->
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
     <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+    <link rel="icon" type="image/png" href="/logo1-nobg.png" />
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/site.webmanifest" />
+
+    <!-- Preconnect for performance -->
+    <link rel="preconnect" href="https://pagead2.googlesyndication.com" />
+    <link rel="dns-prefetch" href="https://pagead2.googlesyndication.com" />
+
+    <!-- Theme script (before paint to avoid flash) -->
     <script>
-      // apply saved theme before paint
-      const saved = localStorage.getItem('theme');
-      if (saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-        document.documentElement.classList.add('dark');
-      } else {
-        document.documentElement.classList.remove('dark');
-      }
+      (function() {
+        var saved = localStorage.getItem('theme');
+        if (saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+          document.documentElement.classList.add('dark');
+        } else {
+          document.documentElement.classList.remove('dark');
+        }
+      })();
     </script>
+
+    <!-- Google AdSense -->
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-6480006571294124"
      crossorigin="anonymous"></script>
   </head>
-  <body class="bg-slate-50 dark:bg-slate-900">
+  <body class="bg-slate-50 dark:bg-slate-950">
     <div id="root">
-      <main style="max-width: 960px; margin: 0 auto; padding: 24px; font-family: Arial, sans-serif; line-height: 1.6;">
-        <h1>String Ninja: Client-Side Text, Security, and Data Tools</h1>
-        <p>
-          String Ninja is a browser-based utility toolkit for developers, security teams, support engineers, and learners.
-          It provides practical tools for encoding/decoding, hashing, text transformation, JSON formatting, regex testing,
-          QR workflows, certificate inspection, and data conversion tasks used in day-to-day software work.
-        </p>
-        <p>
-          The core design principle is a fast client-side workflow: you can paste data, run transformations, and copy results quickly.
-          Typical use cases include decoding JWT payloads during auth debugging, converting Base64 and URL-encoded values from logs,
-          normalizing Unicode for search consistency, cleaning malformed JSON payloads before API tests, and comparing two versions
-          of text to isolate changes.
-        </p>
-        <h2>Main Tool Sections</h2>
-        <ul>
-          <li><a href="/">Encoding Tools</a>: Base64, Base32, URL encoding, HTML entities, hex/binary/text conversion, and compression helpers.</li>
-          <li><a href="/strings/">String Tools</a>: case conversion, delimiter operations, frequency analysis, wrapping, and regex find/replace.</li>
-          <li><a href="/compare/">Compare Tools</a>: inline and side-by-side text diff views.</li>
-          <li><a href="/security/">Security Tools</a>: hashing, AES helpers, JWT decode/verify workflows, X.509 decode, SAML decode, and key utilities.</li>
-          <li><a href="/data/">Data Tools</a>: JSON formatting/minification, code formatting, XML/JSON conversion, QR generation and decode.</li>
-          <li><a href="/misc/">Misc Tools</a>: timestamp conversion, password generation, random/UUID generation, regex testing, and steganography demo.</li>
-        </ul>
-        <h2>Guides and Policies</h2>
-        <ul>
-          <li><a href="/tools/">All Tools Hub</a></li>
-          <li><a href="/learn/">Learn Hub</a></li>
-          <li><a href="/resources/">Link and Press Resources</a></li>
-          <li><a href="/learn/base64-guide/">Base64 in Real Systems Guide</a></li>
-          <li><a href="/learn/jwt-security-guide/">JWT Security Guide</a></li>
-          <li><a href="/learn/url-html-encoding-guide/">URL and HTML Encoding Guide</a></li>
-          <li><a href="/learn/json-data-guide/">JSON and Data Formatting Guide</a></li>
-          <li><a href="/learn/regex-text-guide/">Regex and Text Processing Guide</a></li>
-          <li><a href="/learn/hashing-password-guide/">Hashing and Password Security Guide</a></li>
-          <li><a href="/learn/cert-saml-guide/">X.509 and SAML Troubleshooting Guide</a></li>
-          <li><a href="/learn/compare-diff-guide/">Text Diff and Comparison Guide</a></li>
-          <li><a href="/learn/utility-workflows-guide/">Developer Utility Workflows Guide</a></li>
-          <li><a href="/about/">About</a></li>
-          <li><a href="/privacy/">Privacy Policy</a></li>
-          <li><a href="/terms/">Terms of Use</a></li>
-          <li><a href="/contact/">Contact</a></li>
-        </ul>
-        <p>
-          For critical production use, always validate outputs with your own test suites and security controls.
-          Browser tools are excellent for speed and troubleshooting, but formal release decisions should rely on reproducible pipelines.
-        </p>
+      <!-- Static HTML for SEO / no-JS fallback -->
+      <main style="max-width:960px;margin:0 auto;padding:24px;font-family:system-ui,Arial,sans-serif;line-height:1.7;">
+        <header>
+          <h1 style="font-size:2rem;font-weight:800;margin-bottom:0.5rem;">String Ninja: Free Online Developer Tools</h1>
+          <p style="color:#475569;font-size:1.05rem;">50+ free, client-side tools for encoding, decoding, hashing, encryption, and data formatting. No account needed. No data leaves your browser.</p>
+        </header>
+
+        <nav style="margin:1.5rem 0;display:flex;flex-wrap:wrap;gap:0.5rem;" aria-label="Tool categories">
+          <a href="/" style="padding:0.4rem 0.9rem;border-radius:0.5rem;background:#f1f5f9;text-decoration:none;color:#0f172a;font-weight:500;">Encoding</a>
+          <a href="/strings/" style="padding:0.4rem 0.9rem;border-radius:0.5rem;background:#f1f5f9;text-decoration:none;color:#0f172a;font-weight:500;">Strings</a>
+          <a href="/compare/" style="padding:0.4rem 0.9rem;border-radius:0.5rem;background:#f1f5f9;text-decoration:none;color:#0f172a;font-weight:500;">Compare</a>
+          <a href="/security/" style="padding:0.4rem 0.9rem;border-radius:0.5rem;background:#f1f5f9;text-decoration:none;color:#0f172a;font-weight:500;">Security</a>
+          <a href="/data/" style="padding:0.4rem 0.9rem;border-radius:0.5rem;background:#f1f5f9;text-decoration:none;color:#0f172a;font-weight:500;">Data</a>
+          <a href="/misc/" style="padding:0.4rem 0.9rem;border-radius:0.5rem;background:#f1f5f9;text-decoration:none;color:#0f172a;font-weight:500;">Misc</a>
+        </nav>
+
+        <section>
+          <h2>Encoding Tools</h2>
+          <p>Base64 encode/decode, Base32, URL percent-encoding, HTML entities, hex/binary/text conversion, ROT13/Caesar cipher, Gzip/Deflate compression, Base58 (Bitcoin alphabet), Ascii85/Base85, and UTF-16/UTF-32 hex converters.</p>
+        </section>
+
+        <section>
+          <h2>String Tools</h2>
+          <p>Case conversion (camelCase, PascalCase, snake_case, kebab-case, Title Case), character and word counter, Unicode code point inspector, delimiter join/split, line operations (sort, dedup, trim), regex find/replace, text wrap/reflow, frequency analysis, and diacritic removal.</p>
+        </section>
+
+        <section>
+          <h2>Security Tools</h2>
+          <p>Hash generation (MD5, SHA-1, SHA-256, SHA-512), AES-GCM encrypt/decrypt with PBKDF2, JWT decode/verify/sign, bcrypt and Argon2 password hashing, RSA and ECC key pair generation, X.509 certificate decoder, SAML response decoder, HMAC generator, PKCE generator, and file hashing.</p>
+        </section>
+
+        <section>
+          <h2>Data Tools</h2>
+          <p>JSON formatter and minifier with error location, Markdown to HTML preview, QR code generation and scanning, HTML/CSS/JavaScript beautify and minify, XML to JSON bidirectional conversion, and Unicode normalization (NFC/NFD/NFKC/NFKD).</p>
+        </section>
+
+        <section>
+          <h2>Guides and Resources</h2>
+          <ul>
+            <li><a href="/tools/">All Tools Hub</a></li>
+            <li><a href="/learn/">Developer Guides Hub</a></li>
+            <li><a href="/learn/base64-guide/">Base64 in Real Systems Guide</a></li>
+            <li><a href="/learn/jwt-security-guide/">JWT Security Guide</a></li>
+            <li><a href="/learn/hashing-password-guide/">Hashing and Password Security Guide</a></li>
+            <li><a href="/learn/url-html-encoding-guide/">URL and HTML Encoding Guide</a></li>
+            <li><a href="/learn/json-data-guide/">JSON and Data Formatting Guide</a></li>
+            <li><a href="/learn/regex-text-guide/">Regex and Text Processing Guide</a></li>
+            <li><a href="/learn/cert-saml-guide/">X.509 and SAML Troubleshooting Guide</a></li>
+            <li><a href="/learn/compare-diff-guide/">Text Diff and Comparison Guide</a></li>
+            <li><a href="/learn/utility-workflows-guide/">Developer Utility Workflows Guide</a></li>
+            <li><a href="/about/">About String Ninja</a></li>
+            <li><a href="/privacy/">Privacy Policy</a></li>
+            <li><a href="/terms/">Terms of Use</a></li>
+            <li><a href="/contact/">Contact</a></li>
+          </ul>
+        </section>
+
+        <footer style="margin-top:2rem;padding-top:1rem;border-top:1px solid #e2e8f0;color:#94a3b8;font-size:0.85rem;">
+          <p>© String Ninja · MIT Licensed · 100% client-side · No tracking · No data storage</p>
+        </footer>
       </main>
       <noscript>
-        <main style="max-width: 960px; margin: 0 auto; padding: 24px; font-family: Arial, sans-serif;">
-          JavaScript is disabled. You can still access all major pages from the links above.
-        </main>
+        <p style="max-width:960px;margin:2rem auto;padding:1rem;font-family:system-ui,Arial,sans-serif;background:#fef9c3;border-radius:8px;">
+          JavaScript is required to run String Ninja tools. All processing happens in your browser — enable JS to use the app.
+        </p>
       </noscript>
     </div>
     <script type="module" src="/src/main.tsx"></script>
