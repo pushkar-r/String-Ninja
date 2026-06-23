@@ -215,7 +215,7 @@ export default function Header() {
           <img
             src={`${import.meta.env.BASE_URL}logo1-nobg.png`}
             alt="String Ninja"
-            className="h-10 w-auto object-contain"
+            className="h-10 w-auto object-contain dark:invert"
           />
         </Link>
 

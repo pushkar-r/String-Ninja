@@ -8,6 +8,20 @@
   --accent-dark: #059669;
 }
 
+/* Form element backgrounds — ensure light mode stays white */
+textarea,
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+select {
+  background-color: #ffffff;
+  color: #0f172a;
+}
+.dark textarea,
+.dark input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+.dark select {
+  background-color: #0f172a;
+  color: #f1f5f9;
+}
+
 /* Smooth scrolling */
 html {
   scroll-behavior: smooth;
