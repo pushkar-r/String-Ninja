@@ -27,7 +27,7 @@ export default function App() {
             {/* Brand */}
             <div className="sm:col-span-2 md:col-span-1">
               <div className="mb-2">
-                <img src="/logo1-nobg.png" alt="String Ninja" className="h-10 w-auto object-contain dark:invert" />
+                <img src="/logo1-nobg.png" alt="String Ninja" className="h-10 w-auto object-contain dark:[filter:brightness(0)_invert(1)]" />
               </div>
               <p className="text-slate-500 dark:text-slate-400 text-xs leading-5">
                 Free, open-source developer tools. 100% client-side — no data leaves your browser.

@@ -45,7 +45,7 @@ export default function CopyButton({
       title={copied ? 'Copied!' : ariaLabel}
       aria-label={ariaLabel}
       className={
-        'p-2 rounded-lg bg-white/80 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700 shadow-sm hover:bg-slate-100 dark:hover:bg-slate-800 transition ' +
+        'p-2 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 shadow-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition ' +
         className
       }
     >
