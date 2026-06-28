@@ -778,6 +778,11 @@ function SendPanel() {
             <p className="text-xs text-slate-500 dark:text-slate-400 text-center">
               Point the receiving device's camera at this screen. Beam loops forever —
               the receiver catches whichever frames it can, in any order.
+              {gridMode !== 1 && (
+                <span className="block mt-1 text-amber-600 dark:text-amber-400">
+                  Tip: single QR (grid = 1) gives the best reliability. Use multi-QR only if your camera keeps up.
+                </span>
+              )}
             </p>
           </>
         )}
