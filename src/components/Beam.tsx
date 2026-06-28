@@ -216,18 +216,18 @@ function renderQRToCtx(
   }
 }
 
-// 1×2 dual: two QR codes side by side
+// 1×2 dual: two QR codes stacked vertically (each cell is full-width × half-height = square)
 function encodeDualToCanvas(frames: Uint8Array[], canvas: HTMLCanvasElement, ecLevel: ECLevel = 'M') {
   const ctx = canvas.getContext('2d')!
-  const half = canvas.width / 2
+  const half = canvas.height / 2
   ctx.fillStyle = '#ffffff'
   ctx.fillRect(0, 0, canvas.width, canvas.height)
   renderQRToCtx(frames[0], ctx, 0, 0, half, ecLevel)
-  if (frames[1]) renderQRToCtx(frames[1], ctx, half, 0, half, ecLevel)
+  if (frames[1]) renderQRToCtx(frames[1], ctx, 0, half, half, ecLevel)
   ctx.strokeStyle = '#e2e8f0'
   ctx.lineWidth = 1
   ctx.beginPath()
-  ctx.moveTo(half, 0); ctx.lineTo(half, canvas.height)
+  ctx.moveTo(0, half); ctx.lineTo(canvas.width, half)
   ctx.stroke()
 }
 
@@ -520,9 +520,9 @@ function SendPanel() {
   // Encode `count` fountain frames into a fresh offscreen canvas, return [bitmap, nextSeed]
   const encodeToOffscreen = useCallback(async (s: number, count: number): Promise<[ImageBitmap, number] | null> => {
     if (!meta || !cdfRef.current) return null
-    // 1×2 gets a 2:1 canvas so each QR cell is square; others are square
-    const W = count === 2 ? 1000 : 500
-    const H = 500
+    // 1×2 stacks vertically (512×1024) so each cell is 512×512 = square; others square
+    const W = 512
+    const H = count === 2 ? 1024 : 512
     const frames: Uint8Array[] = []
     let cur = s >>> 0
     for (let q = 0; q < count; q++) {
@@ -765,13 +765,13 @@ function SendPanel() {
             <div className="flex justify-center">
               <canvas
                 ref={canvasRef}
-                width={gridMode === 2 ? 800 : 512}
-                height={512}
+                width={512}
+                height={gridMode === 2 ? 1024 : 512}
                 className={
-                  'rounded-xl border border-slate-200 dark:border-slate-800 bg-white ' +
+                  'rounded-xl border border-slate-200 dark:border-slate-800 bg-white w-full ' +
                   (gridMode === 2
-                    ? 'w-full max-w-[600px]'          // 1×2: wide, fills container
-                    : 'w-full max-w-[400px] aspect-square') // 1 or 2×2: square
+                    ? 'max-w-[280px]'   // 1×2: narrow+tall so each QR cell stays square
+                    : 'max-w-[400px] aspect-square')
                 }
               />
             </div>
@@ -796,7 +796,8 @@ const IDB_SESSION_KEY = 'beam-current-session'
 
 // Bounding box in 0-1 normalised coords relative to the cropped square frame
 interface QRBox { x: number; y: number; w: number; h: number }
-interface DecodeResult { bytes: Uint8Array; box: QRBox | null }
+// One decode call can find multiple QR codes in the same image (multi-QR grid)
+interface DecodeResult { frames: Array<{ bytes: Uint8Array; box: QRBox | null }> }
 
 // ---------------------------------------------------------------------------
 // Decode worker pool — 2 workers run in parallel so while one is decoding
@@ -832,6 +833,12 @@ function buildDecodeWorkerSrc(jsqrSrc: string, zxingIIFE: string, zxingWasm: str
 
   importScripts(${JSON.stringify(jsqrSrc)});
   jsqrReady = true;
+  // JIT warm-up: run jsQR on a tiny blank image so V8 compiles the hot path
+  // before the first real camera frame arrives. Costs ~2ms, saves 200ms+ on frame 1.
+  try {
+    var _w = new Uint8ClampedArray(64*64*4);
+    self.jsQR(_w, 64, 64, {inversionAttempts:'dontInvert'});
+  } catch(e) {}
   postMessage({type:'ready'});
 
   try {
@@ -839,7 +846,12 @@ function buildDecodeWorkerSrc(jsqrSrc: string, zxingIIFE: string, zxingWasm: str
     var ZX = self.ZXingWASM || self.ZXing;
     if (ZX && ZX.prepareZXingModule) {
       ZX.prepareZXingModule({ overrides:{ locateFile:function(){ return ${JSON.stringify(zxingWasm)} } } })
-        .then(function(){ zxRead = ZX.readBarcodesFromImageData; postMessage({type:'zxing-ready'}); })
+        .then(function(){
+          zxRead = ZX.readBarcodesFromImageData;
+          // JIT warm-up: one blank decode so ZXing's JS→WASM bridge is compiled
+          try { var _d=new Uint8ClampedArray(64*64*4); zxRead({data:_d,width:64,height:64},ZXOPTS); } catch(e) {}
+          postMessage({type:'zxing-ready'});
+        })
         .catch(function(){});
     }
   } catch(e) {}
@@ -849,8 +861,8 @@ function buildDecodeWorkerSrc(jsqrSrc: string, zxingIIFE: string, zxingWasm: str
     var W = raw.width, H = raw.height;
     var img = { data: raw.data, width: W, height: H };
 
-    function sendNull(){ postMessage({type:'result',id:id,bytes:null,box:null}); }
-    function sendResult(bytes, box){ postMessage({type:'result',id:id,bytes:bytes,box:box||null},[bytes.buffer]); }
+    // Collect all found QR codes — ZXing can return multiple from one image
+    var found = []; // [{bytes, box}]
 
     if (zxRead) {
       try {
@@ -859,23 +871,28 @@ function buildDecodeWorkerSrc(jsqrSrc: string, zxingIIFE: string, zxingWasm: str
           var r = results[i];
           if (r.isValid && r.bytes && r.bytes.length) {
             var box = r.position ? cornersToBox([r.position.topLeft,r.position.topRight,r.position.bottomRight,r.position.bottomLeft],W,H) : null;
-            sendResult(new Uint8Array(r.bytes), box);
-            return;
+            found.push({bytes: new Uint8Array(r.bytes), box: box});
           }
         }
       } catch(e2) {}
     }
 
-    if (jsqrReady && self.jsQR) {
+    // jsQR fallback only if ZXing found nothing (jsQR is single-code only)
+    if (found.length === 0 && jsqrReady && self.jsQR) {
       var res = self.jsQR(img.data, W, H, {inversionAttempts:'dontInvert'});
       if (res && res.binaryData && res.binaryData.length) {
         var box2 = res.location ? cornersToBox([res.location.topLeftCorner,res.location.topRightCorner,res.location.bottomRightCorner,res.location.bottomLeftCorner],W,H) : null;
-        sendResult(new Uint8Array(res.binaryData), box2);
-        return;
+        found.push({bytes: new Uint8Array(res.binaryData), box: box2});
       }
     }
 
-    sendNull();
+    if (found.length === 0) {
+      postMessage({type:'result',id:id,frames:[]});
+      return;
+    }
+    // Transfer all byte buffers zero-copy
+    var transfers = found.map(function(f){ return f.bytes.buffer; });
+    postMessage({type:'result',id:id,frames:found.map(function(f){ return {bytes:f.bytes,box:f.box}; })}, transfers);
   };
 })();
 `
@@ -899,8 +916,10 @@ function attachSlotHandlers(slot: WorkerSlot, src: string): void {
     slot.busy = false
     const resolve = slot.resolve; slot.resolve = null
     if (!resolve) return
-    if (!e.data.bytes) { resolve(null); return }
-    resolve({ bytes: new Uint8Array(e.data.bytes), box: e.data.box ?? null })
+    const frames: DecodeResult['frames'] = (e.data.frames ?? []).map((f: any) => ({
+      bytes: new Uint8Array(f.bytes), box: f.box ?? null
+    }))
+    resolve(frames.length ? { frames } : null)
   }
 
   slot.worker.onerror = () => {
@@ -945,9 +964,26 @@ function getPool(): WorkerSlot[] {
   return _pool
 }
 
-/** Eagerly spin up the worker pool. */
+/** Eagerly spin up the worker pool and send warm-up frames to both workers. */
 export function preloadDecoders() {
-  getPool()
+  const pool = getPool()
+  // After each worker is ready, send it one blank frame so the main-thread
+  // postMessage/onmessage path is also JIT-compiled before real scanning starts.
+  const warmup = (slot: WorkerSlot) => {
+    if (slot.busy) return
+    slot.busy = true
+    const blank = new Uint8ClampedArray(64 * 64 * 4)
+    const resolve = () => { slot.busy = false; slot.resolve = null }
+    slot.resolve = resolve
+    slot._hangTimer = setTimeout(() => {
+      slot._hangTimer = null; slot.busy = false; slot.resolve = null
+    }, 3000)
+    slot.worker.postMessage({ id: 0, img: { data: blank, width: 64, height: 64 } }, [blank.buffer])
+  }
+  for (const slot of pool) {
+    if (slot.ready) { warmup(slot) }
+    else slot.readyCbs.push(() => warmup(slot))
+  }
 }
 
 let _msgId = 0
@@ -1092,32 +1128,32 @@ function ReceivePanel() {
       // Wait until at least one worker has jsQR loaded
       await waitForAnyWorker()
 
-      // Fade-out timer for the bounding box
+      // Fade-out timer for the bounding boxes
       let boxFadeTimer: ReturnType<typeof setTimeout> | null = null
-      let boxVisible = false
 
-      const drawBox = (box: QRBox | null) => {
+      const drawBoxes = (boxes: (QRBox | null)[]) => {
         const ov = overlayRef.current
         if (!ov) return
         const W = ov.width, H = ov.height
         const ctx = ov.getContext('2d')!
         ctx.clearRect(0, 0, W, H)
-        boxVisible = !!box
-        if (!box) return
-        const x = box.x * W, y = box.y * H, w = box.w * W, h = box.h * H
-        const r = 8
-        ctx.beginPath()
-        ctx.moveTo(x + r, y)
-        ctx.arcTo(x + w, y, x + w, y + h, r)
-        ctx.arcTo(x + w, y + h, x, y + h, r)
-        ctx.arcTo(x, y + h, x, y, r)
-        ctx.arcTo(x, y, x + w, y, r)
-        ctx.closePath()
         ctx.strokeStyle = '#22c55e'
         ctx.lineWidth = 3
         ctx.shadowColor = '#22c55e'
         ctx.shadowBlur = 8
-        ctx.stroke()
+        for (const box of boxes) {
+          if (!box) continue
+          const x = box.x * W, y = box.y * H, w = box.w * W, h = box.h * H
+          const r = 8
+          ctx.beginPath()
+          ctx.moveTo(x + r, y)
+          ctx.arcTo(x + w, y, x + w, y + h, r)
+          ctx.arcTo(x + w, y + h, x, y + h, r)
+          ctx.arcTo(x, y + h, x, y, r)
+          ctx.arcTo(x, y, x + w, y, r)
+          ctx.closePath()
+          ctx.stroke()
+        }
       }
 
       // High-frequency capture loop using setInterval — RAF throttles to display
@@ -1127,49 +1163,53 @@ function ReceivePanel() {
 
       const onDecodeResult = async (result: DecodeResult | null) => {
         if (!streamRef.current || doneRef.current) return
-        if (result) {
-          drawBox(result.box)
+        if (result && result.frames.length > 0) {
+          drawBoxes(result.frames.map(f => f.box))
           if (boxFadeTimer) clearTimeout(boxFadeTimer)
-          boxFadeTimer = setTimeout(() => drawBox(null), 800)
+          boxFadeTimer = setTimeout(() => drawBoxes([]), 800)
 
-          const raw = result.bytes
-          const r = ltIngest(ltRef.current, raw)
-          if (r === 'progress') {
-            const st = ltRef.current
-            if (st.fileName && fileNameRef.current !== st.fileName) {
-              fileNameRef.current = st.fileName; setDetectedFileName(st.fileName)
-            }
-            setProgress({ recovered: st.recoveredCount, K: st.K })
-            setStatus(`Scanning… ${st.recoveredCount} / ${st.K} blocks`)
-            if (st.recoveredCount - st.lastSaveCount >= 10) {
-              st.lastSaveCount = st.recoveredCount
-              idbSet(IDB_SESSION_KEY, ltSnap(st))
-            }
-          } else if (r === 'complete') {
-            doneRef.current = true
-            if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null }
-            stopStream(); setScanning(false)
-            setStatus('Stream complete — verifying…')
-            try {
+          // Ingest each QR code found in the frame independently
+          for (const { bytes: raw } of result.frames) {
+            if (doneRef.current) break
+            const r = ltIngest(ltRef.current, raw)
+            if (r === 'progress') {
               const st = ltRef.current
-              let bytes = new Uint8Array(st.K * st.symbolSize)
-              for (let b = 0; b < st.K; b++) bytes.set(st.recovered[b]!, b * st.symbolSize)
-              bytes = bytes.slice(0, st.dataLen)
-              if (st.flags & 1) bytes = new Uint8Array(await gunzip(bytes))
-              const hash = toHex(await sha256(bytes))
-              if (hash !== st.fileHashHex) {
-                setError('Integrity check failed — file does not match. Try scanning again.')
-                doneRef.current = false; return
+              if (st.fileName && fileNameRef.current !== st.fileName) {
+                fileNameRef.current = st.fileName; setDetectedFileName(st.fileName)
               }
-              const saveName = st.fileName || fileNameRef.current || 'beam-received.bin'
-              const url = URL.createObjectURL(new Blob([bytes.buffer as ArrayBuffer]))
-              const a = document.createElement('a'); a.href = url; a.download = saveName
-              document.body.appendChild(a); a.click(); a.remove()
-              setTimeout(() => URL.revokeObjectURL(url), 2000)
-              await idbDelete(IDB_SESSION_KEY)
-              setResumeAvailable(false); setDone(true)
-              setStatus('File received and verified. Download started.')
-            } catch (err: any) { setError('Could not finalise: ' + (err?.message ?? err)) }
+              setProgress({ recovered: st.recoveredCount, K: st.K })
+              setStatus(`Scanning… ${st.recoveredCount} / ${st.K} blocks`)
+              if (st.recoveredCount - st.lastSaveCount >= 10) {
+                st.lastSaveCount = st.recoveredCount
+                idbSet(IDB_SESSION_KEY, ltSnap(st))
+              }
+            } else if (r === 'complete') {
+              doneRef.current = true
+              if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null }
+              stopStream(); setScanning(false)
+              setStatus('Stream complete — verifying…')
+              try {
+                const st = ltRef.current
+                let bytes = new Uint8Array(st.K * st.symbolSize)
+                for (let b = 0; b < st.K; b++) bytes.set(st.recovered[b]!, b * st.symbolSize)
+                bytes = bytes.slice(0, st.dataLen)
+                if (st.flags & 1) bytes = new Uint8Array(await gunzip(bytes))
+                const hash = toHex(await sha256(bytes))
+                if (hash !== st.fileHashHex) {
+                  setError('Integrity check failed — file does not match. Try scanning again.')
+                  doneRef.current = false; return
+                }
+                const saveName = st.fileName || fileNameRef.current || 'beam-received.bin'
+                const url = URL.createObjectURL(new Blob([bytes.buffer as ArrayBuffer]))
+                const a = document.createElement('a'); a.href = url; a.download = saveName
+                document.body.appendChild(a); a.click(); a.remove()
+                setTimeout(() => URL.revokeObjectURL(url), 2000)
+                await idbDelete(IDB_SESSION_KEY)
+                setResumeAvailable(false); setDone(true)
+                setStatus('File received and verified. Download started.')
+              } catch (err: any) { setError('Could not finalise: ' + (err?.message ?? err)) }
+              return
+            }
           }
         }
       }
