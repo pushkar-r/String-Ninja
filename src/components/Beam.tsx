@@ -18,10 +18,10 @@ import jsQRWorkerUrl from '../vendor/beam/jsQR.js?url'
  *   10      2     symbolSize (bytes per symbol)
  *   12      4     seed (LT symbol id for this frame)
  *   16      32    fileHash (SHA-256 of original file)
- *   48      1     fileNameLen (byte length of filename, max 63)
- *   49      63    fileName (UTF-8, zero-padded)
- *   112     N     payload (symbolSize bytes)
- *   112+N   4     crc32 (over bytes [0 .. 112+N))
+ *   48      1     fileNameLen (byte length of filename, max 31)
+ *   49      31    fileName (UTF-8, zero-padded)
+ *   80      N     payload (symbolSize bytes)
+ *   80+N    4     crc32 (over bytes [0 .. 80+N))
  *
  * Enhancements over v1:
  *   - Symbol size selectable: 160 / 300 / 512 bytes (→ max ~33 MB at 512)
@@ -33,16 +33,19 @@ import jsQRWorkerUrl from '../vendor/beam/jsQR.js?url'
 
 const MAGIC = 0x534e
 const VERSION = 1
-const HEADER_LEN = 112  // 48 base + 1 nameLen + 63 name bytes
+const HEADER_LEN = 80  // 48 base + 1 nameLen + 31 name bytes (reduced from 112 to lower QR version)
 const IDB_DB = 'beam-v1'
 const IDB_STORE = 'sessions'
 
 // Symbol size presets. Larger = fewer blocks = faster for big files, but QR
 // codes get denser (higher version). Camera must resolve them clearly.
+// Frame total = HEADER_LEN(80) + symbolSize + 4 (CRC)
+// QR Level L capacity by version: v10=271B, v13=428B, v16=587B
+// Presets sized so total frame fits cleanly inside each version boundary.
 const SYMBOL_PRESETS: Record<string, { bytes: number; label: string; maxMB: number }> = {
-  small:  { bytes: 160, label: 'Small (160 B/block) — best for shaky cameras', maxMB: 10 },
-  medium: { bytes: 300, label: 'Medium (300 B/block) — balanced', maxMB: 19 },
-  large:  { bytes: 512, label: 'Large (512 B/block) — fast for big files, needs steady camera', maxMB: 33 },
+  small:  { bytes: 180, label: 'Small (180 B/block) — QR v10, easiest to scan', maxMB: 11 },
+  medium: { bytes: 340, label: 'Medium (340 B/block) — QR v13, balanced', maxMB: 22 },
+  large:  { bytes: 500, label: 'Large (500 B/block) — QR v16, needs steady camera', maxMB: 32 },
 }
 
 // ----------------------------------------------------------------------------
@@ -124,7 +127,7 @@ function buildFrame(opts: {
   dv.setUint16(10, symbolSize, true)
   dv.setUint32(12, seed >>> 0, true)
   buf.set(fileHash.subarray(0, 32), 16)
-  const nameBytes = new TextEncoder().encode(fileName).subarray(0, 63)
+  const nameBytes = new TextEncoder().encode(fileName).subarray(0, 31)
   buf[48] = nameBytes.length
   buf.set(nameBytes, 49)
   buf.set(payload.subarray(0, symbolSize), HEADER_LEN)
@@ -368,7 +371,7 @@ function ingest(frame){
     K=fK;symbolSize=fSym;dataLen=dv.getUint32(4,true)>>>0;flags=frame[3];
     var fh=frame.subarray(16,48);var hx='';for(var i=0;i<32;i++)hx+=fh[i].toString(16).padStart(2,'0');
     fileHashHex=hx;
-    var nameLen=frame[48]||0;var nameBytes=frame.subarray(49,49+nameLen);
+    var nameLen=Math.min(frame[48]||0,31);var nameBytes=frame.subarray(49,49+nameLen);
     try{fileName=new TextDecoder().decode(nameBytes);}catch(e){fileName='beam-received.bin';}
     cdf=buildRobustSoliton(K);recovered=new Array(K);started=true;
   }
