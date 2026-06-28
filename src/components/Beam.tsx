@@ -2,7 +2,9 @@ import React, { useEffect, useRef, useState, useCallback } from 'react'
 import ToolCard from './ToolCard'
 // @ts-ignore - vendored ES module, see src/vendor/beam/qrcode-generator.LICENSE
 import qrcode from '../vendor/beam/qrcode-generator.mjs'
-// Vendored jsQR loaded into the decode worker via importScripts (see worker source below).
+// Vendored ZXing IIFE + WASM + jsQR fallback loaded into decode workers via importScripts.
+import zxingIIFEUrl from '../vendor/beam/zxing-reader.iife.js?url'
+import zxingWasmUrl from '../vendor/beam/zxing_reader.wasm?url'
 import jsQRWorkerUrl from '../vendor/beam/jsQR.js?url'
 
 /* ============================================================================
@@ -302,131 +304,162 @@ async function idbDelete(key: string): Promise<void> {
 }
 
 // ----------------------------------------------------------------------------
-// Decode worker source — jsQR + CRC + LT peel, runs off main thread.
-// Also handles IndexedDB save via postMessage back to main thread.
+// Decode worker source — pure QR decode only (ZXing-WASM + jsQR fallback).
+// LT fountain state lives in main thread; workers just return raw QR bytes.
+// Multiple workers can run in parallel safely since they share no state.
 // ----------------------------------------------------------------------------
-function buildWorkerSource(jsqrUrl: string): string {
+function buildWorkerSource(zxingUrl: string, wasmUrl: string, jsqrUrl: string): string {
   return `
+// --- ZXing WASM (primary) ---
+self.importScripts(${JSON.stringify(zxingUrl)});
+var _zxingReady = false;
+ZXingWASM.prepareZXingModule({
+  overrides: { locateFile: function() { return ${JSON.stringify(wasmUrl)}; } }
+}).then(function() { _zxingReady = true; }).catch(function(){});
+
+// --- jsQR (fallback if ZXing not ready or fails) ---
 self.importScripts(${JSON.stringify(jsqrUrl)});
 var jsQR = self.jsQR;
 
-var MAGIC = ${MAGIC}, HEADER_LEN = ${HEADER_LEN};
-var CRC32_TABLE = (function(){var t=new Uint32Array(256);for(var n=0;n<256;n++){var c=n;for(var k=0;k<8;k++)c=(c&1)?(0xedb88320^(c>>>1)):(c>>>1);t[n]=c>>>0;}return t;})();
-function crc32(buf,start,end){var crc=-1;for(var i=start;i<end;i++)crc=(crc>>>8)^CRC32_TABLE[(crc^buf[i])&0xff];return (crc^-1)>>>0;}
-function mulberry32(a){return function(){a|=0;a=(a+0x6d2b79f5)|0;var t=Math.imul(a^(a>>>15),1|a);t=(t+Math.imul(t^(t>>>7),61|t))^t;return ((t^(t>>>14))>>>0)/4294967296;};}
-function buildRobustSoliton(K){var c=0.03,delta=0.05;var rho=new Float64Array(K+1);rho[1]=1/K;for(var d=2;d<=K;d++)rho[d]=1/(d*(d-1));var R=c*Math.log(K/delta)*Math.sqrt(K);var tau=new Float64Array(K+1);var kR=Math.max(1,Math.floor(K/R));for(var d2=1;d2<kR;d2++)tau[d2]=R/(d2*K);if(kR<=K)tau[kR]=(R*Math.log(R/delta))/K;var sum=0;for(var d3=1;d3<=K;d3++)sum+=rho[d3]+tau[d3];var cdf=new Float64Array(K+1);var acc=0;for(var d4=1;d4<=K;d4++){acc+=(rho[d4]+tau[d4])/sum;cdf[d4]=acc;}return cdf;}
-function deriveSymbol(seed,K,cdf){var rand=mulberry32(seed>>>0);var r=rand();var degree=1;for(var d=1;d<=K;d++){if(r<=cdf[d]){degree=d;break;}degree=d;}if(degree>K)degree=K;var chosen={},indices=[];while(indices.length<degree){var idx=Math.floor(rand()*K)%K;if(!chosen[idx]){chosen[idx]=1;indices.push(idx);}}return indices;}
+var ZXING_OPTS = { formats: ['QRCode'], tryHarder: true, tryInvert: false, binarizer: 'LocalAverage' };
 
-var K=0,symbolSize=0,dataLen=0,flags=0,cdf=null,fileHashHex=null,fileName=null;
-var recovered=null,recoveredCount=0,pending=[],seenSeeds={},started=false;
-var lastSaveCount=0;
-
-function reset(state){
-  if(state){
-    K=state.K;symbolSize=state.symbolSize;dataLen=state.dataLen;flags=state.flags;
-    fileHashHex=state.fileHashHex;fileName=state.fileName;
-    cdf=new Float64Array(state.cdf);
-    recovered=state.recovered.map(function(b){return b?new Uint8Array(b):null;});
-    recoveredCount=state.recoveredCount;
-    seenSeeds=state.seenSeeds||{};
-    pending=[];started=true;
-    postMessage({type:'resumed',recovered:recoveredCount,K:K,fileName:fileName,fileHashHex:fileHashHex});
+// Decode one image — returns array of raw Uint8Array byte payloads (one per QR found)
+function decodeImage(img) {
+  var id = new ImageData(new Uint8ClampedArray(img.data), img.width, img.height);
+  if (_zxingReady) {
+    return ZXingWASM.readBarcodesFromImageData(id, ZXING_OPTS).then(function(results) {
+      var out = [];
+      for (var r = 0; r < results.length; r++)
+        if (results[r].isValid && results[r].bytes && results[r].bytes.length)
+          out.push(new Uint8Array(results[r].bytes));
+      return out;
+    }).catch(function() {
+      // ZXing failed — fall back to jsQR for this frame
+      var code = jsQR(img.data, img.width, img.height, {inversionAttempts:'dontInvert'});
+      return (code && code.binaryData && code.binaryData.length) ? [new Uint8Array(code.binaryData)] : [];
+    });
   } else {
-    K=0;symbolSize=0;dataLen=0;flags=0;cdf=null;fileHashHex=null;fileName=null;
-    recovered=null;recoveredCount=0;pending=[];seenSeeds={};started=false;lastSaveCount=0;
+    // ZXing not ready yet — use jsQR synchronously
+    var code = jsQR(img.data, img.width, img.height, {inversionAttempts:'dontInvert'});
+    return Promise.resolve((code && code.binaryData && code.binaryData.length) ? [new Uint8Array(code.binaryData)] : []);
   }
 }
 
-function xorInto(dst,src){for(var i=0;i<dst.length;i++)dst[i]^=src[i];}
-
-function peel(){
-  var progressed=true;
-  while(progressed){
-    progressed=false;
-    for(var p=0;p<pending.length;p++){
-      var blk=pending[p];if(!blk)continue;
-      for(var qi=blk.indices.length-1;qi>=0;qi--){
-        var ix=blk.indices[qi];
-        if(recovered[ix]){xorInto(blk.data,recovered[ix]);blk.indices.splice(qi,1);}
-      }
-      if(blk.indices.length===1){
-        var idx=blk.indices[0];
-        if(!recovered[idx]){recovered[idx]=blk.data.slice();recoveredCount++;progressed=true;}
-        pending[p]=null;
-      } else if(blk.indices.length===0){pending[p]=null;}
-    }
-  }
-}
-
-function maybeSave(){
-  if(recoveredCount-lastSaveCount<10) return;
-  lastSaveCount=recoveredCount;
-  // send state snapshot to main thread for IDB persist
-  var snap={K:K,symbolSize:symbolSize,dataLen:dataLen,flags:flags,fileHashHex:fileHashHex,fileName:fileName,
-    cdf:Array.from(cdf),recovered:recovered.map(function(b){return b?Array.from(b):null;}),
-    recoveredCount:recoveredCount,seenSeeds:seenSeeds};
-  postMessage({type:'saveState',state:snap});
-}
-
-function ingest(frame){
-  var dv=new DataView(frame.buffer,frame.byteOffset,frame.byteLength);
-  if(frame.length<HEADER_LEN+1+4) return;
-  if(dv.getUint16(0,true)!==MAGIC) return;
-  var fK=dv.getUint16(8,true),fSym=dv.getUint16(10,true);
-  if(frame.length<HEADER_LEN+fSym+4) return;
-  var gotCrc=dv.getUint32(HEADER_LEN+fSym,true)>>>0;
-  if(gotCrc!==crc32(frame,0,HEADER_LEN+fSym)) return;
-  var seed=dv.getUint32(12,true)>>>0;
-  if(!started){
-    K=fK;symbolSize=fSym;dataLen=dv.getUint32(4,true)>>>0;flags=frame[3];
-    var fh=frame.subarray(16,48);var hx='';for(var i=0;i<32;i++)hx+=fh[i].toString(16).padStart(2,'0');
-    fileHashHex=hx;
-    var nameLen=Math.min(frame[48]||0,31);var nameBytes=frame.subarray(49,49+nameLen);
-    try{fileName=new TextDecoder().decode(nameBytes);}catch(e){fileName='beam-received.bin';}
-    cdf=buildRobustSoliton(K);recovered=new Array(K);started=true;
-  }
-  if(fK!==K||fSym!==symbolSize) return;
-  if(seenSeeds[seed]) return;
-  seenSeeds[seed]=1;
-  var payload=frame.slice(HEADER_LEN,HEADER_LEN+symbolSize);
-  pending.push({indices:deriveSymbol(seed,K,cdf),data:payload});
-  peel();
-  maybeSave();
-  postMessage({type:'progress',recovered:recoveredCount,K:K,dataLen:dataLen,fileHashHex:fileHashHex,fileName:fileName});
-  if(recoveredCount===K){
-    var out=new Uint8Array(K*symbolSize);
-    for(var b=0;b<K;b++) out.set(recovered[b],b*symbolSize);
-    var trimmed=out.slice(0,dataLen);
-    postMessage({type:'complete',data:trimmed,flags:flags,fileHashHex:fileHashHex,fileName:fileName},[trimmed.buffer]);
-  }
-}
-
-self.onmessage=function(e){
-  var msg=e.data;
-  if(msg.type==='reset'){reset(null);return;}
-  if(msg.type==='restore'){reset(msg.state);return;}
-  if(msg.type==='requestSave'){
-    if(K>0&&recoveredCount>0){
-      var snap={K:K,symbolSize:symbolSize,dataLen:dataLen,flags:flags,fileHashHex:fileHashHex,fileName:fileName,
-        cdf:Array.from(cdf),recovered:recovered.map(function(b){return b?Array.from(b):null;}),
-        recoveredCount:recoveredCount,seenSeeds:seenSeeds};
-      postMessage({type:'saveState',state:snap});
-    }
-    return;
-  }
-  if(msg.type==='frame'){
-    try{
-      var images=Array.isArray(msg.images)?msg.images:[msg.image];
-      for(var i=0;i<images.length;i++){
-        var img=images[i];
-        var code=jsQR(img.data,img.width,img.height,{inversionAttempts:'dontInvert'});
-        if(code&&code.binaryData&&code.binaryData.length) ingest(new Uint8Array(code.binaryData));
-      }
-    }catch(err){/* drop frame */}
-    postMessage({type:'ack'}); // signals main thread: worker is idle, ready for next frame
+self.onmessage = function(e) {
+  var msg = e.data;
+  if (msg.type === 'frame') {
+    var images = Array.isArray(msg.images) ? msg.images : [msg.image];
+    var promises = images.map(decodeImage);
+    Promise.all(promises).then(function(results) {
+      // Flatten all decoded byte arrays and send back to main thread
+      var payloads = [];
+      for (var i = 0; i < results.length; i++)
+        for (var j = 0; j < results[i].length; j++)
+          payloads.push(results[i][j]);
+      postMessage({ type: 'decoded', payloads: payloads });
+    }).catch(function() {
+      postMessage({ type: 'decoded', payloads: [] });
+    });
   }
 };
 `
+}
+
+// ----------------------------------------------------------------------------
+// LT decoder state — lives in main thread, shared across all decode workers.
+// Workers are pure QR scanners; ingest/peel runs here so state is never split.
+// ----------------------------------------------------------------------------
+interface LTState {
+  K: number; symbolSize: number; dataLen: number; flags: number
+  fileHashHex: string; fileName: string
+  cdf: Float64Array
+  recovered: (Uint8Array | null)[]
+  recoveredCount: number
+  pending: { indices: number[]; data: Uint8Array }[]
+  seenSeeds: Record<number, 1>
+  started: boolean
+  lastSaveCount: number
+}
+
+function makeFreshLT(): LTState {
+  return { K:0, symbolSize:0, dataLen:0, flags:0, fileHashHex:'', fileName:'',
+    cdf: new Float64Array(0), recovered:[], recoveredCount:0,
+    pending:[], seenSeeds:{}, started:false, lastSaveCount:0 }
+}
+
+function ltFromSaved(s: any): LTState {
+  return { K:s.K, symbolSize:s.symbolSize, dataLen:s.dataLen, flags:s.flags,
+    fileHashHex:s.fileHashHex, fileName:s.fileName,
+    cdf: new Float64Array(s.cdf),
+    recovered: s.recovered.map((b: number[]|null) => b ? new Uint8Array(b) : null),
+    recoveredCount: s.recoveredCount, pending:[], seenSeeds:s.seenSeeds||{},
+    started:true, lastSaveCount:s.recoveredCount }
+}
+
+function ltSnap(st: LTState) {
+  return { K:st.K, symbolSize:st.symbolSize, dataLen:st.dataLen, flags:st.flags,
+    fileHashHex:st.fileHashHex, fileName:st.fileName,
+    cdf:Array.from(st.cdf),
+    recovered:st.recovered.map(b => b ? Array.from(b) : null),
+    recoveredCount:st.recoveredCount, seenSeeds:st.seenSeeds }
+}
+
+function crc32Main(buf: Uint8Array, start: number, end: number): number {
+  const T = CRC32_TABLE
+  let crc = -1
+  for (let i = start; i < end; i++) crc = (crc >>> 8) ^ T[(crc ^ buf[i]) & 0xff]
+  return (crc ^ -1) >>> 0
+}
+
+function xorIntoMain(dst: Uint8Array, src: Uint8Array) {
+  for (let i = 0; i < dst.length; i++) dst[i] ^= src[i]
+}
+
+function peelMain(st: LTState) {
+  let progressed = true
+  while (progressed) {
+    progressed = false
+    for (let p = 0; p < st.pending.length; p++) {
+      const blk = st.pending[p]; if (!blk) continue
+      for (let qi = blk.indices.length - 1; qi >= 0; qi--) {
+        const ix = blk.indices[qi]
+        if (st.recovered[ix]) { xorIntoMain(blk.data, st.recovered[ix]!); blk.indices.splice(qi, 1) }
+      }
+      if (blk.indices.length === 1) {
+        const idx = blk.indices[0]
+        if (!st.recovered[idx]) { st.recovered[idx] = blk.data.slice(); st.recoveredCount++; progressed = true }
+        st.pending[p] = null as any
+      } else if (blk.indices.length === 0) { st.pending[p] = null as any }
+    }
+  }
+}
+
+// Returns 'progress' | 'complete' | 'duplicate' | 'invalid'
+function ltIngest(st: LTState, frame: Uint8Array): 'progress' | 'complete' | 'duplicate' | 'invalid' {
+  if (frame.length < HEADER_LEN + 1 + 4) return 'invalid'
+  const dv = new DataView(frame.buffer, frame.byteOffset, frame.byteLength)
+  if (dv.getUint16(0, true) !== MAGIC) return 'invalid'
+  const fK = dv.getUint16(8, true), fSym = dv.getUint16(10, true)
+  if (frame.length < HEADER_LEN + fSym + 4) return 'invalid'
+  const gotCrc = dv.getUint32(HEADER_LEN + fSym, true) >>> 0
+  if (gotCrc !== crc32Main(frame, 0, HEADER_LEN + fSym)) return 'invalid'
+  const seed = dv.getUint32(12, true) >>> 0
+  if (!st.started) {
+    st.K = fK; st.symbolSize = fSym; st.dataLen = dv.getUint32(4, true) >>> 0; st.flags = frame[3]
+    const fh = frame.subarray(16, 48); let hx = ''
+    for (let i = 0; i < 32; i++) hx += fh[i].toString(16).padStart(2, '0')
+    st.fileHashHex = hx
+    const nameLen = Math.min(frame[48] || 0, 31)
+    try { st.fileName = new TextDecoder().decode(frame.subarray(49, 49 + nameLen)) } catch { st.fileName = 'beam-received.bin' }
+    st.cdf = buildRobustSoliton(fK); st.recovered = new Array(fK).fill(null); st.started = true
+  }
+  if (fK !== st.K || fSym !== st.symbolSize) return 'invalid'
+  if (st.seenSeeds[seed]) return 'duplicate'
+  st.seenSeeds[seed] = 1
+  const payload = frame.slice(HEADER_LEN, HEADER_LEN + st.symbolSize)
+  st.pending.push({ indices: deriveSymbol(seed, st.K, st.cdf).indices, data: payload })
+  peelMain(st)
+  return st.recoveredCount === st.K ? 'complete' : 'progress'
 }
 
 // ----------------------------------------------------------------------------
@@ -651,7 +684,7 @@ function SendPanel() {
               <Stat label="Size" value={fmtBytes(file.size)} />
               <Stat label="Stream" value={`${fmtBytes(meta.dataLen)}${meta.flags & 1 ? ' gzip' : ''}`} />
               <Stat label="Blocks (K)" value={String(meta.K)} />
-              <Stat label="QR grid" value={gridMode === 1 ? 'Single' : gridMode === 2 ? '1×2 (2 QR)' : '2×2 (4 QR)'} />
+              {/* <Stat label="QR grid" value={gridMode === 1 ? 'Single' : gridMode === 2 ? '1×2 (2 QR)' : '2×2 (4 QR)'} /> */}
               <Stat label="Level" value={`${ecLevel} (${ecLevel === 'M' ? '~15% EC' : '~7% EC'})`} />
               <Stat label="Est. time" value={`~${estSeconds}s`} />
               <Stat label="Seed" value={String(seed)} />
@@ -673,33 +706,20 @@ function SendPanel() {
                   onChange={e => setFps(Number(e.target.value))} />
                 <span className="tabular-nums w-14">{fps} fps</span>
               </label>
-              {/* Grid mode — switchable live */}
+              {/* Grid mode selector — kept for future re-enable, currently single QR only
               <div className="flex items-center gap-2 text-sm">
                 <span className="text-slate-600 dark:text-slate-300">QR grid</span>
                 <div className="flex rounded-lg overflow-hidden border border-slate-200 dark:border-slate-700 text-xs font-medium">
                   {([1, 2, 4] as const).map(g => (
-                    <button
-                      key={g}
-                      onClick={() => setGridMode(g)}
-                      className={
-                        'px-3 py-1.5 transition-colors ' +
-                        (gridMode === g
-                          ? 'bg-emerald-500 text-white'
-                          : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800')
-                      }
-                    >
+                    <button key={g} onClick={() => setGridMode(g)}
+                      className={'px-3 py-1.5 transition-colors ' + (gridMode === g ? 'bg-emerald-500 text-white' : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300')}>
                       {g === 1 ? '1' : g === 2 ? '1×2' : '2×2'}
                     </button>
                   ))}
                 </div>
               </div>
+              */}
             </div>
-
-            {gridMode > 1 && (
-              <p className="text-xs text-emerald-700 dark:text-emerald-400 font-medium">
-                ✦ {gridMode === 2 ? '1×2 dual' : '2×2 quad'} mode — {gridMode} fountain symbols per frame (~{fps * gridMode} symbols/sec). If your phone struggles to read the grid, switch to 1.
-              </p>
-            )}
 
             <div className="flex justify-center">
               <canvas
@@ -728,12 +748,19 @@ function SendPanel() {
 // ----------------------------------------------------------------------------
 const IDB_SESSION_KEY = 'beam-current-session'
 
+const POOL_SIZE = 2 // number of parallel decode workers
+
 function ReceivePanel() {
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
-  const workerRef = useRef<Worker | null>(null)
+  const workersRef = useRef<Worker[]>([])           // pool of pure-decode workers
+  const workerBusy = useRef<boolean[]>([])          // busy flag per worker
+  const workerSentAt = useRef<number[]>([])         // timestamp of last postMessage per worker
+  const WORKER_TIMEOUT_MS = 4000                    // force-clear busy if worker silent this long
   const streamRef = useRef<MediaStream | null>(null)
   const sampleTimer = useRef<number | null>(null)
+  const ltRef = useRef<LTState>(makeFreshLT())  // LT state lives in main thread
+  const doneRef = useRef(false)                 // guard against double-complete
   const [scanning, setScanning] = useState(false)
   const [error, setError] = useState('')
   const [progress, setProgress] = useState<{ recovered: number; K: number } | null>(null)
@@ -742,7 +769,6 @@ function ReceivePanel() {
   const [detectedFileName, setDetectedFileName] = useState('')
   const [resumeAvailable, setResumeAvailable] = useState(false)
   const [resumeInfo, setResumeInfo] = useState<{ recovered: number; K: number; fileName: string } | null>(null)
-  const expectedHashRef = useRef<string | null>(null)
   const fileNameRef = useRef('beam-received.bin')
 
   // Check for saved session on mount
@@ -755,113 +781,152 @@ function ReceivePanel() {
     })
   }, [])
 
-  const cleanup = useCallback(() => {
-    if (sampleTimer.current && sampleTimer.current !== -1) { clearInterval(sampleTimer.current) }
-    sampleTimer.current = null
-    if (streamRef.current) { streamRef.current.getTracks().forEach(t => t.stop()); streamRef.current = null }
-    if (workerRef.current) { workerRef.current.terminate(); workerRef.current = null }
+  const makeWorkerBlob = useCallback(() => {
+    const src = buildWorkerSource(
+      new URL(zxingIIFEUrl, window.location.href).href,
+      new URL(zxingWasmUrl, window.location.href).href,
+      new URL(jsQRWorkerUrl, window.location.href).href,
+    )
+    return new Blob([src], { type: 'application/javascript' })
   }, [])
 
-  // Flush decoder state to IDB before killing the worker so resume works correctly
-  const pauseCamera = useCallback(async () => {
-    if (sampleTimer.current) { clearInterval(sampleTimer.current); sampleTimer.current = null }
-    if (streamRef.current) { streamRef.current.getTracks().forEach(t => t.stop()); streamRef.current = null }
-    const worker = workerRef.current
-    if (worker) {
-      await new Promise<void>(resolve => {
-        const timeout = setTimeout(resolve, 800)
-        const prev = worker.onmessage as ((e: MessageEvent) => void) | null
-        worker.onmessage = async (e: MessageEvent) => {
-          if (prev) prev(e)
-          if (e.data?.type === 'saveState') { clearTimeout(timeout); resolve() }
-        }
-        worker.postMessage({ type: 'requestSave' })
-      })
-      worker.terminate()
-      workerRef.current = null
-    }
-    setScanning(false)
-    setStatus('Paused — progress saved. Resume when ready.')
-    setResumeAvailable(true)
-  }, [])
+  // Pre-warm all workers on mount so ZXing WASM is compiled before user hits Start
+  useEffect(() => {
+    const blob = makeWorkerBlob()
+    const ws = Array.from({ length: POOL_SIZE }, () => new Worker(URL.createObjectURL(blob)))
+    workersRef.current = ws
+    workerBusy.current = ws.map(() => false)
+    return () => { ws.forEach(w => w.terminate()); workersRef.current = []; workerBusy.current = [] }
+  }, [makeWorkerBlob])
 
-  useEffect(() => () => cleanup(), [cleanup])
-
-  const buildAndStartWorker = useCallback(async (savedState?: any) => {
-    const src = buildWorkerSource(new URL(jsQRWorkerUrl, window.location.href).href)
-    const blob = new Blob([src], { type: 'application/javascript' })
-    const worker = new Worker(URL.createObjectURL(blob))
-    workerRef.current = worker
-
-    worker.onmessage = async (e: MessageEvent) => {
-      const m = e.data
-      if (m.type === 'resumed') {
-        setProgress({ recovered: m.recovered, K: m.K })
-        if (m.fileName) { fileNameRef.current = m.fileName; setDetectedFileName(m.fileName) }
-        setStatus(`Resumed — ${m.recovered} / ${m.K} blocks already recovered. Keep scanning…`)
-      } else if (m.type === 'saveState') {
-        await idbSet(IDB_SESSION_KEY, m.state)
-      } else if (m.type === 'progress') {
-        setProgress({ recovered: m.recovered, K: m.K })
-        expectedHashRef.current = m.fileHashHex
-        if (m.fileName && fileNameRef.current !== m.fileName) {
-          fileNameRef.current = m.fileName
-          setDetectedFileName(m.fileName)
-        }
-        setStatus(`Scanning… ${m.recovered} / ${m.K} blocks`)
-      } else if (m.type === 'complete') {
+  const handleDecoded = useCallback(async (payloads: Uint8Array[]) => {
+    const st = ltRef.current
+    if (doneRef.current) return
+    let changed = false
+    for (const raw of payloads) {
+      const result = ltIngest(st, raw)
+      if (result === 'progress' || result === 'complete') { changed = true }
+      if (result === 'complete') {
+        doneRef.current = true
         setStatus('Stream complete — verifying…')
         try {
-          let bytes: Uint8Array = new Uint8Array(m.data)
-          if (m.flags & 1) bytes = await gunzip(bytes)
+          let bytes: Uint8Array = new Uint8Array(st.K * st.symbolSize)
+          for (let b = 0; b < st.K; b++) bytes.set(st.recovered[b]!, b * st.symbolSize)
+          bytes = bytes.slice(0, st.dataLen)
+          if (st.flags & 1) bytes = await gunzip(bytes)
           const hash = toHex(await sha256(bytes))
-          if (expectedHashRef.current && hash !== expectedHashRef.current) {
-            setError('Integrity check failed — the reconstructed file does not match the sender. Try scanning again.')
-            return
+          if (hash !== st.fileHashHex) {
+            setError('Integrity check failed — reconstructed file does not match sender. Try scanning again.')
+            doneRef.current = false; return
           }
-          const saveName = m.fileName || fileNameRef.current || 'beam-received.bin'
-          const out = new Blob([bytes.slice()])
-          const url = URL.createObjectURL(out)
-          const a = document.createElement('a')
-          a.href = url; a.download = saveName
+          const saveName = st.fileName || fileNameRef.current || 'beam-received.bin'
+          const url = URL.createObjectURL(new Blob([bytes.buffer as ArrayBuffer]))
+          const a = document.createElement('a'); a.href = url; a.download = saveName
           document.body.appendChild(a); a.click(); a.remove()
           setTimeout(() => URL.revokeObjectURL(url), 2000)
           await idbDelete(IDB_SESSION_KEY)
-          setResumeAvailable(false)
-          setDone(true)
+          setResumeAvailable(false); setDone(true)
           setStatus('File received and SHA-256 verified. Download started.')
-          cleanup(); setScanning(false)
-        } catch (err: any) {
-          setError('Could not finalise file: ' + (err?.message || String(err)))
-        }
+          // Stop camera — keep workers alive for next use
+          if (sampleTimer.current && sampleTimer.current !== -1) clearInterval(sampleTimer.current)
+          sampleTimer.current = null
+          if (streamRef.current) { streamRef.current.getTracks().forEach(t => t.stop()); streamRef.current = null }
+          setScanning(false)
+        } catch (err: any) { setError('Could not finalise file: ' + (err?.message || String(err))) }
+        return
       }
     }
-
-    if (savedState) {
-      worker.postMessage({ type: 'restore', state: savedState })
-    } else {
-      worker.postMessage({ type: 'reset' })
+    if (changed) {
+      const st2 = ltRef.current
+      if (st2.fileName && fileNameRef.current !== st2.fileName) {
+        fileNameRef.current = st2.fileName; setDetectedFileName(st2.fileName)
+      }
+      setProgress({ recovered: st2.recoveredCount, K: st2.K })
+      setStatus(`Scanning… ${st2.recoveredCount} / ${st2.K} blocks`)
+      // Periodic IDB save every 10 new blocks
+      if (st2.recoveredCount - st2.lastSaveCount >= 10) {
+        st2.lastSaveCount = st2.recoveredCount
+        await idbSet(IDB_SESSION_KEY, ltSnap(st2))
+      }
     }
-    return worker
+  }, [])
+
+  const cleanup = useCallback(() => {
+    if (sampleTimer.current && sampleTimer.current !== -1) clearInterval(sampleTimer.current)
+    sampleTimer.current = null
+    if (streamRef.current) { streamRef.current.getTracks().forEach(t => t.stop()); streamRef.current = null }
+  }, [])
+
+  // Pause: flush LT state to IDB, stop camera, leave workers alive
+  const pauseCamera = useCallback(async () => {
+    cleanup()
+    const st = ltRef.current
+    if (st.started && st.recoveredCount > 0) {
+      await idbSet(IDB_SESSION_KEY, ltSnap(st))
+      setResumeAvailable(true)
+    }
+    setScanning(false)
+    setStatus('Paused — progress saved. Resume when ready.')
+  }, [cleanup])
+
+  useEffect(() => () => {
+    cleanup()
+    workersRef.current.forEach(w => w.terminate())
+    workersRef.current = []; workerBusy.current = []
   }, [cleanup])
 
   const startCamera = useCallback(async (resume = false) => {
-    setError('')
-    setDone(false)
+    setError(''); setDone(false); doneRef.current = false
     if (!resume) {
-      setProgress(null)
-      setDetectedFileName('')
+      setProgress(null); setDetectedFileName('')
       fileNameRef.current = 'beam-received.bin'
-      await idbDelete(IDB_SESSION_KEY)
-      setResumeAvailable(false)
+      ltRef.current = makeFreshLT()
+      await idbDelete(IDB_SESSION_KEY); setResumeAvailable(false)
+    } else {
+      const saved = await idbGet<any>(IDB_SESSION_KEY)
+      if (saved) {
+        ltRef.current = ltFromSaved(saved)
+        setProgress({ recovered: ltRef.current.recoveredCount, K: ltRef.current.K })
+        fileNameRef.current = ltRef.current.fileName || 'beam-received.bin'
+        setDetectedFileName(ltRef.current.fileName)
+        setStatus(`Resumed — ${ltRef.current.recoveredCount} / ${ltRef.current.K} blocks already recovered. Keep scanning…`)
+      }
     }
+
+    // Wire up fresh workers if pool is empty (first start or after full cleanup)
+    if (workersRef.current.length === 0) {
+      const blob = makeWorkerBlob()
+      const ws = Array.from({ length: POOL_SIZE }, () => new Worker(URL.createObjectURL(blob)))
+      workersRef.current = ws
+      workerBusy.current = ws.map(() => false)
+      workerSentAt.current = ws.map(() => 0)
+    }
+
+    const attachWorkerHandler = (w: Worker, idx: number) => {
+      w.onmessage = async (e: MessageEvent) => {
+        workerBusy.current[idx] = false
+        workerSentAt.current[idx] = 0
+        if (e.data?.type === 'decoded' && e.data.payloads?.length) {
+          await handleDecoded(e.data.payloads.map((p: ArrayBuffer) => new Uint8Array(p)))
+        }
+      }
+      w.onerror = () => {
+        // Worker crashed — replace it so the slot doesn't stay dead
+        workerBusy.current[idx] = false
+        workerSentAt.current[idx] = 0
+        try { w.terminate() } catch { /* ignore */ }
+        const blob = makeWorkerBlob()
+        const fresh = new Worker(URL.createObjectURL(blob))
+        workersRef.current[idx] = fresh
+        attachWorkerHandler(fresh, idx)
+      }
+    }
+    workersRef.current.forEach((w, idx) => attachWorkerHandler(w, idx))
+
     setStatus('Requesting camera…')
     try {
-      const savedState = resume ? await idbGet<any>(IDB_SESSION_KEY) : null
-      await buildAndStartWorker(savedState || undefined)
-
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
+        video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } },
       })
       streamRef.current = stream
       const video = videoRef.current!
@@ -870,69 +935,53 @@ function ReceivePanel() {
       setScanning(true)
       setStatus(resume ? 'Camera ready — continue scanning.' : 'Scanning… aim at the sending screen.')
 
-      // Scale down before jsQR — 640px wide is sufficient for QR decode and ~4× faster than 1280px
-      const SAMPLE_SZ = 640 // square crop size sent to jsQR
-      let sampleCanvas: HTMLCanvasElement | null = document.createElement('canvas')
-      let sampleCtx: CanvasRenderingContext2D | null = sampleCanvas.getContext('2d', { willReadFrequently: true })
+      const SAMPLE_SZ = 640
+      const sampleCanvas = document.createElement('canvas')
+      const sampleCtx = sampleCanvas.getContext('2d', { willReadFrequently: true })!
       sampleCanvas.width = SAMPLE_SZ; sampleCanvas.height = SAMPLE_SZ
-      let workerBusy = false  // prevent queuing frames faster than worker can decode
-      let tickCount = 0
 
+      // Round-robin dispatch to next idle worker
+      let rr = 0
       const sample = () => {
-        const v = videoRef.current, w = workerRef.current
-        if (!v || !w || v.videoWidth === 0 || !sampleCanvas || !sampleCtx) return
-        // Drop frame if worker is still processing the last one — prevents queue buildup
-        if (workerBusy) return
-        workerBusy = true
-        tickCount++
+        const v = videoRef.current
+        if (!v || v.videoWidth === 0) return
 
-        // Crop center square from the 16:9 camera feed — matches the square viewfinder UI.
+        // Watchdog: release any worker that has been busy longer than the timeout
+        const now = performance.now()
+        for (let i = 0; i < POOL_SIZE; i++) {
+          if (workerBusy.current[i] && workerSentAt.current[i] > 0 && now - workerSentAt.current[i] > WORKER_TIMEOUT_MS) {
+            workerBusy.current[i] = false
+            workerSentAt.current[i] = 0
+          }
+        }
+
+        // Find next idle worker (round-robin, skip busy)
+        let w: Worker | null = null, wIdx = -1
+        for (let i = 0; i < POOL_SIZE; i++) {
+          const idx = (rr + i) % POOL_SIZE
+          if (!workerBusy.current[idx]) { w = workersRef.current[idx]; wIdx = idx; break }
+        }
+        if (!w) return // all workers busy — drop frame
+        rr = (wIdx + 1) % POOL_SIZE
+        workerBusy.current[wIdx] = true
+        workerSentAt.current[wIdx] = performance.now()
+
+        // Crop center square
         const vw = v.videoWidth, vh = v.videoHeight
         const side = Math.min(vw, vh)
         const sx = Math.floor((vw - side) / 2), sy = Math.floor((vh - side) / 2)
         sampleCtx.drawImage(v, sx, sy, side, side, 0, 0, SAMPLE_SZ, SAMPLE_SZ)
-        const sz = SAMPLE_SZ
 
-        // Alternate: full-frame (single-QR) on even ticks, quadrants (multi-QR) on odd ticks.
-        if (tickCount % 2 === 0) {
-          const img = sampleCtx.getImageData(0, 0, sz, sz)
-          w.postMessage({ type: 'frame', images: [{ data: img.data, width: sz, height: sz }] }, [img.data.buffer])
-        } else {
-          const qz = Math.floor(sz / 2)
-          const q1 = sampleCtx.getImageData(0, 0, qz, qz)
-          const q2 = sampleCtx.getImageData(qz, 0, qz, qz)
-          const q3 = sampleCtx.getImageData(0, qz, qz, qz)
-          const q4 = sampleCtx.getImageData(qz, qz, qz, qz)
-          w.postMessage(
-            { type: 'frame', images: [
-              { data: q1.data, width: qz, height: qz },
-              { data: q2.data, width: qz, height: qz },
-              { data: q3.data, width: qz, height: qz },
-              { data: q4.data, width: qz, height: qz },
-            ]},
-            [q1.data.buffer, q2.data.buffer, q3.data.buffer, q4.data.buffer]
-          )
-        }
+        const img = sampleCtx.getImageData(0, 0, SAMPLE_SZ, SAMPLE_SZ)
+        w.postMessage({ type: 'frame', images: [{ data: img.data, width: SAMPLE_SZ, height: SAMPLE_SZ }] }, [img.data.buffer])
       }
 
-      // Worker signals done after each frame batch so we clear the busy flag
-      const workerEl = workerRef.current!
-      const origOnMsg = workerEl.onmessage as ((e: MessageEvent) => void)
-      workerEl.onmessage = (e: MessageEvent) => {
-        workerBusy = false  // worker finished — ready for next frame
-        origOnMsg(e)
-      }
-
-      // Use requestVideoFrameCallback if available (~30fps, fires on real camera frames)
-      // Fall back to setInterval(50) = 20fps
+      // requestVideoFrameCallback fires on each real camera frame (~30fps)
       const rvfc = (video as any).requestVideoFrameCallback
       if (rvfc) {
-        const loop = () => {
-          sample()
-          if (workerRef.current) (video as any).requestVideoFrameCallback(loop)
-        }
+        const loop = () => { sample(); if (streamRef.current) (video as any).requestVideoFrameCallback(loop) }
         ;(video as any).requestVideoFrameCallback(loop)
-        sampleTimer.current = -1 // sentinel — no interval to clear
+        sampleTimer.current = -1
       } else {
         sampleTimer.current = window.setInterval(sample, 50)
       }
@@ -943,7 +992,7 @@ function ReceivePanel() {
       else setError('Could not start camera: ' + (e?.message || String(e)))
       setStatus(''); cleanup(); setScanning(false)
     }
-  }, [buildAndStartWorker, cleanup])
+  }, [makeWorkerBlob, handleDecoded, cleanup])
 
   const pct = progress && progress.K ? Math.round((progress.recovered / progress.K) * 100) : 0
 
