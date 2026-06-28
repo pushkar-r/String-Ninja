@@ -216,18 +216,18 @@ function renderQRToCtx(
   }
 }
 
-// 1×2 dual: two QR codes stacked vertically (each cell is full-width × half-height = square)
+// 1×2 dual: two QR codes side by side (canvas is 2:1, each cell is square)
 function encodeDualToCanvas(frames: Uint8Array[], canvas: HTMLCanvasElement, ecLevel: ECLevel = 'M') {
   const ctx = canvas.getContext('2d')!
-  const half = canvas.height / 2
+  const half = canvas.width / 2  // each cell = half-width × full-height = square (canvas is 1024×512)
   ctx.fillStyle = '#ffffff'
   ctx.fillRect(0, 0, canvas.width, canvas.height)
   renderQRToCtx(frames[0], ctx, 0, 0, half, ecLevel)
-  if (frames[1]) renderQRToCtx(frames[1], ctx, 0, half, half, ecLevel)
+  if (frames[1]) renderQRToCtx(frames[1], ctx, half, 0, half, ecLevel)
   ctx.strokeStyle = '#e2e8f0'
   ctx.lineWidth = 1
   ctx.beginPath()
-  ctx.moveTo(0, half); ctx.lineTo(canvas.width, half)
+  ctx.moveTo(half, 0); ctx.lineTo(half, canvas.height)
   ctx.stroke()
 }
 
@@ -520,9 +520,9 @@ function SendPanel() {
   // Encode `count` fountain frames into a fresh offscreen canvas, return [bitmap, nextSeed]
   const encodeToOffscreen = useCallback(async (s: number, count: number): Promise<[ImageBitmap, number] | null> => {
     if (!meta || !cdfRef.current) return null
-    // 1×2 stacks vertically (512×1024) so each cell is 512×512 = square; others square
-    const W = 512
-    const H = count === 2 ? 1024 : 512
+    // 1×2 is side-by-side (1024×512) so each cell is 512×512 = square; others square
+    const W = count === 2 ? 1024 : 512
+    const H = 512
     const frames: Uint8Array[] = []
     let cur = s >>> 0
     for (let q = 0; q < count; q++) {
@@ -762,15 +762,20 @@ function SendPanel() {
               </div>
             </div>
 
+            {gridMode !== 1 && (
+              <p className="text-xs text-amber-600 dark:text-amber-400 text-center">
+                Tip: single QR (grid = 1) gives the best reliability. Use multi-QR only if your camera keeps up.
+              </p>
+            )}
             <div className="flex justify-center">
               <canvas
                 ref={canvasRef}
-                width={512}
-                height={gridMode === 2 ? 1024 : 512}
+                width={gridMode === 2 ? 1024 : 512}
+                height={512}
                 className={
                   'rounded-xl border border-slate-200 dark:border-slate-800 bg-white w-full ' +
                   (gridMode === 2
-                    ? 'max-w-[280px]'   // 1×2: narrow+tall so each QR cell stays square
+                    ? 'max-w-[580px]'       // 1×2: wide so each side-by-side cell is square
                     : 'max-w-[400px] aspect-square')
                 }
               />
@@ -778,11 +783,6 @@ function SendPanel() {
             <p className="text-xs text-slate-500 dark:text-slate-400 text-center">
               Point the receiving device's camera at this screen. Beam loops forever —
               the receiver catches whichever frames it can, in any order.
-              {gridMode !== 1 && (
-                <span className="block mt-1 text-amber-600 dark:text-amber-400">
-                  Tip: single QR (grid = 1) gives the best reliability. Use multi-QR only if your camera keeps up.
-                </span>
-              )}
             </p>
           </>
         )}
