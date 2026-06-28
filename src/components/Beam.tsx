@@ -420,7 +420,7 @@ export default function Beam() {
       title="📡 Beam — File Transfer"
       description="Move a file between two devices using only animated QR codes. No network, no server, no upload — the bytes travel as light through your camera."
     >
-      <div className="flex gap-2 mb-4">
+      <div className="flex gap-2 mb-4 min-w-0 flex-wrap">
         {(['send', 'receive'] as Mode[]).map(m => (
           <button
             key={m}
@@ -558,11 +558,11 @@ function SendPanel() {
   const estSeconds = meta ? Math.ceil(meta.K / (fps * gridMode) * 1.3) : 0
 
   return (
-    <div className="space-y-4">
-      <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 space-y-4">
+    <div className="space-y-4 w-full min-w-0">
+      <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 sm:p-6 space-y-4 overflow-hidden">
 
         {/* File + preset */}
-        <div className="grid sm:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium mb-2">Choose a file to beam</label>
             <input
@@ -608,7 +608,7 @@ function SendPanel() {
               <Stat label="Seed" value={String(seed)} />
             </div>
 
-            <div className="flex flex-wrap items-center gap-4">
+            <div className="flex flex-wrap items-center gap-3 min-w-0">
               <button
                 onClick={() => {
                   if (!running) { lastRef.current = 0; setRunning(true) }
@@ -842,8 +842,8 @@ function ReceivePanel() {
   const pct = progress && progress.K ? Math.round((progress.recovered / progress.K) * 100) : 0
 
   return (
-    <div className="space-y-4">
-      <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 space-y-4">
+    <div className="space-y-4 w-full min-w-0">
+      <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 sm:p-6 space-y-4 overflow-hidden">
 
         {/* Resume banner */}
         {resumeAvailable && resumeInfo && !scanning && (
@@ -951,7 +951,7 @@ function Stat({ label, value }: { label: string; value: string }) {
 // ----------------------------------------------------------------------------
 function BeamInfo() {
   return (
-    <div className="mt-8 text-sm leading-6 text-slate-700 dark:text-slate-300 space-y-6">
+    <div className="mt-8 text-sm leading-6 text-slate-700 dark:text-slate-300 space-y-6 w-full min-w-0 overflow-hidden">
 
       {/* What it is */}
       <div>
