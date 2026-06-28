@@ -871,17 +871,21 @@ function ReceivePanel() {
       setStatus(resume ? 'Camera ready — continue scanning.' : 'Scanning… aim at the sending screen.')
 
       // Scale down before jsQR — 640px wide is sufficient for QR decode and ~4× faster than 1280px
-      const SAMPLE_W = 640
+      const SAMPLE_SZ = 640 // square crop size sent to jsQR
       let sampleCanvas: HTMLCanvasElement | null = document.createElement('canvas')
       let sampleCtx: CanvasRenderingContext2D | null = sampleCanvas.getContext('2d', { willReadFrequently: true })
+      sampleCanvas.width = SAMPLE_SZ; sampleCanvas.height = SAMPLE_SZ
 
       const sample = () => {
         const v = videoRef.current, w = workerRef.current
         if (!v || !w || v.videoWidth === 0 || !sampleCanvas || !sampleCtx) return
-        const scale = SAMPLE_W / v.videoWidth
-        const sw = SAMPLE_W, sh = Math.round(v.videoHeight * scale)
-        sampleCanvas.width = sw; sampleCanvas.height = sh
-        sampleCtx.drawImage(v, 0, 0, sw, sh)
+        // Crop center square from the 16:9 camera feed — matches the square viewfinder UI.
+        // jsQR only processes SAMPLE_SZ×SAMPLE_SZ pixels instead of the full 1280×720 frame.
+        const vw = v.videoWidth, vh = v.videoHeight
+        const side = Math.min(vw, vh)
+        const sx = Math.floor((vw - side) / 2), sy = Math.floor((vh - side) / 2)
+        sampleCtx.drawImage(v, sx, sy, side, side, 0, 0, SAMPLE_SZ, SAMPLE_SZ)
+        const sw = SAMPLE_SZ, sh = SAMPLE_SZ
 
         // Always try full-frame (handles single-QR sender).
         // Also try quadrants (handles 2×2 multi-QR sender). Avoids sending 5 buffers every tick —
@@ -998,9 +1002,9 @@ function ReceivePanel() {
           </div>
         )}
 
-        <div className={scanning ? 'relative w-full rounded-xl overflow-hidden bg-black border border-slate-200 dark:border-slate-800' : 'hidden'}>
+        <div className={scanning ? 'relative w-full aspect-square rounded-xl overflow-hidden bg-black border border-slate-200 dark:border-slate-800' : 'hidden'}>
           <video ref={videoRef} playsInline muted
-            className="w-full h-auto block object-cover" />
+            className="absolute inset-0 w-full h-full object-cover" />
           <canvas ref={canvasRef} className="hidden" />
         </div>
 
