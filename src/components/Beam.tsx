@@ -520,33 +520,24 @@ function SendPanel() {
   // Encode `count` fountain frames into a fresh offscreen canvas, return [bitmap, nextSeed]
   const encodeToOffscreen = useCallback(async (s: number, count: number): Promise<[ImageBitmap, number] | null> => {
     if (!meta || !cdfRef.current) return null
-    const SZ = 600
-    const oc = new OffscreenCanvas(SZ, SZ)
-    const ctx = oc.getContext('2d') as OffscreenCanvasRenderingContext2D
+    // 1×2 gets a 2:1 canvas so each QR cell is square; others are square
+    const W = count === 2 ? 1000 : 500
+    const H = 500
+    const frames: Uint8Array[] = []
     let cur = s >>> 0
-    if (count === 1) {
+    for (let q = 0; q < count; q++) {
       const payload = new Uint8Array(meta.symbolSize)
       const { indices } = deriveSymbol(cur, meta.K, cdfRef.current)
       for (const ix of indices) { const blk = blocksRef.current[ix]; for (let i = 0; i < meta.symbolSize; i++) payload[i] ^= blk[i] }
-      const tmpCanvas = document.createElement('canvas'); tmpCanvas.width = SZ; tmpCanvas.height = SZ
-      encodeSingleToCanvas(buildFrame({ dataLen: meta.dataLen, flags: meta.flags, K: meta.K, symbolSize: meta.symbolSize, seed: cur, fileHash: meta.fileHash, fileName: meta.fileName, payload }), tmpCanvas, ecLevelRef.current)
-      ctx.drawImage(tmpCanvas, 0, 0)
+      frames.push(buildFrame({ dataLen: meta.dataLen, flags: meta.flags, K: meta.K, symbolSize: meta.symbolSize, seed: cur, fileHash: meta.fileHash, fileName: meta.fileName, payload }))
       cur = (cur + 1) >>> 0
-    } else {
-      const frames: Uint8Array[] = []
-      for (let q = 0; q < count; q++) {
-        const payload = new Uint8Array(meta.symbolSize)
-        const { indices } = deriveSymbol(cur, meta.K, cdfRef.current)
-        for (const ix of indices) { const blk = blocksRef.current[ix]; for (let i = 0; i < meta.symbolSize; i++) payload[i] ^= blk[i] }
-        frames.push(buildFrame({ dataLen: meta.dataLen, flags: meta.flags, K: meta.K, symbolSize: meta.symbolSize, seed: cur, fileHash: meta.fileHash, fileName: meta.fileName, payload }))
-        cur = (cur + 1) >>> 0
-      }
-      const tmpCanvas = document.createElement('canvas'); tmpCanvas.width = SZ; tmpCanvas.height = SZ
-      if (count === 2) encodeDualToCanvas(frames, tmpCanvas, ecLevelRef.current)
-      else encodeQuadToCanvas(frames, tmpCanvas, ecLevelRef.current)
-      ctx.drawImage(tmpCanvas, 0, 0)
     }
-    const bitmap = await createImageBitmap(oc)
+    const tmpCanvas = document.createElement('canvas')
+    tmpCanvas.width = W; tmpCanvas.height = H
+    if (count === 1) encodeSingleToCanvas(frames[0], tmpCanvas, ecLevelRef.current)
+    else if (count === 2) encodeDualToCanvas(frames, tmpCanvas, ecLevelRef.current)
+    else encodeQuadToCanvas(frames, tmpCanvas, ecLevelRef.current)
+    const bitmap = await createImageBitmap(tmpCanvas)
     return [bitmap, cur]
   }, [meta])
 
@@ -736,7 +727,7 @@ function SendPanel() {
               <Stat label="Size" value={fmtBytes(file.size)} />
               <Stat label="Stream" value={`${fmtBytes(meta.dataLen)}${meta.flags & 1 ? ' gzip' : ''}`} />
               <Stat label="Blocks (K)" value={String(meta.K)} />
-              {/* <Stat label="QR grid" value={gridMode === 1 ? 'Single' : gridMode === 2 ? '1×2 (2 QR)' : '2×2 (4 QR)'} /> */}
+              <Stat label="QR grid" value={gridMode === 1 ? 'Single' : gridMode === 2 ? '1×2' : '2×2'} />
               <Stat label="Level" value={`${ecLevel} (${ecLevel === 'M' ? '~15% EC' : '~7% EC'})`} />
               <Stat label="Est. time" value={`~${estSeconds}s`} />
               <Stat label="Seed" value={String(seed)} />
@@ -758,27 +749,30 @@ function SendPanel() {
                   onChange={e => setFps(Number(e.target.value))} />
                 <span className="tabular-nums w-14">{fps} fps</span>
               </label>
-              {/* Grid mode selector — kept for future re-enable, currently single QR only
               <div className="flex items-center gap-2 text-sm">
-                <span className="text-slate-600 dark:text-slate-300">QR grid</span>
+                <span className="text-slate-600 dark:text-slate-300">Grid</span>
                 <div className="flex rounded-lg overflow-hidden border border-slate-200 dark:border-slate-700 text-xs font-medium">
                   {([1, 2, 4] as const).map(g => (
                     <button key={g} onClick={() => setGridMode(g)}
-                      className={'px-3 py-1.5 transition-colors ' + (gridMode === g ? 'bg-emerald-500 text-white' : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300')}>
+                      className={'px-3 py-1.5 transition-colors ' + (gridMode === g ? 'bg-emerald-500 text-white' : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800')}>
                       {g === 1 ? '1' : g === 2 ? '1×2' : '2×2'}
                     </button>
                   ))}
                 </div>
               </div>
-              */}
             </div>
 
             <div className="flex justify-center">
               <canvas
                 ref={canvasRef}
-                width={512}
+                width={gridMode === 2 ? 800 : 512}
                 height={512}
-                className="w-full max-w-[400px] aspect-square rounded-xl border border-slate-200 dark:border-slate-800 bg-white"
+                className={
+                  'rounded-xl border border-slate-200 dark:border-slate-800 bg-white ' +
+                  (gridMode === 2
+                    ? 'w-full max-w-[600px]'          // 1×2: wide, fills container
+                    : 'w-full max-w-[400px] aspect-square') // 1 or 2×2: square
+                }
               />
             </div>
             <p className="text-xs text-slate-500 dark:text-slate-400 text-center">
