@@ -52,7 +52,7 @@ export default function DataTools() {
 
   function selectTool(key: ActiveTool) {
     setActive(key)
-    setSearchParams({ tool: key })
+    setSearchParams({ tool: key }, { replace: true })
   }
 
   // States preserved from original implementation

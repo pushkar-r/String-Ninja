@@ -652,7 +652,7 @@ function SendPanel() {
               <Stat label="Stream" value={`${fmtBytes(meta.dataLen)}${meta.flags & 1 ? ' gzip' : ''}`} />
               <Stat label="Blocks (K)" value={String(meta.K)} />
               <Stat label="QR grid" value={gridMode === 1 ? 'Single' : gridMode === 2 ? '1×2 (2 QR)' : '2×2 (4 QR)'} />
-              <Stat label="Level" value="L (max density)" />
+              <Stat label="Level" value={`${ecLevel} (${ecLevel === 'M' ? '~15% EC' : '~7% EC'})`} />
               <Stat label="Est. time" value={`~${estSeconds}s`} />
               <Stat label="Seed" value={String(seed)} />
             </div>
@@ -756,7 +756,8 @@ function ReceivePanel() {
   }, [])
 
   const cleanup = useCallback(() => {
-    if (sampleTimer.current) { clearInterval(sampleTimer.current); sampleTimer.current = null }
+    if (sampleTimer.current && sampleTimer.current !== -1) { clearInterval(sampleTimer.current) }
+    sampleTimer.current = null
     if (streamRef.current) { streamRef.current.getTracks().forEach(t => t.stop()); streamRef.current = null }
     if (workerRef.current) { workerRef.current.terminate(); workerRef.current = null }
   }, [])
@@ -869,39 +870,57 @@ function ReceivePanel() {
       setScanning(true)
       setStatus(resume ? 'Camera ready — continue scanning.' : 'Scanning… aim at the sending screen.')
 
-      const sample = () => {
-        const v = videoRef.current, c = canvasRef.current, w = workerRef.current
-        if (!v || !c || !w || v.videoWidth === 0) return
-        // Sample full frame at native resolution for best decode rate
-        c.width = v.videoWidth; c.height = v.videoHeight
-        const ctx = c.getContext('2d', { willReadFrequently: true })!
-        ctx.drawImage(v, 0, 0, c.width, c.height)
+      // Scale down before jsQR — 640px wide is sufficient for QR decode and ~4× faster than 1280px
+      const SAMPLE_W = 640
+      let sampleCanvas: HTMLCanvasElement | null = document.createElement('canvas')
+      let sampleCtx: CanvasRenderingContext2D | null = sampleCanvas.getContext('2d', { willReadFrequently: true })
 
-        // For quad mode: sample all 4 quadrants independently
-        const qw = Math.floor(c.width / 2), qh = Math.floor(c.height / 2)
-        if (qw > 100 && qh > 100) {
-          // Try both full-frame and individual quadrants — handles single and quad sender
-          const fullImg = ctx.getImageData(0, 0, c.width, c.height)
-          const q1 = ctx.getImageData(0, 0, qw, qh)
-          const q2 = ctx.getImageData(qw, 0, qw, qh)
-          const q3 = ctx.getImageData(0, qh, qw, qh)
-          const q4 = ctx.getImageData(qw, qh, qw, qh)
+      const sample = () => {
+        const v = videoRef.current, w = workerRef.current
+        if (!v || !w || v.videoWidth === 0 || !sampleCanvas || !sampleCtx) return
+        const scale = SAMPLE_W / v.videoWidth
+        const sw = SAMPLE_W, sh = Math.round(v.videoHeight * scale)
+        sampleCanvas.width = sw; sampleCanvas.height = sh
+        sampleCtx.drawImage(v, 0, 0, sw, sh)
+
+        // Always try full-frame (handles single-QR sender).
+        // Also try quadrants (handles 2×2 multi-QR sender). Avoids sending 5 buffers every tick —
+        // alternate: full-frame on even ticks, quadrants on odd ticks.
+        const tick = Date.now()
+        if (tick % 2 === 0) {
+          const img = sampleCtx.getImageData(0, 0, sw, sh)
+          w.postMessage({ type: 'frame', images: [{ data: img.data, width: sw, height: sh }] }, [img.data.buffer])
+        } else {
+          const qw = Math.floor(sw / 2), qh = Math.floor(sh / 2)
+          const q1 = sampleCtx.getImageData(0, 0, qw, qh)
+          const q2 = sampleCtx.getImageData(qw, 0, qw, qh)
+          const q3 = sampleCtx.getImageData(0, qh, qw, qh)
+          const q4 = sampleCtx.getImageData(qw, qh, qw, qh)
           w.postMessage(
             { type: 'frame', images: [
-              { data: fullImg.data, width: fullImg.width, height: fullImg.height },
-              { data: q1.data, width: q1.width, height: q1.height },
-              { data: q2.data, width: q2.width, height: q2.height },
-              { data: q3.data, width: q3.width, height: q3.height },
-              { data: q4.data, width: q4.width, height: q4.height },
+              { data: q1.data, width: qw, height: qh },
+              { data: q2.data, width: qw, height: qh },
+              { data: q3.data, width: qw, height: qh },
+              { data: q4.data, width: qw, height: qh },
             ]},
-            [fullImg.data.buffer, q1.data.buffer, q2.data.buffer, q3.data.buffer, q4.data.buffer]
+            [q1.data.buffer, q2.data.buffer, q3.data.buffer, q4.data.buffer]
           )
-        } else {
-          const img = ctx.getImageData(0, 0, c.width, c.height)
-          w.postMessage({ type: 'frame', images: [{ data: img.data, width: img.width, height: img.height }] }, [img.data.buffer])
         }
       }
-      sampleTimer.current = window.setInterval(sample, 80)
+
+      // Use requestVideoFrameCallback if available (~30fps, fires on real camera frames)
+      // Fall back to setInterval(50) = 20fps
+      const rvfc = (video as any).requestVideoFrameCallback
+      if (rvfc) {
+        const loop = () => {
+          sample()
+          if (workerRef.current) (video as any).requestVideoFrameCallback(loop)
+        }
+        ;(video as any).requestVideoFrameCallback(loop)
+        sampleTimer.current = -1 // sentinel — no interval to clear
+      } else {
+        sampleTimer.current = window.setInterval(sample, 50)
+      }
     } catch (e: any) {
       const name = e?.name || ''
       if (name === 'NotAllowedError') setError('Camera permission denied — allow camera access and reload.')
