@@ -351,7 +351,6 @@ self.onmessage = function(e) {
     var images = Array.isArray(msg.images) ? msg.images : [msg.image];
     var promises = images.map(decodeImage);
     Promise.all(promises).then(function(results) {
-      // Flatten all decoded byte arrays and send back to main thread
       var payloads = [];
       for (var i = 0; i < results.length; i++)
         for (var j = 0; j < results[i].length; j++)
@@ -894,35 +893,37 @@ function ReceivePanel() {
       }
     }
 
-    // Wire up fresh workers if pool is empty (first start or after full cleanup)
-    if (workersRef.current.length === 0) {
-      const blob = makeWorkerBlob()
-      const ws = Array.from({ length: POOL_SIZE }, () => new Worker(URL.createObjectURL(blob)))
-      workersRef.current = ws
-      workerBusy.current = ws.map(() => false)
-      workerSentAt.current = ws.map(() => 0)
-    }
+    // Always spin up fresh workers for this session — terminates any pre-warm workers.
+    // This guarantees onmessage is wired on exactly the workers we dispatch frames to.
+    workersRef.current.forEach(w => { try { w.terminate() } catch { /* ignore */ } })
+    const blob = makeWorkerBlob()
+    const ws = Array.from({ length: POOL_SIZE }, () => new Worker(URL.createObjectURL(blob)))
+    workersRef.current = ws
+    workerBusy.current = ws.map(() => false)
+    workerSentAt.current = ws.map(() => 0)
 
     const attachWorkerHandler = (w: Worker, idx: number) => {
       w.onmessage = async (e: MessageEvent) => {
         workerBusy.current[idx] = false
         workerSentAt.current[idx] = 0
         if (e.data?.type === 'decoded' && e.data.payloads?.length) {
-          await handleDecoded(e.data.payloads.map((p: ArrayBuffer) => new Uint8Array(p)))
+          const frames = (e.data.payloads as (Uint8Array | ArrayBuffer)[]).map(p =>
+            p instanceof Uint8Array ? p : new Uint8Array(p)
+          )
+          await handleDecoded(frames)
         }
       }
-      w.onerror = () => {
-        // Worker crashed — replace it so the slot doesn't stay dead
+      w.onerror = (ev) => {
+        console.error('[beam] worker', idx, 'crashed:', ev)
         workerBusy.current[idx] = false
         workerSentAt.current[idx] = 0
         try { w.terminate() } catch { /* ignore */ }
-        const blob = makeWorkerBlob()
-        const fresh = new Worker(URL.createObjectURL(blob))
+        const fresh = new Worker(URL.createObjectURL(makeWorkerBlob()))
         workersRef.current[idx] = fresh
         attachWorkerHandler(fresh, idx)
       }
     }
-    workersRef.current.forEach((w, idx) => attachWorkerHandler(w, idx))
+    ws.forEach((w, idx) => attachWorkerHandler(w, idx))
 
     setStatus('Requesting camera…')
     try {
@@ -962,7 +963,7 @@ function ReceivePanel() {
           const idx = (rr + i) % POOL_SIZE
           if (!workerBusy.current[idx]) { w = workersRef.current[idx]; wIdx = idx; break }
         }
-        if (!w) return // all workers busy — drop frame
+        if (!w) return
         rr = (wIdx + 1) % POOL_SIZE
         workerBusy.current[wIdx] = true
         workerSentAt.current[wIdx] = performance.now()

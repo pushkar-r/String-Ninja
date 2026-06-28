@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
+    "canvas": "^3.2.3",
     "crypto-js": "^4.2.0",
     "csso": "^5.0.5",
     "diff": "^7.0.0",
