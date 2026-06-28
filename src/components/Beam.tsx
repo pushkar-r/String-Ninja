@@ -469,6 +469,17 @@ function SendPanel() {
   useEffect(() => { fpsRef.current = fps }, [fps])
   useEffect(() => { gridModeRef.current = gridMode }, [gridMode])
 
+  // Ring buffer: pre-rendered ImageBitmaps ready to blit to the display canvas.
+  // Encoding a QR matrix is ~5-20ms; doing it during the RAF frame causes jank.
+  // We pre-build RING_SIZE frames in idle time so the display loop is just drawImage().
+  const RING_SIZE = 6
+  type RingEntry = { bitmap: ImageBitmap; seed: number } | null
+  const ringRef = useRef<RingEntry[]>(Array(RING_SIZE).fill(null))
+  const ringHeadRef = useRef(0)   // next index to read from (display)
+  const ringTailRef = useRef(0)   // next index to write into (encoder)
+  const encodeSeedRef = useRef(0) // seed the encoder is working from
+  const idleRef = useRef<number | null>(null)
+
   const prepare = useCallback(async (f: File, preset: 'small' | 'medium' | 'large', level?: ECLevel) => {
     setError('')
     setRunning(false)
@@ -506,18 +517,133 @@ function SendPanel() {
     if (file) prepare(file, symbolPreset, ecLevel)
   }, [symbolPreset, ecLevel]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Render `count` fountain frames starting at seed s, return next seed
-  const renderFrames = useCallback((s: number, count: number): number => {
-    const canvas = canvasRef.current
-    if (!canvas || !meta || !cdfRef.current) return s
+  // Encode `count` fountain frames into a fresh offscreen canvas, return [bitmap, nextSeed]
+  const encodeToOffscreen = useCallback(async (s: number, count: number): Promise<[ImageBitmap, number] | null> => {
+    if (!meta || !cdfRef.current) return null
+    const SZ = 600
+    const oc = new OffscreenCanvas(SZ, SZ)
+    const ctx = oc.getContext('2d') as OffscreenCanvasRenderingContext2D
     let cur = s >>> 0
     if (count === 1) {
       const payload = new Uint8Array(meta.symbolSize)
       const { indices } = deriveSymbol(cur, meta.K, cdfRef.current)
       for (const ix of indices) { const blk = blocksRef.current[ix]; for (let i = 0; i < meta.symbolSize; i++) payload[i] ^= blk[i] }
-      encodeSingleToCanvas(buildFrame({ dataLen: meta.dataLen, flags: meta.flags, K: meta.K, symbolSize: meta.symbolSize, seed: cur, fileHash: meta.fileHash, fileName: meta.fileName, payload }), canvas, ecLevelRef.current)
-      return (cur + 1) >>> 0
+      const tmpCanvas = document.createElement('canvas'); tmpCanvas.width = SZ; tmpCanvas.height = SZ
+      encodeSingleToCanvas(buildFrame({ dataLen: meta.dataLen, flags: meta.flags, K: meta.K, symbolSize: meta.symbolSize, seed: cur, fileHash: meta.fileHash, fileName: meta.fileName, payload }), tmpCanvas, ecLevelRef.current)
+      ctx.drawImage(tmpCanvas, 0, 0)
+      cur = (cur + 1) >>> 0
+    } else {
+      const frames: Uint8Array[] = []
+      for (let q = 0; q < count; q++) {
+        const payload = new Uint8Array(meta.symbolSize)
+        const { indices } = deriveSymbol(cur, meta.K, cdfRef.current)
+        for (const ix of indices) { const blk = blocksRef.current[ix]; for (let i = 0; i < meta.symbolSize; i++) payload[i] ^= blk[i] }
+        frames.push(buildFrame({ dataLen: meta.dataLen, flags: meta.flags, K: meta.K, symbolSize: meta.symbolSize, seed: cur, fileHash: meta.fileHash, fileName: meta.fileName, payload }))
+        cur = (cur + 1) >>> 0
+      }
+      const tmpCanvas = document.createElement('canvas'); tmpCanvas.width = SZ; tmpCanvas.height = SZ
+      if (count === 2) encodeDualToCanvas(frames, tmpCanvas, ecLevelRef.current)
+      else encodeQuadToCanvas(frames, tmpCanvas, ecLevelRef.current)
+      ctx.drawImage(tmpCanvas, 0, 0)
     }
+    const bitmap = await createImageBitmap(oc)
+    return [bitmap, cur]
+  }, [meta])
+
+  // Idle encoder — fills the ring buffer using requestIdleCallback so it never
+  // competes with the display RAF or user interaction.
+  const startIdleEncoder = useCallback(() => {
+    if (idleRef.current != null) return
+    const tick = (deadline?: { timeRemaining(): number }) => {
+      if (!meta || !cdfRef.current) return
+      const ring = ringRef.current
+      // How many slots are free?
+      const used = (ringTailRef.current - ringHeadRef.current + RING_SIZE) % RING_SIZE
+      if (used >= RING_SIZE - 1) {
+        // Ring full — schedule next check
+        idleRef.current = requestAnimationFrame(() => { idleRef.current = null; startIdleEncoder() }) as unknown as number
+        return
+      }
+      const hasTime = !deadline || deadline.timeRemaining() > 2
+      if (!hasTime) {
+        idleRef.current = requestAnimationFrame(() => { idleRef.current = null; startIdleEncoder() }) as unknown as number
+        return
+      }
+      const writeIdx = ringTailRef.current % RING_SIZE
+      const seedToEncode = encodeSeedRef.current
+      encodeToOffscreen(seedToEncode, gridModeRef.current).then(result => {
+        if (!result) return
+        const [bitmap, nextSeed] = result
+        // Free the old bitmap if overwriting
+        ring[writeIdx]?.bitmap.close()
+        ring[writeIdx] = { bitmap, seed: seedToEncode }
+        ringTailRef.current = (ringTailRef.current + 1) % RING_SIZE
+        encodeSeedRef.current = nextSeed
+        idleRef.current = null
+        startIdleEncoder() // keep filling
+      })
+    }
+    if ('requestIdleCallback' in window) {
+      idleRef.current = (window as any).requestIdleCallback(tick, { timeout: 50 }) as number
+    } else {
+      idleRef.current = setTimeout(() => { idleRef.current = null; tick() }, 0) as unknown as number
+    }
+  }, [meta, encodeToOffscreen])
+
+  // Animation loop — just blits the next pre-built bitmap; never encodes on the hot path
+  useEffect(() => {
+    if (!running || !meta) return
+
+    // Reset ring on start
+    ringRef.current.forEach(e => e?.bitmap.close())
+    ringRef.current = Array(RING_SIZE).fill(null)
+    ringHeadRef.current = 0
+    ringTailRef.current = 0
+    encodeSeedRef.current = seedRef.current
+
+    startIdleEncoder()
+
+    const loop = (t: number) => {
+      const interval = 1000 / fpsRef.current
+      if (t - lastRef.current >= interval) {
+        lastRef.current = t
+        const ring = ringRef.current
+        const head = ringHeadRef.current % RING_SIZE
+        const entry = ring[head]
+        if (entry) {
+          // Blit pre-built frame to display canvas
+          const canvas = canvasRef.current
+          if (canvas) {
+            const ctx = canvas.getContext('2d')!
+            ctx.drawImage(entry.bitmap, 0, 0, canvas.width, canvas.height)
+          }
+          seedRef.current = entry.seed
+          ring[head] = null
+          ringHeadRef.current = (ringHeadRef.current + 1) % RING_SIZE
+          setSeed(seedRef.current)
+        }
+        // If ring is empty, encoder hasn't caught up — display loop just waits
+      }
+      rafRef.current = requestAnimationFrame(loop)
+    }
+    rafRef.current = requestAnimationFrame(loop)
+    return () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current)
+      if (idleRef.current != null) {
+        if ('cancelIdleCallback' in window) (window as any).cancelIdleCallback(idleRef.current)
+        else clearTimeout(idleRef.current)
+        idleRef.current = null
+      }
+      ringRef.current.forEach(e => e?.bitmap.close())
+      ringRef.current = Array(RING_SIZE).fill(null)
+    }
+  }, [running, meta, startIdleEncoder])
+
+  // Static preview on prepare — render directly (ring not running yet)
+  const renderFrames = useCallback((s: number, count: number): number => {
+    const canvas = canvasRef.current
+    if (!canvas || !meta || !cdfRef.current) return s
+    let cur = s >>> 0
     const frames: Uint8Array[] = []
     for (let q = 0; q < count; q++) {
       const payload = new Uint8Array(meta.symbolSize)
@@ -526,28 +652,12 @@ function SendPanel() {
       frames.push(buildFrame({ dataLen: meta.dataLen, flags: meta.flags, K: meta.K, symbolSize: meta.symbolSize, seed: cur, fileHash: meta.fileHash, fileName: meta.fileName, payload }))
       cur = (cur + 1) >>> 0
     }
-    if (count === 2) encodeDualToCanvas(frames, canvas, ecLevelRef.current)
+    if (count === 1) encodeSingleToCanvas(frames[0], canvas, ecLevelRef.current)
+    else if (count === 2) encodeDualToCanvas(frames, canvas, ecLevelRef.current)
     else encodeQuadToCanvas(frames, canvas, ecLevelRef.current)
     return cur
   }, [meta])
 
-  // Animation loop — reads gridModeRef live so changes take effect without restart
-  useEffect(() => {
-    if (!running || !meta) return
-    const loop = (t: number) => {
-      const interval = 1000 / fpsRef.current
-      if (t - lastRef.current >= interval) {
-        lastRef.current = t
-        seedRef.current = renderFrames(seedRef.current, gridModeRef.current)
-        setSeed(seedRef.current)
-      }
-      rafRef.current = requestAnimationFrame(loop)
-    }
-    rafRef.current = requestAnimationFrame(loop)
-    return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current) }
-  }, [running, meta, renderFrames])
-
-  // Static preview on prepare
   useEffect(() => {
     if (meta && !running) {
       seedRef.current = 0
@@ -976,10 +1086,14 @@ function ReceivePanel() {
         }
       } catch { /* not supported — ignore */ }
 
-      const SAMPLE_SZ = 384  // 384px is sufficient for all QR versions; smaller = faster getImageData + decode
+      const SAMPLE_SZ = 384    // primary — fast
+      const SAMPLE_SZ_HI = 512 // fallback — better for dense / far-away codes
       const sc = document.createElement('canvas')
       sc.width = SAMPLE_SZ; sc.height = SAMPLE_SZ
       const sctx = sc.getContext('2d', { willReadFrequently: true })!
+      const scHi = document.createElement('canvas')
+      scHi.width = SAMPLE_SZ_HI; scHi.height = SAMPLE_SZ_HI
+      const sctxHi = scHi.getContext('2d', { willReadFrequently: true })!
 
       // Wait until at least one worker has jsQR loaded
       await waitForAnyWorker()
@@ -1075,11 +1189,23 @@ function ReceivePanel() {
         if (!v || v.videoWidth === 0) return
         const vw = v.videoWidth, vh = v.videoHeight
         const side = Math.min(vw, vh)
-        sctx.drawImage(v, (vw - side) >> 1, (vh - side) >> 1, side, side, 0, 0, SAMPLE_SZ, SAMPLE_SZ)
+        const ox = (vw - side) >> 1, oy = (vh - side) >> 1
+
+        // Always try primary resolution first (faster, lower latency)
+        sctx.drawImage(v, ox, oy, side, side, 0, 0, SAMPLE_SZ, SAMPLE_SZ)
         const img = sctx.getImageData(0, 0, SAMPLE_SZ, SAMPLE_SZ)
         const promise = dispatchFrame(img)
-        if (promise) promise.then(onDecodeResult)
-        // if null, both workers are busy — this frame is dropped (fine, next tick tries again)
+        if (promise) {
+          promise.then(result => {
+            if (result) { onDecodeResult(result); return }
+            // Primary missed — try hi-res on the other worker slot
+            sctxHi.drawImage(v, ox, oy, side, side, 0, 0, SAMPLE_SZ_HI, SAMPLE_SZ_HI)
+            const imgHi = sctxHi.getImageData(0, 0, SAMPLE_SZ_HI, SAMPLE_SZ_HI)
+            const p2 = dispatchFrame(imgHi)
+            if (p2) p2.then(onDecodeResult)
+          })
+        }
+        // if null, both workers busy — dropped, next tick retries
       }, TICK_MS)
 
     } catch (e: any) {
