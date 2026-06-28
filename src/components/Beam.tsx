@@ -409,9 +409,8 @@ type Mode = 'send' | 'receive'
 export default function Beam() {
   const [mode, setMode] = useState<Mode>('send')
 
-  // Start loading jsQR + ZXing WASM immediately when Beam mounts (user may be on Send tab).
-  // By the time they switch to Receive and hit Start, both decoders are compiled and warm.
-  useEffect(() => { loadDecoders().catch(() => {}) }, [])
+  // Start the decode worker and load jsQR + ZXing WASM immediately when Beam mounts.
+  useEffect(() => { preloadDecoders() }, [])
 
   return (
     <ToolCard
@@ -691,107 +690,144 @@ function SendPanel() {
 // ----------------------------------------------------------------------------
 const IDB_SESSION_KEY = 'beam-current-session'
 
-// QR decoder state — module-level so it persists across scans.
-let _jsQRFn: ((d: Uint8ClampedArray, w: number, h: number, o: any) => any) | null = null
-let _zxRead: ((id: ImageData, opts: any) => Promise<any[]>) | null = null
-let _barcodeDetector: any = null
-const ZXING_OPTS = { formats: ['QRCode'], tryHarder: true, tryInvert: false, binarizer: 'LocalAverage' }
-
 // Bounding box in 0-1 normalised coords relative to the cropped square frame
 interface QRBox { x: number; y: number; w: number; h: number }
 interface DecodeResult { bytes: Uint8Array; box: QRBox | null }
 
-/** Loads jsQR (sync), BarcodeDetector (native), and ZXing WASM (background). */
-function loadDecoders(): Promise<void> {
-  if (_jsQRFn) return Promise.resolve()
+// ---------------------------------------------------------------------------
+// Decode worker — runs jsQR + ZXing off the main thread so the RAF loop never
+// stalls. A single persistent worker is reused across scans.
+// ---------------------------------------------------------------------------
+let _decodeWorker: Worker | null = null
+let _workerReady = false   // true once jsQR is loaded inside the worker
+let _workerReadyCbs: (() => void)[] = []
+let _pendingResolve: ((r: DecodeResult | null) => void) | null = null
 
-  // Native BarcodeDetector — Chrome/Android, no download needed
-  if (typeof (window as any).BarcodeDetector !== 'undefined') {
-    try {
-      _barcodeDetector = new (window as any).BarcodeDetector({ formats: ['qr_code'] })
-    } catch { /* not supported */ }
+function buildDecodeWorkerSrc(jsqrSrc: string, zxingIIFE: string, zxingWasm: string): string {
+  // The worker source is a self-contained IIFE. URLs are baked in at creation time.
+  return `
+(function(){
+  var jsqrReady = false, zxRead = null;
+  var ZXOPTS = { formats:['QRCode'], tryHarder:true, tryInvert:false, binarizer:'LocalAverage' };
+
+  function cornersToBox(pts, W, H) {
+    var xs = pts.map(function(p){return p.x}), ys = pts.map(function(p){return p.y});
+    var x0=Math.min.apply(null,xs),y0=Math.min.apply(null,ys);
+    var x1=Math.max.apply(null,xs),y1=Math.max.apply(null,ys);
+    return {x:x0/W,y:y0/H,w:(x1-x0)/W,h:(y1-y0)/H};
   }
 
-  return new Promise((resolve, reject) => {
-    const s = document.createElement('script')
-    s.src = jsQRUrl
-    s.onload = () => {
-      _jsQRFn = (window as any).jsQR
-      resolve()
-      // ZXing WASM loads in background — upgrades to faster C++ decoder once compiled
-      const zs = document.createElement('script')
-      zs.src = zxingIIFEUrl
-      zs.onload = () => {
-        const ZX = (window as any).ZXingWASM
-        if (!ZX?.prepareZXingModule) return
-        ZX.prepareZXingModule({
-          overrides: { locateFile: () => new URL(zxingWasmUrl, window.location.href).href }
-        }).then(() => { _zxRead = ZX.readBarcodesFromImageData }).catch(() => {})
-      }
-      document.head.appendChild(zs)
+  // Load jsQR first (unblocks the worker's ready signal immediately)
+  importScripts(${JSON.stringify(jsqrSrc)});
+  jsqrReady = true;
+  postMessage({type:'ready'});
+
+  // Load ZXing IIFE in the background — upgrades decode quality once compiled
+  try {
+    importScripts(${JSON.stringify(zxingIIFE)});
+    var ZX = self.ZXingWASM || self.ZXing;
+    if (ZX && ZX.prepareZXingModule) {
+      ZX.prepareZXingModule({ overrides:{ locateFile:function(){ return ${JSON.stringify(zxingWasm)} } } })
+        .then(function(){ zxRead = ZX.readBarcodesFromImageData; postMessage({type:'zxing-ready'}); })
+        .catch(function(){});
     }
-    s.onerror = reject
-    document.head.appendChild(s)
+  } catch(e) { /* ZXing optional */ }
+
+  self.onmessage = function(e) {
+    var id = e.data.id, raw = e.data.img;
+    var W = raw.width, H = raw.height;
+    // Reconstruct an ImageData-compatible object for ZXing
+    var img = { data: raw.data, width: W, height: H };
+
+    function sendNull(){ postMessage({type:'result',id:id,bytes:null,box:null}); }
+    function sendResult(bytes, box){ postMessage({type:'result',id:id,bytes:bytes,box:box||null},[bytes.buffer]); }
+
+    // 1. ZXing (C++, fastest when ready)
+    if (zxRead) {
+      try {
+        var results = zxRead(img, ZXOPTS);
+        for (var i=0;i<results.length;i++) {
+          var r = results[i];
+          if (r.isValid && r.bytes && r.bytes.length) {
+            var box = null;
+            if (r.position) box = cornersToBox([r.position.topLeft,r.position.topRight,r.position.bottomRight,r.position.bottomLeft],W,H);
+            sendResult(new Uint8Array(r.bytes), box);
+            return;
+          }
+        }
+      } catch(e2) {}
+    }
+
+    // 2. jsQR (pure JS fallback, always available after ready)
+    if (jsqrReady && self.jsQR) {
+      var res = self.jsQR(img.data, W, H, {inversionAttempts:'dontInvert'});
+      if (res && res.binaryData && res.binaryData.length) {
+        var box2 = null;
+        if (res.location) box2 = cornersToBox([res.location.topLeftCorner,res.location.topRightCorner,res.location.bottomRightCorner,res.location.bottomLeftCorner],W,H);
+        sendResult(new Uint8Array(res.binaryData), box2);
+        return;
+      }
+    }
+
+    sendNull();
+  };
+})();
+`
+}
+
+function getDecodeWorker(): Promise<Worker> {
+  if (_decodeWorker && _workerReady) return Promise.resolve(_decodeWorker)
+
+  if (!_decodeWorker) {
+    const src = buildDecodeWorkerSrc(
+      new URL(jsQRUrl, window.location.href).href,
+      new URL(zxingIIFEUrl, window.location.href).href,
+      new URL(zxingWasmUrl, window.location.href).href,
+    )
+    const blob = new Blob([src], { type: 'application/javascript' })
+    const w = new Worker(URL.createObjectURL(blob))
+    _decodeWorker = w
+
+    w.onmessage = (e) => {
+      if (e.data.type === 'ready') {
+        _workerReady = true
+        _workerReadyCbs.forEach(fn => fn())
+        _workerReadyCbs = []
+        return
+      }
+      if (e.data.type === 'zxing-ready') return // upgrade happened silently
+      if (e.data.type === 'result') {
+        const resolve = _pendingResolve
+        _pendingResolve = null
+        if (!resolve) return
+        if (!e.data.bytes) { resolve(null); return }
+        resolve({ bytes: new Uint8Array(e.data.bytes), box: e.data.box ?? null })
+      }
+    }
+    w.onerror = () => { _workerReady = false; _decodeWorker = null }
+  }
+
+  return new Promise(resolve => {
+    if (_workerReady) { resolve(_decodeWorker!); return }
+    _workerReadyCbs.push(() => resolve(_decodeWorker!))
   })
 }
 
-/** corners → axis-aligned bounding box in 0-1 normalised coords */
-function cornersToBox(pts: { x: number; y: number }[], imgW: number, imgH: number): QRBox {
-  const xs = pts.map(p => p.x), ys = pts.map(p => p.y)
-  const x0 = Math.min(...xs), y0 = Math.min(...ys)
-  const x1 = Math.max(...xs), y1 = Math.max(...ys)
-  return { x: x0 / imgW, y: y0 / imgH, w: (x1 - x0) / imgW, h: (y1 - y0) / imgH }
+/** Eagerly spin up the worker and start loading jsQR + ZXing WASM. */
+export function preloadDecoders() {
+  getDecodeWorker().catch(() => {})
 }
 
-/**
- * Decode one ImageData frame. Priority: BarcodeDetector → ZXing → jsQR.
- * Returns bytes + normalised bounding box (null if decoder doesn't provide one).
- */
+let _msgId = 0
 async function decodeFrame(img: ImageData): Promise<DecodeResult | null> {
-  // 1. Native BarcodeDetector (hardware-accelerated on Android Chrome)
-  if (_barcodeDetector) {
-    try {
-      const results = await _barcodeDetector.detect(img)
-      for (const r of results) {
-        if (r.rawValue != null && r.cornerPoints?.length) {
-          // BarcodeDetector returns text; encode back to bytes via latin1
-          const bytes = new Uint8Array(r.rawValue.length)
-          for (let i = 0; i < r.rawValue.length; i++) bytes[i] = r.rawValue.charCodeAt(i) & 0xff
-          if (bytes.length) return { bytes, box: cornersToBox(r.cornerPoints, img.width, img.height) }
-        }
-      }
-    } catch { /* fall through */ }
-  }
-
-  // 2. ZXing-WASM (C++, fast, cross-platform)
-  if (_zxRead) {
-    try {
-      const results = await _zxRead(img, ZXING_OPTS)
-      for (const r of results) {
-        if (r.isValid && r.bytes?.length) {
-          const box = r.position ? cornersToBox(
-            [r.position.topLeft, r.position.topRight, r.position.bottomRight, r.position.bottomLeft],
-            img.width, img.height
-          ) : null
-          return { bytes: new Uint8Array(r.bytes), box }
-        }
-      }
-    } catch { /* fall through */ }
-  }
-
-  // 3. jsQR (pure JS fallback)
-  if (_jsQRFn) {
-    const r = _jsQRFn(img.data, img.width, img.height, { inversionAttempts: 'dontInvert' })
-    if (r?.binaryData?.length) {
-      const box = r.location ? cornersToBox(
-        [r.location.topLeftCorner, r.location.topRightCorner, r.location.bottomRightCorner, r.location.bottomLeftCorner],
-        img.width, img.height
-      ) : null
-      return { bytes: new Uint8Array(r.binaryData), box }
-    }
-  }
-
-  return null
+  const worker = await getDecodeWorker()
+  return new Promise(resolve => {
+    _pendingResolve = resolve
+    const id = ++_msgId
+    // Transfer ImageData pixels — zero-copy to the worker
+    const pixels = new Uint8ClampedArray(img.data)  // copy so we can transfer
+    worker.postMessage({ id, img: { data: pixels, width: img.width, height: img.height } }, [pixels.buffer])
+  })
 }
 
 function ReceivePanel() {
@@ -803,9 +839,8 @@ function ReceivePanel() {
   const ltRef = useRef<LTState>(makeFreshLT())
   const doneRef = useRef(false)
 
-  // Pre-warm: kick off jsQR + ZXing WASM load the moment Receive tab is mounted,
-  // so both are compiled/JIT-warm before the user hits Start.
-  useEffect(() => { loadDecoders().catch(() => {}) }, [])
+  // Pre-warm: spin up the decode worker as soon as ReceivePanel mounts.
+  useEffect(() => { preloadDecoders() }, [])
   const [scanning, setScanning] = useState(false)
   const [error, setError] = useState('')
   const [progress, setProgress] = useState<{ recovered: number; K: number } | null>(null)
@@ -887,7 +922,8 @@ function ReceivePanel() {
       sc.width = SAMPLE_SZ; sc.height = SAMPLE_SZ
       const sctx = sc.getContext('2d', { willReadFrequently: true })!
 
-      await loadDecoders()
+      // Ensure the worker is ready (jsQR loaded) before starting the loop
+      await getDecodeWorker()
 
       // Fade-out timer for the bounding box
       let boxFadeTimer: ReturnType<typeof setTimeout> | null = null
