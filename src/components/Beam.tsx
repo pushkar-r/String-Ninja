@@ -695,16 +695,25 @@ interface QRBox { x: number; y: number; w: number; h: number }
 interface DecodeResult { bytes: Uint8Array; box: QRBox | null }
 
 // ---------------------------------------------------------------------------
-// Decode worker — runs jsQR + ZXing off the main thread so the RAF loop never
-// stalls. A single persistent worker is reused across scans.
+// Decode worker pool — 2 workers run in parallel so while one is decoding
+// frame N the other is already receiving frame N+1. Decode latency no longer
+// gates capture rate.
 // ---------------------------------------------------------------------------
-let _decodeWorker: Worker | null = null
-let _workerReady = false   // true once jsQR is loaded inside the worker
-let _workerReadyCbs: (() => void)[] = []
-let _pendingResolve: ((r: DecodeResult | null) => void) | null = null
+const WORKER_COUNT = 2
+
+interface WorkerSlot {
+  worker: Worker
+  ready: boolean        // jsQR loaded
+  busy: boolean         // currently decoding a frame
+  resolve: ((r: DecodeResult | null) => void) | null
+  readyCbs: (() => void)[]
+  _hangTimer: ReturnType<typeof setTimeout> | null
+}
+
+let _pool: WorkerSlot[] | null = null
+let _workerSrc: string | null = null
 
 function buildDecodeWorkerSrc(jsqrSrc: string, zxingIIFE: string, zxingWasm: string): string {
-  // The worker source is a self-contained IIFE. URLs are baked in at creation time.
   return `
 (function(){
   var jsqrReady = false, zxRead = null;
@@ -717,12 +726,10 @@ function buildDecodeWorkerSrc(jsqrSrc: string, zxingIIFE: string, zxingWasm: str
     return {x:x0/W,y:y0/H,w:(x1-x0)/W,h:(y1-y0)/H};
   }
 
-  // Load jsQR first (unblocks the worker's ready signal immediately)
   importScripts(${JSON.stringify(jsqrSrc)});
   jsqrReady = true;
   postMessage({type:'ready'});
 
-  // Load ZXing IIFE in the background — upgrades decode quality once compiled
   try {
     importScripts(${JSON.stringify(zxingIIFE)});
     var ZX = self.ZXingWASM || self.ZXing;
@@ -731,26 +738,23 @@ function buildDecodeWorkerSrc(jsqrSrc: string, zxingIIFE: string, zxingWasm: str
         .then(function(){ zxRead = ZX.readBarcodesFromImageData; postMessage({type:'zxing-ready'}); })
         .catch(function(){});
     }
-  } catch(e) { /* ZXing optional */ }
+  } catch(e) {}
 
   self.onmessage = function(e) {
     var id = e.data.id, raw = e.data.img;
     var W = raw.width, H = raw.height;
-    // Reconstruct an ImageData-compatible object for ZXing
     var img = { data: raw.data, width: W, height: H };
 
     function sendNull(){ postMessage({type:'result',id:id,bytes:null,box:null}); }
     function sendResult(bytes, box){ postMessage({type:'result',id:id,bytes:bytes,box:box||null},[bytes.buffer]); }
 
-    // 1. ZXing (C++, fastest when ready)
     if (zxRead) {
       try {
         var results = zxRead(img, ZXOPTS);
         for (var i=0;i<results.length;i++) {
           var r = results[i];
           if (r.isValid && r.bytes && r.bytes.length) {
-            var box = null;
-            if (r.position) box = cornersToBox([r.position.topLeft,r.position.topRight,r.position.bottomRight,r.position.bottomLeft],W,H);
+            var box = r.position ? cornersToBox([r.position.topLeft,r.position.topRight,r.position.bottomRight,r.position.bottomLeft],W,H) : null;
             sendResult(new Uint8Array(r.bytes), box);
             return;
           }
@@ -758,12 +762,10 @@ function buildDecodeWorkerSrc(jsqrSrc: string, zxingIIFE: string, zxingWasm: str
       } catch(e2) {}
     }
 
-    // 2. jsQR (pure JS fallback, always available after ready)
     if (jsqrReady && self.jsQR) {
       var res = self.jsQR(img.data, W, H, {inversionAttempts:'dontInvert'});
       if (res && res.binaryData && res.binaryData.length) {
-        var box2 = null;
-        if (res.location) box2 = cornersToBox([res.location.topLeftCorner,res.location.topRightCorner,res.location.bottomRightCorner,res.location.bottomLeftCorner],W,H);
+        var box2 = res.location ? cornersToBox([res.location.topLeftCorner,res.location.topRightCorner,res.location.bottomRightCorner,res.location.bottomLeftCorner],W,H) : null;
         sendResult(new Uint8Array(res.binaryData), box2);
         return;
       }
@@ -775,58 +777,115 @@ function buildDecodeWorkerSrc(jsqrSrc: string, zxingIIFE: string, zxingWasm: str
 `
 }
 
-function getDecodeWorker(): Promise<Worker> {
-  if (_decodeWorker && _workerReady) return Promise.resolve(_decodeWorker)
+// How long a slot can stay busy before we consider it hung and respawn it.
+const SLOT_TIMEOUT_MS = 5000
 
-  if (!_decodeWorker) {
-    const src = buildDecodeWorkerSrc(
-      new URL(jsQRUrl, window.location.href).href,
-      new URL(zxingIIFEUrl, window.location.href).href,
-      new URL(zxingWasmUrl, window.location.href).href,
-    )
-    const blob = new Blob([src], { type: 'application/javascript' })
-    const w = new Worker(URL.createObjectURL(blob))
-    _decodeWorker = w
-
-    w.onmessage = (e) => {
-      if (e.data.type === 'ready') {
-        _workerReady = true
-        _workerReadyCbs.forEach(fn => fn())
-        _workerReadyCbs = []
-        return
-      }
-      if (e.data.type === 'zxing-ready') return // upgrade happened silently
-      if (e.data.type === 'result') {
-        const resolve = _pendingResolve
-        _pendingResolve = null
-        if (!resolve) return
-        if (!e.data.bytes) { resolve(null); return }
-        resolve({ bytes: new Uint8Array(e.data.bytes), box: e.data.box ?? null })
-      }
+function attachSlotHandlers(slot: WorkerSlot, src: string): void {
+  slot.worker.onmessage = (e) => {
+    if (e.data.type === 'ready') {
+      slot.ready = true
+      // Drain any callers waiting for the pool to become ready
+      const cbs = slot.readyCbs.splice(0)
+      cbs.forEach(fn => fn())
+      return
     }
-    w.onerror = () => { _workerReady = false; _decodeWorker = null }
+    if (e.data.type === 'zxing-ready' || e.data.type !== 'result') return
+    // Clear the hang-guard before resolving
+    if (slot._hangTimer) { clearTimeout(slot._hangTimer); slot._hangTimer = null }
+    slot.busy = false
+    const resolve = slot.resolve; slot.resolve = null
+    if (!resolve) return
+    if (!e.data.bytes) { resolve(null); return }
+    resolve({ bytes: new Uint8Array(e.data.bytes), box: e.data.box ?? null })
   }
 
-  return new Promise(resolve => {
-    if (_workerReady) { resolve(_decodeWorker!); return }
-    _workerReadyCbs.push(() => resolve(_decodeWorker!))
-  })
+  slot.worker.onerror = () => {
+    // Always drain the pending resolve so its Promise doesn't hang.
+    if (slot._hangTimer) { clearTimeout(slot._hangTimer); slot._hangTimer = null }
+    const resolve = slot.resolve; slot.resolve = null
+    slot.busy = false
+    slot.ready = false
+    resolve?.(null)
+    // Respawn after a short back-off so the pool self-heals.
+    setTimeout(() => respawnSlot(slot, src), 200)
+  }
 }
 
-/** Eagerly spin up the worker and start loading jsQR + ZXing WASM. */
+function respawnSlot(slot: WorkerSlot, src: string): void {
+  try { slot.worker.terminate() } catch { /* already dead */ }
+  const blob = new Blob([src], { type: 'application/javascript' })
+  slot.worker = new Worker(URL.createObjectURL(blob))
+  slot.ready = false
+  slot.busy = false
+  slot.resolve = null
+  slot._hangTimer = null
+  attachSlotHandlers(slot, src)
+}
+
+function makeSlot(src: string): WorkerSlot {
+  const blob = new Blob([src], { type: 'application/javascript' })
+  const w = new Worker(URL.createObjectURL(blob))
+  const slot: WorkerSlot = { worker: w, ready: false, busy: false, resolve: null, readyCbs: [], _hangTimer: null }
+  attachSlotHandlers(slot, src)
+  return slot
+}
+
+function getPool(): WorkerSlot[] {
+  if (_pool) return _pool
+  _workerSrc = buildDecodeWorkerSrc(
+    new URL(jsQRUrl, window.location.href).href,
+    new URL(zxingIIFEUrl, window.location.href).href,
+    new URL(zxingWasmUrl, window.location.href).href,
+  )
+  _pool = Array.from({ length: WORKER_COUNT }, () => makeSlot(_workerSrc!))
+  return _pool
+}
+
+/** Eagerly spin up the worker pool. */
 export function preloadDecoders() {
-  getDecodeWorker().catch(() => {})
+  getPool()
 }
 
 let _msgId = 0
-async function decodeFrame(img: ImageData): Promise<DecodeResult | null> {
-  const worker = await getDecodeWorker()
+
+/** Send a frame to the next free worker. Returns null immediately if all workers busy. */
+function dispatchFrame(img: ImageData): Promise<DecodeResult | null> | null {
+  const pool = getPool()
+  const slot = pool.find(s => s.ready && !s.busy) ?? null
+  if (!slot) return null  // all busy — caller drops this frame and tries next tick
+  slot.busy = true
+  const id = ++_msgId
+  const pixels = new Uint8ClampedArray(img.data)
+  // Hang-guard: if the worker doesn't reply within SLOT_TIMEOUT_MS, treat it as
+  // crashed — resolve null and respawn so the slot re-enters the pool.
+  slot._hangTimer = setTimeout(() => {
+    slot._hangTimer = null
+    if (!slot.busy) return  // already resolved normally — nothing to do
+    const resolve = slot.resolve; slot.resolve = null
+    slot.busy = false
+    resolve?.(null)
+    respawnSlot(slot, _workerSrc!)
+  }, SLOT_TIMEOUT_MS)
   return new Promise(resolve => {
-    _pendingResolve = resolve
-    const id = ++_msgId
-    // Transfer ImageData pixels — zero-copy to the worker
-    const pixels = new Uint8ClampedArray(img.data)  // copy so we can transfer
-    worker.postMessage({ id, img: { data: pixels, width: img.width, height: img.height } }, [pixels.buffer])
+    slot.resolve = resolve
+    slot.worker.postMessage({ id, img: { data: pixels, width: img.width, height: img.height } }, [pixels.buffer])
+  })
+}
+
+/**
+ * Wait until at least one worker slot is ready (jsQR loaded).
+ * Falls back after 10 s so startCamera never hangs forever if both workers fail
+ * to load (e.g. network error on jsQR asset in CSP-restricted environments).
+ */
+function waitForAnyWorker(): Promise<void> {
+  const pool = getPool()
+  if (pool.some(s => s.ready)) return Promise.resolve()
+  return new Promise(resolve => {
+    const done = () => resolve()
+    // Each slot's readyCbs fires done() when it becomes ready
+    for (const slot of pool) slot.readyCbs.push(done)
+    // Safety timeout — unblock startCamera even if workers never load
+    setTimeout(done, 10_000)
   })
 }
 
@@ -835,7 +894,7 @@ function ReceivePanel() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)  // hidden off-screen sample canvas
   const overlayRef = useRef<HTMLCanvasElement | null>(null) // visible bounding-box overlay
   const streamRef = useRef<MediaStream | null>(null)
-  const rafRef = useRef<number | null>(null)
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const ltRef = useRef<LTState>(makeFreshLT())
   const doneRef = useRef(false)
 
@@ -862,7 +921,7 @@ function ReceivePanel() {
   }, [])
 
   const stopStream = useCallback(() => {
-    if (rafRef.current != null) { cancelAnimationFrame(rafRef.current); rafRef.current = null }
+    if (intervalRef.current != null) { clearInterval(intervalRef.current); intervalRef.current = null }
     if (streamRef.current) { streamRef.current.getTracks().forEach(t => t.stop()); streamRef.current = null }
   }, [])
 
@@ -917,16 +976,17 @@ function ReceivePanel() {
         }
       } catch { /* not supported — ignore */ }
 
-      const SAMPLE_SZ = 512
+      const SAMPLE_SZ = 384  // 384px is sufficient for all QR versions; smaller = faster getImageData + decode
       const sc = document.createElement('canvas')
       sc.width = SAMPLE_SZ; sc.height = SAMPLE_SZ
       const sctx = sc.getContext('2d', { willReadFrequently: true })!
 
-      // Ensure the worker is ready (jsQR loaded) before starting the loop
-      await getDecodeWorker()
+      // Wait until at least one worker has jsQR loaded
+      await waitForAnyWorker()
 
       // Fade-out timer for the bounding box
       let boxFadeTimer: ReturnType<typeof setTimeout> | null = null
+      let boxVisible = false
 
       const drawBox = (box: QRBox | null) => {
         const ov = overlayRef.current
@@ -934,6 +994,7 @@ function ReceivePanel() {
         const W = ov.width, H = ov.height
         const ctx = ov.getContext('2d')!
         ctx.clearRect(0, 0, W, H)
+        boxVisible = !!box
         if (!box) return
         const x = box.x * W, y = box.y * H, w = box.w * W, h = box.h * H
         const r = 8
@@ -951,69 +1012,76 @@ function ReceivePanel() {
         ctx.stroke()
       }
 
-      let busy = false
-      const loop = async () => {
-        if (!streamRef.current || doneRef.current) return
-        const v = videoRef.current
-        if (v && v.videoWidth > 0 && !busy) {
-          busy = true
-          // crop centre square
-          const vw = v.videoWidth, vh = v.videoHeight
-          const side = Math.min(vw, vh)
-          sctx.drawImage(v, (vw - side) >> 1, (vh - side) >> 1, side, side, 0, 0, SAMPLE_SZ, SAMPLE_SZ)
-          const img = sctx.getImageData(0, 0, SAMPLE_SZ, SAMPLE_SZ)
-          const result = await decodeFrame(img)
-          busy = false
-          if (result) {
-            // Draw / refresh bounding box
-            drawBox(result.box)
-            if (boxFadeTimer) clearTimeout(boxFadeTimer)
-            boxFadeTimer = setTimeout(() => drawBox(null), 500)
+      // High-frequency capture loop using setInterval — RAF throttles to display
+      // refresh rate and pauses when the tab is not visible; setInterval keeps
+      // grabbing frames at full speed regardless.
+      const TICK_MS = 16  // ~60 fps capture rate
 
-            const raw = result.bytes
-            const r = ltIngest(ltRef.current, raw)
-            if (r === 'progress') {
-              const st = ltRef.current
-              if (st.fileName && fileNameRef.current !== st.fileName) {
-                fileNameRef.current = st.fileName; setDetectedFileName(st.fileName)
-              }
-              setProgress({ recovered: st.recoveredCount, K: st.K })
-              setStatus(`Scanning… ${st.recoveredCount} / ${st.K} blocks`)
-              if (st.recoveredCount - st.lastSaveCount >= 10) {
-                st.lastSaveCount = st.recoveredCount
-                idbSet(IDB_SESSION_KEY, ltSnap(st))
-              }
-            } else if (r === 'complete') {
-              doneRef.current = true
-              stopStream(); setScanning(false)
-              setStatus('Stream complete — verifying…')
-              try {
-                const st = ltRef.current
-                let bytes = new Uint8Array(st.K * st.symbolSize)
-                for (let b = 0; b < st.K; b++) bytes.set(st.recovered[b]!, b * st.symbolSize)
-                bytes = bytes.slice(0, st.dataLen)
-                if (st.flags & 1) bytes = new Uint8Array(await gunzip(bytes))
-                const hash = toHex(await sha256(bytes))
-                if (hash !== st.fileHashHex) {
-                  setError('Integrity check failed — file does not match. Try scanning again.')
-                  doneRef.current = false; return
-                }
-                const saveName = st.fileName || fileNameRef.current || 'beam-received.bin'
-                const url = URL.createObjectURL(new Blob([bytes.buffer as ArrayBuffer]))
-                const a = document.createElement('a'); a.href = url; a.download = saveName
-                document.body.appendChild(a); a.click(); a.remove()
-                setTimeout(() => URL.revokeObjectURL(url), 2000)
-                await idbDelete(IDB_SESSION_KEY)
-                setResumeAvailable(false); setDone(true)
-                setStatus('File received and verified. Download started.')
-              } catch (err: any) { setError('Could not finalise: ' + (err?.message ?? err)) }
-              return
+      const onDecodeResult = async (result: DecodeResult | null) => {
+        if (!streamRef.current || doneRef.current) return
+        if (result) {
+          drawBox(result.box)
+          if (boxFadeTimer) clearTimeout(boxFadeTimer)
+          boxFadeTimer = setTimeout(() => drawBox(null), 800)
+
+          const raw = result.bytes
+          const r = ltIngest(ltRef.current, raw)
+          if (r === 'progress') {
+            const st = ltRef.current
+            if (st.fileName && fileNameRef.current !== st.fileName) {
+              fileNameRef.current = st.fileName; setDetectedFileName(st.fileName)
             }
-          } else { busy = false }
-        } else { busy = false }
-        rafRef.current = requestAnimationFrame(loop)
+            setProgress({ recovered: st.recoveredCount, K: st.K })
+            setStatus(`Scanning… ${st.recoveredCount} / ${st.K} blocks`)
+            if (st.recoveredCount - st.lastSaveCount >= 10) {
+              st.lastSaveCount = st.recoveredCount
+              idbSet(IDB_SESSION_KEY, ltSnap(st))
+            }
+          } else if (r === 'complete') {
+            doneRef.current = true
+            if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null }
+            stopStream(); setScanning(false)
+            setStatus('Stream complete — verifying…')
+            try {
+              const st = ltRef.current
+              let bytes = new Uint8Array(st.K * st.symbolSize)
+              for (let b = 0; b < st.K; b++) bytes.set(st.recovered[b]!, b * st.symbolSize)
+              bytes = bytes.slice(0, st.dataLen)
+              if (st.flags & 1) bytes = new Uint8Array(await gunzip(bytes))
+              const hash = toHex(await sha256(bytes))
+              if (hash !== st.fileHashHex) {
+                setError('Integrity check failed — file does not match. Try scanning again.')
+                doneRef.current = false; return
+              }
+              const saveName = st.fileName || fileNameRef.current || 'beam-received.bin'
+              const url = URL.createObjectURL(new Blob([bytes.buffer as ArrayBuffer]))
+              const a = document.createElement('a'); a.href = url; a.download = saveName
+              document.body.appendChild(a); a.click(); a.remove()
+              setTimeout(() => URL.revokeObjectURL(url), 2000)
+              await idbDelete(IDB_SESSION_KEY)
+              setResumeAvailable(false); setDone(true)
+              setStatus('File received and verified. Download started.')
+            } catch (err: any) { setError('Could not finalise: ' + (err?.message ?? err)) }
+          }
+        }
       }
-      rafRef.current = requestAnimationFrame(loop)
+
+      // Capture loop: grab a frame every TICK_MS and dispatch to a free worker.
+      // Two workers run in parallel — while one decodes, the other can receive
+      // the next frame, so decode latency doesn't gate capture rate.
+      intervalRef.current = setInterval(() => {
+        if (!streamRef.current || doneRef.current) { if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null } return }
+        const v = videoRef.current
+        if (!v || v.videoWidth === 0) return
+        const vw = v.videoWidth, vh = v.videoHeight
+        const side = Math.min(vw, vh)
+        sctx.drawImage(v, (vw - side) >> 1, (vh - side) >> 1, side, side, 0, 0, SAMPLE_SZ, SAMPLE_SZ)
+        const img = sctx.getImageData(0, 0, SAMPLE_SZ, SAMPLE_SZ)
+        const promise = dispatchFrame(img)
+        if (promise) promise.then(onDecodeResult)
+        // if null, both workers are busy — this frame is dropped (fine, next tick tries again)
+      }, TICK_MS)
+
     } catch (e: any) {
       const n = e?.name ?? ''
       if (n === 'NotAllowedError') setError('Camera permission denied — allow access and reload.')
