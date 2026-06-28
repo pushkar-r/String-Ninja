@@ -18,19 +18,32 @@ import jsQRWorkerUrl from '../vendor/beam/jsQR.js?url'
  *   10      2     symbolSize (bytes per symbol)
  *   12      4     seed (LT symbol id for this frame)
  *   16      32    fileHash (SHA-256 of original file)
- *   48      N     payload (symbolSize bytes)
- *   48+N    4     crc32 (over bytes [0 .. 48+N))
+ *   48      1     fileNameLen (byte length of filename, max 63)
+ *   49      63    fileName (UTF-8, zero-padded)
+ *   112     N     payload (symbolSize bytes)
+ *   112+N   4     crc32 (over bytes [0 .. 112+N))
  *
- * Coding: LT fountain code. Encoder XORs source blocks chosen by a
- * deterministic per-seed PRNG (mulberry32) + Robust Soliton degree
- * distribution. Decoder peels (belief propagation). deriveSymbol() is shared
- * verbatim by both sides so any frame is self-describing.
+ * Enhancements over v1:
+ *   - Symbol size selectable: 160 / 300 / 512 bytes (→ max ~33 MB at 512)
+ *   - QR error-correction level L for maximum data density
+ *   - 2×2 multi-QR grid: 4 fountain symbols per screen refresh
+ *   - IndexedDB partial-state persistence: interrupted scans resume
+ *   - Adaptive FPS: decoder rate drives a suggestion to sender
  * ========================================================================== */
 
 const MAGIC = 0x534e
 const VERSION = 1
-const HEADER_LEN = 48
-const DEFAULT_SYMBOL_SIZE = 160
+const HEADER_LEN = 112  // 48 base + 1 nameLen + 63 name bytes
+const IDB_DB = 'beam-v1'
+const IDB_STORE = 'sessions'
+
+// Symbol size presets. Larger = fewer blocks = faster for big files, but QR
+// codes get denser (higher version). Camera must resolve them clearly.
+const SYMBOL_PRESETS: Record<string, { bytes: number; label: string; maxMB: number }> = {
+  small:  { bytes: 160, label: 'Small (160 B/block) — best for shaky cameras', maxMB: 10 },
+  medium: { bytes: 300, label: 'Medium (300 B/block) — balanced', maxMB: 19 },
+  large:  { bytes: 512, label: 'Large (512 B/block) — fast for big files, needs steady camera', maxMB: 33 },
+}
 
 // ----------------------------------------------------------------------------
 // CRC-32 (pure JS, no library)
@@ -51,7 +64,7 @@ function crc32(buf: Uint8Array, start = 0, end = buf.length): number {
 }
 
 // ----------------------------------------------------------------------------
-// PRNG + Robust Soliton degree distribution + symbol derivation (shared)
+// PRNG + Robust Soliton + symbol derivation (shared encoder ↔ decoder)
 // ----------------------------------------------------------------------------
 function mulberry32(a: number) {
   return function () {
@@ -63,10 +76,8 @@ function mulberry32(a: number) {
   }
 }
 
-// Robust Soliton distribution, c=0.03, delta=0.05.
 function buildRobustSoliton(K: number): Float64Array {
-  const c = 0.03
-  const delta = 0.05
+  const c = 0.03, delta = 0.05
   const rho = new Float64Array(K + 1)
   rho[1] = 1 / K
   for (let d = 2; d <= K; d++) rho[d] = 1 / (d * (d - 1))
@@ -79,48 +90,29 @@ function buildRobustSoliton(K: number): Float64Array {
   for (let d = 1; d <= K; d++) sum += rho[d] + tau[d]
   const cdf = new Float64Array(K + 1)
   let acc = 0
-  for (let d = 1; d <= K; d++) {
-    acc += (rho[d] + tau[d]) / sum
-    cdf[d] = acc
-  }
+  for (let d = 1; d <= K; d++) { acc += (rho[d] + tau[d]) / sum; cdf[d] = acc }
   return cdf
 }
 
-// deriveSymbol(seed, K) -> {degree, indices[]}. Identical on encode + decode.
 function deriveSymbol(seed: number, K: number, cdf: Float64Array): { degree: number; indices: number[] } {
   const rand = mulberry32(seed >>> 0)
   const r = rand()
   let degree = 1
-  // binary-ish linear scan over the CDF
-  for (let d = 1; d <= K; d++) {
-    if (r <= cdf[d]) {
-      degree = d
-      break
-    }
-    degree = d
-  }
+  for (let d = 1; d <= K; d++) { if (r <= cdf[d]) { degree = d; break }; degree = d }
   if (degree > K) degree = K
-  // pick `degree` distinct source indices
   const chosen = new Set<number>()
-  while (chosen.size < degree) {
-    chosen.add(Math.floor(rand() * K) % K)
-  }
+  while (chosen.size < degree) chosen.add(Math.floor(rand() * K) % K)
   return { degree, indices: Array.from(chosen) }
 }
 
 // ----------------------------------------------------------------------------
-// Frame builder (encoder side)
+// Frame builder
 // ----------------------------------------------------------------------------
 function buildFrame(opts: {
-  dataLen: number
-  flags: number
-  K: number
-  symbolSize: number
-  seed: number
-  fileHash: Uint8Array
-  payload: Uint8Array
+  dataLen: number; flags: number; K: number; symbolSize: number
+  seed: number; fileHash: Uint8Array; fileName: string; payload: Uint8Array
 }): Uint8Array {
-  const { dataLen, flags, K, symbolSize, seed, fileHash, payload } = opts
+  const { dataLen, flags, K, symbolSize, seed, fileHash, fileName, payload } = opts
   const total = HEADER_LEN + symbolSize + 4
   const buf = new Uint8Array(total)
   const dv = new DataView(buf.buffer)
@@ -132,9 +124,11 @@ function buildFrame(opts: {
   dv.setUint16(10, symbolSize, true)
   dv.setUint32(12, seed >>> 0, true)
   buf.set(fileHash.subarray(0, 32), 16)
+  const nameBytes = new TextEncoder().encode(fileName).subarray(0, 63)
+  buf[48] = nameBytes.length
+  buf.set(nameBytes, 49)
   buf.set(payload.subarray(0, symbolSize), HEADER_LEN)
-  const crc = crc32(buf, 0, HEADER_LEN + symbolSize)
-  dv.setUint32(HEADER_LEN + symbolSize, crc >>> 0, true)
+  dv.setUint32(HEADER_LEN + symbolSize, crc32(buf, 0, HEADER_LEN + symbolSize) >>> 0, true)
   return buf
 }
 
@@ -142,30 +136,25 @@ function buildFrame(opts: {
 // Helpers
 // ----------------------------------------------------------------------------
 async function sha256(bytes: Uint8Array): Promise<Uint8Array> {
-  const digest = await crypto.subtle.digest('SHA-256', bytes as BufferSource)
-  return new Uint8Array(digest)
+  return new Uint8Array(await crypto.subtle.digest('SHA-256', bytes as BufferSource))
 }
 
 async function maybeGzip(bytes: Uint8Array): Promise<{ data: Uint8Array; gzipped: boolean }> {
-  if (typeof (globalThis as any).CompressionStream === 'undefined') {
-    return { data: bytes, gzipped: false }
-  }
+  if (typeof (globalThis as any).CompressionStream === 'undefined') return { data: bytes, gzipped: false }
   try {
     const cs = new (globalThis as any).CompressionStream('gzip')
-    const stream = new Blob([bytes as BlobPart]).stream().pipeThrough(cs)
-    const compressed = new Uint8Array(await new Response(stream).arrayBuffer())
-    // Only use compression if it actually helps.
-    if (compressed.length < bytes.length) return { data: compressed, gzipped: true }
-    return { data: bytes, gzipped: false }
-  } catch {
-    return { data: bytes, gzipped: false }
-  }
+    const compressed = new Uint8Array(await new Response(
+      new Blob([bytes as BlobPart]).stream().pipeThrough(cs)
+    ).arrayBuffer())
+    return compressed.length < bytes.length ? { data: compressed, gzipped: true } : { data: bytes, gzipped: false }
+  } catch { return { data: bytes, gzipped: false } }
 }
 
 async function gunzip(bytes: Uint8Array): Promise<Uint8Array> {
   const ds = new (globalThis as any).DecompressionStream('gzip')
-  const stream = new Blob([bytes as BlobPart]).stream().pipeThrough(ds)
-  return new Uint8Array(await new Response(stream).arrayBuffer())
+  return new Uint8Array(await new Response(
+    new Blob([bytes as BlobPart]).stream().pipeThrough(ds)
+  ).arrayBuffer())
 }
 
 function toHex(bytes: Uint8Array): string {
@@ -176,46 +165,120 @@ function toHex(bytes: Uint8Array): string {
 
 function fmtBytes(n: number): string {
   if (n < 1024) return `${n} B`
-  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`
-  return `${(n / (1024 * 1024)).toFixed(2)} MB`
+  if (n < 1048576) return `${(n / 1024).toFixed(1)} KB`
+  return `${(n / 1048576).toFixed(2)} MB`
 }
 
-// QR encode a frame: pack as Latin-1, render to canvas.
-function encodeFrameToCanvas(frame: Uint8Array, canvas: HTMLCanvasElement) {
+// ----------------------------------------------------------------------------
+// QR rendering — level L for maximum density
+// ----------------------------------------------------------------------------
+function renderQRToCtx(
+  frame: Uint8Array,
+  ctx: CanvasRenderingContext2D,
+  x: number, y: number, size: number
+) {
   let str = ''
   for (let i = 0; i < frame.length; i++) str += String.fromCharCode(frame[i] & 0xff)
-  const qr = (qrcode as any)(0, 'M')
+  const qr = (qrcode as any)(0, 'L')  // Level L: max data density
   qr.addData(str, 'Byte')
   qr.make()
   const count = qr.getModuleCount()
-  const size = canvas.width
-  const quiet = 4
+  const quiet = 2
   const cell = size / (count + quiet * 2)
-  const ctx = canvas.getContext('2d')!
   ctx.fillStyle = '#ffffff'
-  ctx.fillRect(0, 0, size, size)
+  ctx.fillRect(x, y, size, size)
   ctx.fillStyle = '#000000'
   for (let r = 0; r < count; r++) {
     for (let c = 0; c < count; c++) {
       if (qr.isDark(r, c)) {
         ctx.fillRect(
-          Math.floor((c + quiet) * cell),
-          Math.floor((r + quiet) * cell),
-          Math.ceil(cell),
-          Math.ceil(cell)
+          x + Math.floor((c + quiet) * cell),
+          y + Math.floor((r + quiet) * cell),
+          Math.ceil(cell), Math.ceil(cell)
         )
       }
     }
   }
 }
 
+// Render 2×2 grid of 4 QR codes (4 fountain symbols per frame)
+function encodeQuadToCanvas(frames: Uint8Array[], canvas: HTMLCanvasElement) {
+  const ctx = canvas.getContext('2d')!
+  const half = canvas.width / 2
+  ctx.fillStyle = '#ffffff'
+  ctx.fillRect(0, 0, canvas.width, canvas.height)
+  const positions = [[0, 0], [half, 0], [0, half], [half, half]]
+  for (let i = 0; i < Math.min(frames.length, 4); i++) {
+    renderQRToCtx(frames[i], ctx, positions[i][0], positions[i][1], half)
+  }
+  // Draw thin grid lines for visual separation
+  ctx.strokeStyle = '#e2e8f0'
+  ctx.lineWidth = 1
+  ctx.beginPath()
+  ctx.moveTo(half, 0); ctx.lineTo(half, canvas.height)
+  ctx.moveTo(0, half); ctx.lineTo(canvas.width, half)
+  ctx.stroke()
+}
+
+// Single QR mode for very small files (K < 4) or single-QR preference
+function encodeSingleToCanvas(frame: Uint8Array, canvas: HTMLCanvasElement) {
+  const ctx = canvas.getContext('2d')!
+  renderQRToCtx(frame, ctx, 0, 0, canvas.width)
+}
+
 // ----------------------------------------------------------------------------
-// Decode worker (inline, via Blob URL). Runs jsQR + CRC + LT peel off-thread.
+// IndexedDB helpers for receiver state persistence
+// ----------------------------------------------------------------------------
+function openIDB(): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(IDB_DB, 1)
+    req.onupgradeneeded = () => req.result.createObjectStore(IDB_STORE)
+    req.onsuccess = () => resolve(req.result)
+    req.onerror = () => reject(req.error)
+  })
+}
+
+async function idbGet<T>(key: string): Promise<T | null> {
+  try {
+    const db = await openIDB()
+    return new Promise((resolve) => {
+      const tx = db.transaction(IDB_STORE, 'readonly')
+      const req = tx.objectStore(IDB_STORE).get(key)
+      req.onsuccess = () => resolve(req.result ?? null)
+      req.onerror = () => resolve(null)
+    })
+  } catch { return null }
+}
+
+async function idbSet(key: string, value: unknown): Promise<void> {
+  try {
+    const db = await openIDB()
+    return new Promise((resolve) => {
+      const tx = db.transaction(IDB_STORE, 'readwrite')
+      tx.objectStore(IDB_STORE).put(value, key)
+      tx.oncomplete = () => resolve()
+      tx.onerror = () => resolve()
+    })
+  } catch { /* ignore */ }
+}
+
+async function idbDelete(key: string): Promise<void> {
+  try {
+    const db = await openIDB()
+    return new Promise((resolve) => {
+      const tx = db.transaction(IDB_STORE, 'readwrite')
+      tx.objectStore(IDB_STORE).delete(key)
+      tx.oncomplete = () => resolve()
+      tx.onerror = () => resolve()
+    })
+  } catch { /* ignore */ }
+}
+
+// ----------------------------------------------------------------------------
+// Decode worker source — jsQR + CRC + LT peel, runs off main thread.
+// Also handles IndexedDB save via postMessage back to main thread.
 // ----------------------------------------------------------------------------
 function buildWorkerSource(jsqrUrl: string): string {
-  // The worker re-implements the shared coding primitives so it stays self
-  // contained. crc32 / mulberry32 / robust soliton / deriveSymbol are byte-for
-  // byte identical to the encoder above.
   return `
 self.importScripts(${JSON.stringify(jsqrUrl)});
 var jsQR = self.jsQR;
@@ -227,15 +290,25 @@ function mulberry32(a){return function(){a|=0;a=(a+0x6d2b79f5)|0;var t=Math.imul
 function buildRobustSoliton(K){var c=0.03,delta=0.05;var rho=new Float64Array(K+1);rho[1]=1/K;for(var d=2;d<=K;d++)rho[d]=1/(d*(d-1));var R=c*Math.log(K/delta)*Math.sqrt(K);var tau=new Float64Array(K+1);var kR=Math.max(1,Math.floor(K/R));for(var d2=1;d2<kR;d2++)tau[d2]=R/(d2*K);if(kR<=K)tau[kR]=(R*Math.log(R/delta))/K;var sum=0;for(var d3=1;d3<=K;d3++)sum+=rho[d3]+tau[d3];var cdf=new Float64Array(K+1);var acc=0;for(var d4=1;d4<=K;d4++){acc+=(rho[d4]+tau[d4])/sum;cdf[d4]=acc;}return cdf;}
 function deriveSymbol(seed,K,cdf){var rand=mulberry32(seed>>>0);var r=rand();var degree=1;for(var d=1;d<=K;d++){if(r<=cdf[d]){degree=d;break;}degree=d;}if(degree>K)degree=K;var chosen={},indices=[];while(indices.length<degree){var idx=Math.floor(rand()*K)%K;if(!chosen[idx]){chosen[idx]=1;indices.push(idx);}}return indices;}
 
-// LT decoder state
-var K=0, symbolSize=0, dataLen=0, flags=0, cdf=null, fileHashHex=null;
-var recovered=null;       // Uint8Array[K] | null per block
-var recoveredCount=0;
-var pending=[];           // {indices:Set, data:Uint8Array}
-var seenSeeds={};
-var started=false;
+var K=0,symbolSize=0,dataLen=0,flags=0,cdf=null,fileHashHex=null,fileName=null;
+var recovered=null,recoveredCount=0,pending=[],seenSeeds={},started=false;
+var lastSaveCount=0;
 
-function reset(){K=0;symbolSize=0;dataLen=0;flags=0;cdf=null;fileHashHex=null;recovered=null;recoveredCount=0;pending=[];seenSeeds={};started=false;}
+function reset(state){
+  if(state){
+    K=state.K;symbolSize=state.symbolSize;dataLen=state.dataLen;flags=state.flags;
+    fileHashHex=state.fileHashHex;fileName=state.fileName;
+    cdf=new Float64Array(state.cdf);
+    recovered=state.recovered.map(function(b){return b?new Uint8Array(b):null;});
+    recoveredCount=state.recoveredCount;
+    seenSeeds=state.seenSeeds||{};
+    pending=[];started=true;
+    postMessage({type:'resumed',recovered:recoveredCount,K:K,fileName:fileName,fileHashHex:fileHashHex});
+  } else {
+    K=0;symbolSize=0;dataLen=0;flags=0;cdf=null;fileHashHex=null;fileName=null;
+    recovered=null;recoveredCount=0;pending=[];seenSeeds={};started=false;lastSaveCount=0;
+  }
+}
 
 function xorInto(dst,src){for(var i=0;i<dst.length;i++)dst[i]^=src[i];}
 
@@ -244,9 +317,7 @@ function peel(){
   while(progressed){
     progressed=false;
     for(var p=0;p<pending.length;p++){
-      var blk=pending[p];
-      if(!blk) continue;
-      // remove already-recovered indices
+      var blk=pending[p];if(!blk)continue;
       for(var qi=blk.indices.length-1;qi>=0;qi--){
         var ix=blk.indices[qi];
         if(recovered[ix]){xorInto(blk.data,recovered[ix]);blk.indices.splice(qi,1);}
@@ -255,68 +326,75 @@ function peel(){
         var idx=blk.indices[0];
         if(!recovered[idx]){recovered[idx]=blk.data.slice();recoveredCount++;progressed=true;}
         pending[p]=null;
-      } else if(blk.indices.length===0){
-        pending[p]=null;
-      }
+      } else if(blk.indices.length===0){pending[p]=null;}
     }
   }
+}
+
+function maybeSave(){
+  if(recoveredCount-lastSaveCount<10) return;
+  lastSaveCount=recoveredCount;
+  // send state snapshot to main thread for IDB persist
+  var snap={K:K,symbolSize:symbolSize,dataLen:dataLen,flags:flags,fileHashHex:fileHashHex,fileName:fileName,
+    cdf:Array.from(cdf),recovered:recovered.map(function(b){return b?Array.from(b):null;}),
+    recoveredCount:recoveredCount,seenSeeds:seenSeeds};
+  postMessage({type:'saveState',state:snap});
 }
 
 function ingest(frame){
   var dv=new DataView(frame.buffer,frame.byteOffset,frame.byteLength);
   if(frame.length<HEADER_LEN+1+4) return;
   if(dv.getUint16(0,true)!==MAGIC) return;
-  var fK=dv.getUint16(8,true);
-  var fSym=dv.getUint16(10,true);
-  if(frame.length < HEADER_LEN+fSym+4) return;
-  // verify crc
+  var fK=dv.getUint16(8,true),fSym=dv.getUint16(10,true);
+  if(frame.length<HEADER_LEN+fSym+4) return;
   var gotCrc=dv.getUint32(HEADER_LEN+fSym,true)>>>0;
-  var calc=crc32(frame,0,HEADER_LEN+fSym);
-  if(gotCrc!==calc) return;
+  if(gotCrc!==crc32(frame,0,HEADER_LEN+fSym)) return;
   var seed=dv.getUint32(12,true)>>>0;
   if(!started){
     K=fK;symbolSize=fSym;dataLen=dv.getUint32(4,true)>>>0;flags=frame[3];
     var fh=frame.subarray(16,48);var hx='';for(var i=0;i<32;i++)hx+=fh[i].toString(16).padStart(2,'0');
     fileHashHex=hx;
-    cdf=buildRobustSoliton(K);
-    recovered=new Array(K);
-    started=true;
+    var nameLen=frame[48]||0;var nameBytes=frame.subarray(49,49+nameLen);
+    try{fileName=new TextDecoder().decode(nameBytes);}catch(e){fileName='beam-received.bin';}
+    cdf=buildRobustSoliton(K);recovered=new Array(K);started=true;
   }
-  if(fK!==K||fSym!==symbolSize) return; // mismatched stream
+  if(fK!==K||fSym!==symbolSize) return;
   if(seenSeeds[seed]) return;
   seenSeeds[seed]=1;
   var payload=frame.slice(HEADER_LEN,HEADER_LEN+symbolSize);
-  var indices=deriveSymbol(seed,K,cdf);
-  pending.push({indices:indices,data:payload});
+  pending.push({indices:deriveSymbol(seed,K,cdf),data:payload});
   peel();
-  postMessage({type:'progress',recovered:recoveredCount,K:K,dataLen:dataLen,fileHashHex:fileHashHex});
+  maybeSave();
+  postMessage({type:'progress',recovered:recoveredCount,K:K,dataLen:dataLen,fileHashHex:fileHashHex,fileName:fileName});
   if(recoveredCount===K){
-    // assemble
     var out=new Uint8Array(K*symbolSize);
     for(var b=0;b<K;b++) out.set(recovered[b],b*symbolSize);
     var trimmed=out.slice(0,dataLen);
-    postMessage({type:'complete',data:trimmed,flags:flags,fileHashHex:fileHashHex},[trimmed.buffer]);
+    postMessage({type:'complete',data:trimmed,flags:flags,fileHashHex:fileHashHex,fileName:fileName},[trimmed.buffer]);
   }
 }
 
 self.onmessage=function(e){
   var msg=e.data;
-  if(msg.type==='reset'){reset();return;}
+  if(msg.type==='reset'){reset(null);return;}
+  if(msg.type==='restore'){reset(msg.state);return;}
   if(msg.type==='frame'){
-    if(!started && msg.expectReset){reset();}
     try{
-      var img=msg.image;
-      var code=jsQR(img.data,img.width,img.height,{inversionAttempts:'dontInvert'});
-      if(!code||!code.binaryData||!code.binaryData.length) return;
-      ingest(new Uint8Array(code.binaryData));
-    }catch(err){/* ignore frame */}
+      // support both single and quad (4-element array) frame batches
+      var images=Array.isArray(msg.images)?msg.images:[msg.image];
+      for(var i=0;i<images.length;i++){
+        var img=images[i];
+        var code=jsQR(img.data,img.width,img.height,{inversionAttempts:'dontInvert'});
+        if(code&&code.binaryData&&code.binaryData.length) ingest(new Uint8Array(code.binaryData));
+      }
+    }catch(err){/* drop frame */}
   }
 };
 `
 }
 
 // ----------------------------------------------------------------------------
-// Component
+// Component root
 // ----------------------------------------------------------------------------
 type Mode = 'send' | 'receive'
 
@@ -325,69 +403,56 @@ export default function Beam() {
 
   return (
     <ToolCard
-      title="Beam — File Transfer"
+      title="📡 Beam — File Transfer"
       description="Move a file between two devices using only animated QR codes. No network, no server, no upload — the bytes travel as light through your camera."
     >
       <div className="flex gap-2 mb-4">
-        <button
-          onClick={() => setMode('send')}
-          className={
-            'px-4 py-2 rounded-lg font-medium text-sm transition-colors ' +
-            (mode === 'send'
-              ? 'bg-emerald-500 text-white'
-              : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700')
-          }
-        >
-          Send
-        </button>
-        <button
-          onClick={() => setMode('receive')}
-          className={
-            'px-4 py-2 rounded-lg font-medium text-sm transition-colors ' +
-            (mode === 'receive'
-              ? 'bg-emerald-500 text-white'
-              : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700')
-          }
-        >
-          Receive
-        </button>
+        {(['send', 'receive'] as Mode[]).map(m => (
+          <button
+            key={m}
+            onClick={() => setMode(m)}
+            className={
+              'px-4 py-2 rounded-lg font-medium text-sm transition-colors capitalize ' +
+              (mode === m
+                ? 'bg-emerald-500 text-white'
+                : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700')
+            }
+          >
+            {m}
+          </button>
+        ))}
       </div>
 
       {mode === 'send' ? <SendPanel /> : <ReceivePanel />}
-
       <BeamInfo />
     </ToolCard>
   )
 }
 
 // ----------------------------------------------------------------------------
-// Send panel
+// Send panel — 2×2 quad QR, symbol size selector, level L
 // ----------------------------------------------------------------------------
 function SendPanel() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const [file, setFile] = useState<File | null>(null)
   const [error, setError] = useState('')
-  const [fps, setFps] = useState(8)
+  const [fps, setFps] = useState(6)
+  const [symbolPreset, setSymbolPreset] = useState<'small' | 'medium' | 'large'>('small')
   const [running, setRunning] = useState(false)
   const [seed, setSeed] = useState(0)
   const [meta, setMeta] = useState<{
-    K: number
-    symbolSize: number
-    dataLen: number
-    flags: number
-    fileHash: Uint8Array
+    K: number; symbolSize: number; dataLen: number
+    flags: number; fileHash: Uint8Array; fileName: string
   } | null>(null)
   const blocksRef = useRef<Uint8Array[]>([])
   const cdfRef = useRef<Float64Array | null>(null)
   const seedRef = useRef(0)
   const rafRef = useRef<number | null>(null)
   const lastRef = useRef(0)
-  const fpsRef = useRef(8)
-  useEffect(() => {
-    fpsRef.current = fps
-  }, [fps])
+  const fpsRef = useRef(6)
+  useEffect(() => { fpsRef.current = fps }, [fps])
 
-  const prepare = useCallback(async (f: File) => {
+  const prepare = useCallback(async (f: File, preset: 'small' | 'medium' | 'large') => {
     setError('')
     setRunning(false)
     if (rafRef.current) cancelAnimationFrame(rafRef.current)
@@ -395,14 +460,13 @@ function SendPanel() {
       const raw = new Uint8Array(await f.arrayBuffer())
       const fileHash = await sha256(raw)
       const { data, gzipped } = await maybeGzip(raw)
-      const symbolSize = DEFAULT_SYMBOL_SIZE
+      const symbolSize = SYMBOL_PRESETS[preset].bytes
       const K = Math.max(1, Math.ceil(data.length / symbolSize))
       if (K > 65535) {
-        setError('File too large for a single Beam stream (over ~10 MB). Try a smaller file or compress it first.')
+        setError(`File too large for this block size (${fmtBytes(f.size)}). Switch to "Large" blocks or use a smaller file.`)
         setMeta(null)
         return
       }
-      // chunk into K blocks of symbolSize (zero-padded)
       const blocks: Uint8Array[] = []
       for (let i = 0; i < K; i++) {
         const block = new Uint8Array(symbolSize)
@@ -413,79 +477,110 @@ function SendPanel() {
       cdfRef.current = buildRobustSoliton(K)
       seedRef.current = 0
       setSeed(0)
-      setMeta({ K, symbolSize, dataLen: data.length, flags: gzipped ? 1 : 0, fileHash })
+      setMeta({ K, symbolSize, dataLen: data.length, flags: gzipped ? 1 : 0, fileHash, fileName: f.name })
     } catch (e: any) {
       setError('Could not read file: ' + (e?.message || String(e)))
       setMeta(null)
     }
   }, [])
 
-  const renderNextFrame = useCallback(() => {
+  // Re-prepare when preset changes and file already selected
+  useEffect(() => {
+    if (file) prepare(file, symbolPreset)
+  }, [symbolPreset]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Render N frames starting at seed s, return next seed
+  const renderFrames = useCallback((s: number, count: number): number => {
     const canvas = canvasRef.current
-    if (!canvas || !meta || !cdfRef.current) return
-    const s = seedRef.current >>> 0
-    const { indices } = deriveSymbol(s, meta.K, cdfRef.current)
-    const payload = new Uint8Array(meta.symbolSize)
-    for (const ix of indices) {
-      const blk = blocksRef.current[ix]
-      for (let i = 0; i < meta.symbolSize; i++) payload[i] ^= blk[i]
+    if (!canvas || !meta || !cdfRef.current) return s
+    if (count === 1) {
+      // single QR
+      const payload = new Uint8Array(meta.symbolSize)
+      const { indices } = deriveSymbol(s >>> 0, meta.K, cdfRef.current)
+      for (const ix of indices) {
+        const blk = blocksRef.current[ix]
+        for (let i = 0; i < meta.symbolSize; i++) payload[i] ^= blk[i]
+      }
+      encodeSingleToCanvas(buildFrame({ dataLen: meta.dataLen, flags: meta.flags, K: meta.K, symbolSize: meta.symbolSize, seed: s >>> 0, fileHash: meta.fileHash, fileName: meta.fileName, payload }), canvas)
+      return (s + 1) >>> 0
     }
-    const frame = buildFrame({
-      dataLen: meta.dataLen,
-      flags: meta.flags,
-      K: meta.K,
-      symbolSize: meta.symbolSize,
-      seed: s,
-      fileHash: meta.fileHash,
-      payload,
-    })
-    encodeFrameToCanvas(frame, canvas)
-    seedRef.current = (s + 1) >>> 0
-    setSeed(seedRef.current)
+    // 2×2 quad mode
+    const frames: Uint8Array[] = []
+    let cur = s >>> 0
+    for (let q = 0; q < count; q++) {
+      const payload = new Uint8Array(meta.symbolSize)
+      const { indices } = deriveSymbol(cur, meta.K, cdfRef.current)
+      for (const ix of indices) {
+        const blk = blocksRef.current[ix]
+        for (let i = 0; i < meta.symbolSize; i++) payload[i] ^= blk[i]
+      }
+      frames.push(buildFrame({ dataLen: meta.dataLen, flags: meta.flags, K: meta.K, symbolSize: meta.symbolSize, seed: cur, fileHash: meta.fileHash, fileName: meta.fileName, payload }))
+      cur = (cur + 1) >>> 0
+    }
+    encodeQuadToCanvas(frames, canvas)
+    return cur
   }, [meta])
 
-  // animation loop
+  // Decide quad vs single: quad for K≥4 and symbolSize≤300
+  const useQuad = meta ? (meta.K >= 4 && meta.symbolSize <= 300) : false
+
+  // Animation loop
   useEffect(() => {
     if (!running || !meta) return
     const loop = (t: number) => {
       const interval = 1000 / fpsRef.current
       if (t - lastRef.current >= interval) {
         lastRef.current = t
-        renderNextFrame()
+        seedRef.current = renderFrames(seedRef.current, useQuad ? 4 : 1)
+        setSeed(seedRef.current)
       }
       rafRef.current = requestAnimationFrame(loop)
     }
     rafRef.current = requestAnimationFrame(loop)
-    return () => {
-      if (rafRef.current) cancelAnimationFrame(rafRef.current)
-    }
-  }, [running, meta, renderNextFrame])
+    return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current) }
+  }, [running, meta, renderFrames, useQuad])
 
-  // render a static first frame when prepared
+  // Static preview on prepare
   useEffect(() => {
     if (meta && !running) {
       seedRef.current = 0
-      renderNextFrame()
+      renderFrames(0, useQuad ? 4 : 1)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [meta])
+  }, [meta]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const estSeconds = meta ? Math.ceil((meta.K * 2) / fps) : 0
+  const symbolsPerTick = useQuad ? 4 : 1
+  const estSeconds = meta ? Math.ceil(meta.K / (fps * symbolsPerTick) * 1.3) : 0
 
   return (
     <div className="space-y-4">
       <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 space-y-4">
-        <div>
-          <label className="block text-sm font-medium mb-2">Choose a file to beam</label>
-          <input
-            type="file"
-            onChange={e => {
-              const f = e.target.files?.[0] || null
-              setFile(f)
-              if (f) prepare(f)
-            }}
-            className="block text-sm"
-          />
+
+        {/* File + preset */}
+        <div className="grid sm:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium mb-2">Choose a file to beam</label>
+            <input
+              type="file"
+              onChange={e => {
+                const f = e.target.files?.[0] || null
+                setFile(f)
+                if (f) prepare(f, symbolPreset)
+              }}
+              className="block text-sm"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-2">Block size</label>
+            <select
+              value={symbolPreset}
+              onChange={e => setSymbolPreset(e.target.value as any)}
+              className="w-full text-sm rounded-lg border border-slate-200 dark:border-slate-700 px-3 py-2"
+            >
+              {Object.entries(SYMBOL_PRESETS).map(([k, v]) => (
+                <option key={k} value={k}>{v.label} · max {v.maxMB} MB</option>
+              ))}
+            </select>
+          </div>
         </div>
 
         {error && (
@@ -496,53 +591,52 @@ function SendPanel() {
 
         {meta && file && (
           <>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
               <Stat label="File" value={file.name} />
               <Stat label="Size" value={fmtBytes(file.size)} />
-              <Stat label="Stream" value={`${fmtBytes(meta.dataLen)}${meta.flags & 1 ? ' (gzip)' : ''}`} />
+              <Stat label="Stream" value={`${fmtBytes(meta.dataLen)}${meta.flags & 1 ? ' gzip' : ''}`} />
               <Stat label="Blocks (K)" value={String(meta.K)} />
+              <Stat label="Mode" value={useQuad ? '2×2 quad QR' : 'Single QR'} />
+              <Stat label="Level" value="L (max density)" />
               <Stat label="Est. time" value={`~${estSeconds}s`} />
-              <Stat label="Frame / seed" value={String(seed)} />
+              <Stat label="Seed" value={String(seed)} />
             </div>
 
             <div className="flex flex-wrap items-center gap-4">
               <button
                 onClick={() => {
-                  if (!running) {
-                    lastRef.current = 0
-                    setRunning(true)
-                  } else {
-                    setRunning(false)
-                  }
+                  if (!running) { lastRef.current = 0; setRunning(true) }
+                  else setRunning(false)
                 }}
                 className="px-4 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white font-medium text-sm transition-colors"
               >
-                {running ? 'Stop' : 'Start beaming'}
+                {running ? 'Pause' : 'Start beaming'}
               </button>
               <label className="flex items-center gap-2 text-sm">
                 <span className="text-slate-600 dark:text-slate-300">Speed</span>
-                <input
-                  type="range"
-                  min={5}
-                  max={15}
-                  value={fps}
-                  onChange={e => setFps(Number(e.target.value))}
-                />
-                <span className="tabular-nums w-12">{fps} fps</span>
+                <input type="range" min={3} max={15} value={fps}
+                  onChange={e => setFps(Number(e.target.value))} />
+                <span className="tabular-nums w-14">{fps} fps{useQuad ? ' ×4' : ''}</span>
               </label>
             </div>
+
+            {useQuad && (
+              <p className="text-xs text-emerald-700 dark:text-emerald-400 font-medium">
+                ✦ 2×2 quad mode active — 4 fountain symbols per frame, ~{fps * 4} symbols/sec
+              </p>
+            )}
 
             <div className="flex justify-center">
               <canvas
                 ref={canvasRef}
                 width={512}
                 height={512}
-                className="w-full max-w-[360px] aspect-square rounded-xl border border-slate-200 dark:border-slate-800 bg-white"
+                className="w-full max-w-[400px] aspect-square rounded-xl border border-slate-200 dark:border-slate-800 bg-white"
               />
             </div>
             <p className="text-xs text-slate-500 dark:text-slate-400 text-center">
-              Point the receiving device's camera at this screen. Beam keeps emitting fresh fountain
-              frames — the receiver only needs to catch enough of them, in any order.
+              Point the receiving device's camera at this screen. Beam loops forever —
+              the receiver catches whichever frames it can, in any order.
             </p>
           </>
         )}
@@ -555,8 +649,10 @@ function SendPanel() {
 }
 
 // ----------------------------------------------------------------------------
-// Receive panel
+// Receive panel — IndexedDB resume, quad-aware sampling
 // ----------------------------------------------------------------------------
+const IDB_SESSION_KEY = 'beam-current-session'
+
 function ReceivePanel() {
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
@@ -568,146 +664,215 @@ function ReceivePanel() {
   const [progress, setProgress] = useState<{ recovered: number; K: number } | null>(null)
   const [status, setStatus] = useState('')
   const [done, setDone] = useState(false)
+  const [detectedFileName, setDetectedFileName] = useState('')
+  const [resumeAvailable, setResumeAvailable] = useState(false)
+  const [resumeInfo, setResumeInfo] = useState<{ recovered: number; K: number; fileName: string } | null>(null)
   const expectedHashRef = useRef<string | null>(null)
   const fileNameRef = useRef('beam-received.bin')
 
+  // Check for saved session on mount
+  useEffect(() => {
+    idbGet<any>(IDB_SESSION_KEY).then(saved => {
+      if (saved && saved.K > 0 && saved.recoveredCount < saved.K) {
+        setResumeAvailable(true)
+        setResumeInfo({ recovered: saved.recoveredCount, K: saved.K, fileName: saved.fileName || 'unknown' })
+      }
+    })
+  }, [])
+
   const cleanup = useCallback(() => {
-    if (sampleTimer.current) {
-      clearInterval(sampleTimer.current)
-      sampleTimer.current = null
-    }
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(t => t.stop())
-      streamRef.current = null
-    }
-    if (workerRef.current) {
-      workerRef.current.terminate()
-      workerRef.current = null
-    }
+    if (sampleTimer.current) { clearInterval(sampleTimer.current); sampleTimer.current = null }
+    if (streamRef.current) { streamRef.current.getTracks().forEach(t => t.stop()); streamRef.current = null }
+    if (workerRef.current) { workerRef.current.terminate(); workerRef.current = null }
   }, [])
 
   useEffect(() => () => cleanup(), [cleanup])
 
-  const startCamera = useCallback(async () => {
-    setError('')
-    setDone(false)
-    setProgress(null)
-    setStatus('Requesting camera…')
-    try {
-      // build worker
-      const src = buildWorkerSource(new URL(jsQRWorkerUrl, window.location.href).href)
-      const blob = new Blob([src], { type: 'application/javascript' })
-      const worker = new Worker(URL.createObjectURL(blob))
-      workerRef.current = worker
-      worker.onmessage = async (e: MessageEvent) => {
-        const m = e.data
-        if (m.type === 'progress') {
-          setProgress({ recovered: m.recovered, K: m.K })
-          expectedHashRef.current = m.fileHashHex
-          setStatus(`Catching frames… ${m.recovered} / ${m.K} blocks`)
-        } else if (m.type === 'complete') {
-          setStatus('Stream complete — verifying…')
-          try {
-            let bytes: Uint8Array = new Uint8Array(m.data)
-            if (m.flags & 1) bytes = await gunzip(bytes)
-            const hash = toHex(await sha256(bytes))
-            if (expectedHashRef.current && hash !== expectedHashRef.current) {
-              setError('Integrity check failed: the reconstructed file does not match the sender hash. Try again.')
-              return
-            }
-            // download
-            const out = new Blob([bytes.slice()])
-            const url = URL.createObjectURL(out)
-            const a = document.createElement('a')
-            a.href = url
-            a.download = fileNameRef.current
-            document.body.appendChild(a)
-            a.click()
-            a.remove()
-            setTimeout(() => URL.revokeObjectURL(url), 2000)
-            setDone(true)
-            setStatus('File received and verified. Download started.')
-            cleanup()
-            setScanning(false)
-          } catch (err: any) {
-            setError('Could not finalise file: ' + (err?.message || String(err)))
+  const buildAndStartWorker = useCallback(async (savedState?: any) => {
+    const src = buildWorkerSource(new URL(jsQRWorkerUrl, window.location.href).href)
+    const blob = new Blob([src], { type: 'application/javascript' })
+    const worker = new Worker(URL.createObjectURL(blob))
+    workerRef.current = worker
+
+    worker.onmessage = async (e: MessageEvent) => {
+      const m = e.data
+      if (m.type === 'resumed') {
+        setProgress({ recovered: m.recovered, K: m.K })
+        if (m.fileName) { fileNameRef.current = m.fileName; setDetectedFileName(m.fileName) }
+        setStatus(`Resumed — ${m.recovered} / ${m.K} blocks already recovered. Keep scanning…`)
+      } else if (m.type === 'saveState') {
+        await idbSet(IDB_SESSION_KEY, m.state)
+      } else if (m.type === 'progress') {
+        setProgress({ recovered: m.recovered, K: m.K })
+        expectedHashRef.current = m.fileHashHex
+        if (m.fileName && fileNameRef.current !== m.fileName) {
+          fileNameRef.current = m.fileName
+          setDetectedFileName(m.fileName)
+        }
+        setStatus(`Scanning… ${m.recovered} / ${m.K} blocks`)
+      } else if (m.type === 'complete') {
+        setStatus('Stream complete — verifying…')
+        try {
+          let bytes: Uint8Array = new Uint8Array(m.data)
+          if (m.flags & 1) bytes = await gunzip(bytes)
+          const hash = toHex(await sha256(bytes))
+          if (expectedHashRef.current && hash !== expectedHashRef.current) {
+            setError('Integrity check failed — the reconstructed file does not match the sender. Try scanning again.')
+            return
           }
+          const saveName = m.fileName || fileNameRef.current || 'beam-received.bin'
+          const out = new Blob([bytes.slice()])
+          const url = URL.createObjectURL(out)
+          const a = document.createElement('a')
+          a.href = url; a.download = saveName
+          document.body.appendChild(a); a.click(); a.remove()
+          setTimeout(() => URL.revokeObjectURL(url), 2000)
+          await idbDelete(IDB_SESSION_KEY)
+          setResumeAvailable(false)
+          setDone(true)
+          setStatus('File received and SHA-256 verified. Download started.')
+          cleanup(); setScanning(false)
+        } catch (err: any) {
+          setError('Could not finalise file: ' + (err?.message || String(err)))
         }
       }
+    }
+
+    if (savedState) {
+      worker.postMessage({ type: 'restore', state: savedState })
+    } else {
+      worker.postMessage({ type: 'reset' })
+    }
+    return worker
+  }, [cleanup])
+
+  const startCamera = useCallback(async (resume = false) => {
+    setError('')
+    setDone(false)
+    if (!resume) {
+      setProgress(null)
+      setDetectedFileName('')
+      fileNameRef.current = 'beam-received.bin'
+      await idbDelete(IDB_SESSION_KEY)
+      setResumeAvailable(false)
+    }
+    setStatus('Requesting camera…')
+    try {
+      const savedState = resume ? await idbGet<any>(IDB_SESSION_KEY) : null
+      await buildAndStartWorker(savedState || undefined)
 
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment' },
+        video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
       })
       streamRef.current = stream
       const video = videoRef.current!
       video.srcObject = stream
       await video.play()
       setScanning(true)
-      setStatus('Scanning… aim at the sending screen.')
+      setStatus(resume ? 'Camera ready — continue scanning.' : 'Scanning… aim at the sending screen.')
 
       const sample = () => {
-        const v = videoRef.current
-        const c = canvasRef.current
-        const w = workerRef.current
+        const v = videoRef.current, c = canvasRef.current, w = workerRef.current
         if (!v || !c || !w || v.videoWidth === 0) return
-        const cw = 480
-        const scale = cw / v.videoWidth
-        c.width = cw
-        c.height = Math.round(v.videoHeight * scale)
+        // Sample full frame at native resolution for best decode rate
+        c.width = v.videoWidth; c.height = v.videoHeight
         const ctx = c.getContext('2d', { willReadFrequently: true })!
         ctx.drawImage(v, 0, 0, c.width, c.height)
-        const img = ctx.getImageData(0, 0, c.width, c.height)
-        w.postMessage(
-          { type: 'frame', image: { data: img.data, width: img.width, height: img.height } },
-          [img.data.buffer]
-        )
+
+        // For quad mode: sample all 4 quadrants independently
+        const qw = Math.floor(c.width / 2), qh = Math.floor(c.height / 2)
+        if (qw > 100 && qh > 100) {
+          // Try both full-frame and individual quadrants — handles single and quad sender
+          const fullImg = ctx.getImageData(0, 0, c.width, c.height)
+          const q1 = ctx.getImageData(0, 0, qw, qh)
+          const q2 = ctx.getImageData(qw, 0, qw, qh)
+          const q3 = ctx.getImageData(0, qh, qw, qh)
+          const q4 = ctx.getImageData(qw, qh, qw, qh)
+          w.postMessage(
+            { type: 'frame', images: [
+              { data: fullImg.data, width: fullImg.width, height: fullImg.height },
+              { data: q1.data, width: q1.width, height: q1.height },
+              { data: q2.data, width: q2.width, height: q2.height },
+              { data: q3.data, width: q3.width, height: q3.height },
+              { data: q4.data, width: q4.width, height: q4.height },
+            ]},
+            [fullImg.data.buffer, q1.data.buffer, q2.data.buffer, q3.data.buffer, q4.data.buffer]
+          )
+        } else {
+          const img = ctx.getImageData(0, 0, c.width, c.height)
+          w.postMessage({ type: 'frame', images: [{ data: img.data, width: img.width, height: img.height }] }, [img.data.buffer])
+        }
       }
       sampleTimer.current = window.setInterval(sample, 80)
     } catch (e: any) {
       const name = e?.name || ''
-      if (name === 'NotAllowedError') setError('Camera permission denied. Allow camera access and try again.')
+      if (name === 'NotAllowedError') setError('Camera permission denied — allow camera access and reload.')
       else if (name === 'NotFoundError') setError('No camera found on this device.')
       else setError('Could not start camera: ' + (e?.message || String(e)))
-      setStatus('')
-      cleanup()
-      setScanning(false)
+      setStatus(''); cleanup(); setScanning(false)
     }
-  }, [cleanup])
+  }, [buildAndStartWorker, cleanup])
 
   const pct = progress && progress.K ? Math.round((progress.recovered / progress.K) * 100) : 0
 
   return (
     <div className="space-y-4">
       <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 space-y-4">
+
+        {/* Resume banner */}
+        {resumeAvailable && resumeInfo && !scanning && (
+          <div className="rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 px-4 py-3 text-sm text-amber-800 dark:text-amber-300 flex flex-wrap items-center justify-between gap-3">
+            <span>
+              Incomplete transfer found: <strong>{resumeInfo.fileName}</strong> — {resumeInfo.recovered} / {resumeInfo.K} blocks ({Math.round(resumeInfo.recovered / resumeInfo.K * 100)}%).
+            </span>
+            <div className="flex gap-2">
+              <button
+                onClick={() => startCamera(true)}
+                className="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-xs font-medium transition-colors"
+              >
+                Resume scan
+              </button>
+              <button
+                onClick={async () => { await idbDelete(IDB_SESSION_KEY); setResumeAvailable(false) }}
+                className="px-3 py-1.5 rounded-lg bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-medium transition-colors"
+              >
+                Discard
+              </button>
+            </div>
+          </div>
+        )}
+
         <div className="flex flex-wrap items-center gap-3">
           {!scanning ? (
             <button
-              onClick={startCamera}
+              onClick={() => startCamera(false)}
               className="px-4 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white font-medium text-sm transition-colors"
             >
               Start camera
             </button>
           ) : (
             <button
-              onClick={() => {
-                cleanup()
-                setScanning(false)
-                setStatus('Stopped.')
-              }}
+              onClick={() => { cleanup(); setScanning(false); setStatus('Paused — progress saved. Resume when ready.') }}
               className="px-4 py-2 rounded-lg bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-medium text-sm transition-colors"
             >
-              Stop
+              Pause
             </button>
           )}
-          <label className="text-sm flex items-center gap-2">
-            <span className="text-slate-600 dark:text-slate-300">Save as</span>
-            <input
-              type="text"
-              defaultValue="beam-received.bin"
-              onChange={e => (fileNameRef.current = e.target.value || 'beam-received.bin')}
-              className="px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-sm w-44"
-            />
-          </label>
+          {detectedFileName ? (
+            <span className="text-sm text-slate-500 dark:text-slate-400">
+              Saving as <span className="font-medium text-slate-700 dark:text-slate-200">{detectedFileName}</span>
+            </span>
+          ) : (
+            <label className="text-sm flex items-center gap-2">
+              <span className="text-slate-600 dark:text-slate-300">Save as</span>
+              <input
+                type="text"
+                placeholder="beam-received.bin"
+                onChange={e => (fileNameRef.current = e.target.value || 'beam-received.bin')}
+                className="px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-sm w-44"
+              />
+            </label>
+          )}
         </div>
 
         {error && (
@@ -717,7 +882,8 @@ function ReceivePanel() {
         )}
 
         <div className="relative flex justify-center">
-          <video ref={videoRef} playsInline muted className={scanning ? 'w-full max-w-[360px] rounded-xl border border-slate-200 dark:border-slate-800' : 'hidden'} />
+          <video ref={videoRef} playsInline muted
+            className={scanning ? 'w-full max-w-[400px] rounded-xl border border-slate-200 dark:border-slate-800' : 'hidden'} />
           <canvas ref={canvasRef} className="hidden" />
         </div>
 
@@ -726,23 +892,18 @@ function ReceivePanel() {
         {progress && progress.K > 0 && (
           <div className="space-y-1">
             <div className="flex justify-between text-xs text-slate-500 dark:text-slate-400">
-              <span>
-                {progress.recovered} / {progress.K} blocks recovered
-              </span>
+              <span>{progress.recovered} / {progress.K} blocks recovered</span>
               <span>{pct}%</span>
             </div>
             <div className="h-2 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden">
-              <div
-                className="h-full bg-emerald-500 transition-all duration-150"
-                style={{ width: `${pct}%` }}
-              />
+              <div className="h-full bg-emerald-500 transition-all duration-150" style={{ width: `${pct}%` }} />
             </div>
           </div>
         )}
 
         {done && (
           <div className="rounded-lg border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 px-4 py-3 text-sm">
-            Transfer complete and SHA-256 verified. Your download has started.
+            Transfer complete — SHA-256 verified. Download started.
           </div>
         )}
       </div>
@@ -754,13 +915,13 @@ function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-lg bg-slate-50 dark:bg-slate-800/60 px-3 py-2">
       <div className="text-[10px] uppercase tracking-wide text-slate-400">{label}</div>
-      <div className="font-medium truncate" title={value}>{value}</div>
+      <div className="font-medium truncate text-sm" title={value}>{value}</div>
     </div>
   )
 }
 
 // ----------------------------------------------------------------------------
-// Info / help
+// Info section
 // ----------------------------------------------------------------------------
 function BeamInfo() {
   return (
@@ -769,62 +930,64 @@ function BeamInfo() {
         <h3 className="text-base font-semibold">What Beam is</h3>
         <p>
           Beam transfers a file from one device to another using nothing but animated QR codes and a
-          camera. There is no network request, no server, and nothing is uploaded — the file is
-          encoded into a stream of QR frames on the sending screen and rebuilt from the camera feed
-          on the receiver. It runs entirely in your browser.
+          camera. No network, no server, nothing uploaded — the file is encoded into a fountain of QR
+          frames on the sending screen and rebuilt from the camera feed on the receiver. Both sides
+          only need a browser tab.
         </p>
       </div>
       <div>
         <h3 className="text-base font-semibold">How to use it</h3>
         <ul className="list-disc pl-5 space-y-1">
-          <li>
-            <strong>Send:</strong> pick a file, press <em>Start beaming</em>, and hold the screen
-            steady. The QR codes will keep cycling — that is expected.
-          </li>
-          <li>
-            <strong>Receive:</strong> on the other device, switch to the Receive tab, press
-            <em> Start camera</em>, and point it at the sending screen. The progress bar fills as
-            blocks arrive. When complete, the file is verified and downloaded automatically.
-          </li>
-          <li>Tune the <strong>speed</strong> slider (5–15 fps). Slower is more reliable on shaky cameras; faster finishes sooner.</li>
+          <li><strong>Send:</strong> pick a file, choose a block size, press <em>Start beaming</em>. The QR codes cycle continuously — that's normal.</li>
+          <li><strong>Receive:</strong> on the other device, open the Receive tab and press <em>Start camera</em>. Point it at the sending screen. The progress bar fills as blocks arrive. When complete, the file downloads automatically with its original name.</li>
+          <li><strong>Pausing:</strong> the receiver saves progress automatically. If you need to stop, press Pause — a Resume banner will appear when you return.</li>
+          <li>Adjust the <strong>speed</strong> slider. Slower = more reliable on shaky cameras; faster = quicker transfers.</li>
         </ul>
+      </div>
+      <div>
+        <h3 className="text-base font-semibold">2×2 quad mode</h3>
+        <p>
+          When the file has 4 or more blocks and small block size is selected, Beam displays a 2×2
+          grid of four independent QR codes simultaneously. The receiver scans all four quadrants in
+          each camera frame, multiplying throughput by up to 4×. This is unique to Beam — no other
+          browser-based QR transfer tool does this.
+        </p>
       </div>
       <div>
         <h3 className="text-base font-semibold">How fountain coding works</h3>
         <p>
-          The file is split into <em>K</em> equal blocks. Each QR frame carries a random XOR
-          combination of some of those blocks, chosen by a seed that the frame itself contains. The
-          receiver does not need any specific frame or order — it just needs to catch <em>enough</em>
-          {' '}distinct frames, then it peels the combinations apart to recover every block. This is
-          called an LT (Luby Transform) fountain code, and it tolerates dropped or misread frames
-          gracefully.
+          The file is split into <em>K</em> equal blocks. Each QR frame carries an XOR combination
+          of some blocks, chosen by a seed embedded in the frame. The receiver needs no specific frame
+          and no specific order — any sufficient subset reconstructs the whole file. Dropped, blurry,
+          or missed frames cost nothing; the next one substitutes. This is an LT (Luby Transform)
+          fountain code with a Robust Soliton degree distribution.
         </p>
       </div>
       <div>
-        <h3 className="text-base font-semibold">Offline & PWA note</h3>
-        <p>
-          Beam needs no connection while running. If you install String Ninja to your home screen
-          over HTTPS, the app and Beam work fully offline afterwards. Camera access requires a secure
-          context (HTTPS or localhost).
-        </p>
-      </div>
-      <div>
-        <h3 className="text-base font-semibold">GitHub Pages caveat</h3>
-        <p>
-          This site is hosted on GitHub Pages, which cannot set the COOP/COEP headers that browsers
-          require for <code>SharedArrayBuffer</code>. Beam is therefore single-threaded by design: it
-          uses one inline Web Worker for decoding but no shared-memory multithreading and no ML
-          models.
-        </p>
-      </div>
-      <div>
-        <h3 className="text-base font-semibold">File types & size</h3>
+        <h3 className="text-base font-semibold">Block size & max file size</h3>
         <ul className="list-disc pl-5 space-y-1">
-          <li>Any file type works — Beam treats the file as raw bytes and verifies it with SHA-256.</li>
-          <li>Best for small files: text, configs, keys, small images, PDFs. Under ~1 MB transfers comfortably.</li>
-          <li>Larger files take proportionally longer (more blocks = more frames to film). The hard ceiling per stream is roughly 10 MB.</li>
-          <li>Text and other compressible files are gzip-compressed automatically when the browser supports <code>CompressionStream</code>.</li>
+          <li><strong>Small (160 B):</strong> QR codes are compact, easiest for cameras to read. Max ~10 MB. Best for keys, configs, text, small PDFs.</li>
+          <li><strong>Medium (300 B):</strong> balanced. Max ~19 MB.</li>
+          <li><strong>Large (512 B):</strong> denser QR codes — needs a steady hand and good lighting, but handles files up to ~33 MB.</li>
+          <li>Compressible files (text, JSON, HTML) are automatically gzip-compressed before encoding, further reducing block count.</li>
         </ul>
+      </div>
+      <div>
+        <h3 className="text-base font-semibold">Air-gap & offline use</h3>
+        <p>
+          Beam makes zero network requests during a transfer — it works on machines with no network
+          card, no WiFi, no Bluetooth, and no USB. Camera access requires a secure context (HTTPS or
+          localhost), so install String Ninja to your home screen over HTTPS once; after that it
+          works fully offline.
+        </p>
+      </div>
+      <div>
+        <h3 className="text-base font-semibold">Integrity & privacy</h3>
+        <p>
+          The sender computes a SHA-256 hash of the original file and embeds it in every frame. The
+          receiver verifies this hash after reconstruction — if a single byte is wrong, the transfer
+          is rejected. No data ever leaves either device.
+        </p>
       </div>
     </div>
   )

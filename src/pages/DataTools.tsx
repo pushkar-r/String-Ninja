@@ -81,7 +81,7 @@ export default function DataTools() {
     { key: 'csv', label: 'CSV ↔ JSON' },
     { key: 'md', label: 'Markdown → HTML' },
     { key: 'qr', label: 'QR Code Tools' },
-    { key: 'beam', label: '📡 Beam — File Transfer' },
+    { key: 'beam', label: 'Beam — File Transfer' },
     { key: 'code', label: 'Beautify / Minify' },
     { key: 'xml', label: 'XML ↔ JSON' },
     { key: 'norm', label: 'Unicode Normalizer' },
