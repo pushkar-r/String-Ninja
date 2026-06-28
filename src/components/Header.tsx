@@ -89,7 +89,6 @@ const tools = [
 const navLinks = [
   { to: '/', label: 'Encoding' },
   { to: '/strings/', label: 'Strings' },
-  { to: '/compare/', label: 'Compare' },
   { to: '/security/', label: 'Security' },
   { to: '/data/', label: 'Data' },
   { to: '/misc/', label: 'Misc' },

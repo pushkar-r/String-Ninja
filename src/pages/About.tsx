@@ -18,7 +18,7 @@ const toolCategories = [
   {
     name: 'String Utilities',
     path: '/strings/',
-    desc: 'Case conversion, character/word count, delimiter join/split, line sort/dedup, regex find & replace, frequency analysis.',
+    desc: 'Case conversion, character/word count, delimiter join/split, line sort/dedup, regex find & replace, frequency analysis, string diff.',
   },
   {
     name: 'Security Tools',
@@ -29,11 +29,6 @@ const toolCategories = [
     name: 'Data Tools',
     path: '/data/',
     desc: 'JSON formatter, QR code generator/scanner, code beautifier/minifier, XML↔JSON conversion, Unicode normalizer.',
-  },
-  {
-    name: 'Compare',
-    path: '/compare/',
-    desc: 'Side-by-side and inline text diff to instantly spot changes between two versions of any content.',
   },
   {
     name: 'Misc Utilities',

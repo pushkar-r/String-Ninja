@@ -201,7 +201,22 @@ function renderQRToCtx(
   }
 }
 
-// Render 2×2 grid of 4 QR codes (4 fountain symbols per frame)
+// 1×2 dual: two QR codes side by side
+function encodeDualToCanvas(frames: Uint8Array[], canvas: HTMLCanvasElement) {
+  const ctx = canvas.getContext('2d')!
+  const half = canvas.width / 2
+  ctx.fillStyle = '#ffffff'
+  ctx.fillRect(0, 0, canvas.width, canvas.height)
+  renderQRToCtx(frames[0], ctx, 0, 0, half)
+  if (frames[1]) renderQRToCtx(frames[1], ctx, half, 0, half)
+  ctx.strokeStyle = '#e2e8f0'
+  ctx.lineWidth = 1
+  ctx.beginPath()
+  ctx.moveTo(half, 0); ctx.lineTo(half, canvas.height)
+  ctx.stroke()
+}
+
+// 2×2 quad: four QR codes in a grid
 function encodeQuadToCanvas(frames: Uint8Array[], canvas: HTMLCanvasElement) {
   const ctx = canvas.getContext('2d')!
   const half = canvas.width / 2
@@ -211,7 +226,6 @@ function encodeQuadToCanvas(frames: Uint8Array[], canvas: HTMLCanvasElement) {
   for (let i = 0; i < Math.min(frames.length, 4); i++) {
     renderQRToCtx(frames[i], ctx, positions[i][0], positions[i][1], half)
   }
-  // Draw thin grid lines for visual separation
   ctx.strokeStyle = '#e2e8f0'
   ctx.lineWidth = 1
   ctx.beginPath()
@@ -220,7 +234,7 @@ function encodeQuadToCanvas(frames: Uint8Array[], canvas: HTMLCanvasElement) {
   ctx.stroke()
 }
 
-// Single QR mode for very small files (K < 4) or single-QR preference
+// Single QR
 function encodeSingleToCanvas(frame: Uint8Array, canvas: HTMLCanvasElement) {
   const ctx = canvas.getContext('2d')!
   renderQRToCtx(frame, ctx, 0, 0, canvas.width)
@@ -438,6 +452,7 @@ function SendPanel() {
   const [error, setError] = useState('')
   const [fps, setFps] = useState(6)
   const [symbolPreset, setSymbolPreset] = useState<'small' | 'medium' | 'large'>('small')
+  const [gridMode, setGridMode] = useState<1 | 2 | 4>(1)
   const [running, setRunning] = useState(false)
   const [seed, setSeed] = useState(0)
   const [meta, setMeta] = useState<{
@@ -450,7 +465,9 @@ function SendPanel() {
   const rafRef = useRef<number | null>(null)
   const lastRef = useRef(0)
   const fpsRef = useRef(6)
+  const gridModeRef = useRef<1 | 2 | 4>(1)
   useEffect(() => { fpsRef.current = fps }, [fps])
+  useEffect(() => { gridModeRef.current = gridMode }, [gridMode])
 
   const prepare = useCallback(async (f: File, preset: 'small' | 'medium' | 'large') => {
     setError('')
@@ -489,67 +506,56 @@ function SendPanel() {
     if (file) prepare(file, symbolPreset)
   }, [symbolPreset]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Render N frames starting at seed s, return next seed
+  // Render `count` fountain frames starting at seed s, return next seed
   const renderFrames = useCallback((s: number, count: number): number => {
     const canvas = canvasRef.current
     if (!canvas || !meta || !cdfRef.current) return s
-    if (count === 1) {
-      // single QR
-      const payload = new Uint8Array(meta.symbolSize)
-      const { indices } = deriveSymbol(s >>> 0, meta.K, cdfRef.current)
-      for (const ix of indices) {
-        const blk = blocksRef.current[ix]
-        for (let i = 0; i < meta.symbolSize; i++) payload[i] ^= blk[i]
-      }
-      encodeSingleToCanvas(buildFrame({ dataLen: meta.dataLen, flags: meta.flags, K: meta.K, symbolSize: meta.symbolSize, seed: s >>> 0, fileHash: meta.fileHash, fileName: meta.fileName, payload }), canvas)
-      return (s + 1) >>> 0
-    }
-    // 2×2 quad mode
-    const frames: Uint8Array[] = []
     let cur = s >>> 0
+    if (count === 1) {
+      const payload = new Uint8Array(meta.symbolSize)
+      const { indices } = deriveSymbol(cur, meta.K, cdfRef.current)
+      for (const ix of indices) { const blk = blocksRef.current[ix]; for (let i = 0; i < meta.symbolSize; i++) payload[i] ^= blk[i] }
+      encodeSingleToCanvas(buildFrame({ dataLen: meta.dataLen, flags: meta.flags, K: meta.K, symbolSize: meta.symbolSize, seed: cur, fileHash: meta.fileHash, fileName: meta.fileName, payload }), canvas)
+      return (cur + 1) >>> 0
+    }
+    const frames: Uint8Array[] = []
     for (let q = 0; q < count; q++) {
       const payload = new Uint8Array(meta.symbolSize)
       const { indices } = deriveSymbol(cur, meta.K, cdfRef.current)
-      for (const ix of indices) {
-        const blk = blocksRef.current[ix]
-        for (let i = 0; i < meta.symbolSize; i++) payload[i] ^= blk[i]
-      }
+      for (const ix of indices) { const blk = blocksRef.current[ix]; for (let i = 0; i < meta.symbolSize; i++) payload[i] ^= blk[i] }
       frames.push(buildFrame({ dataLen: meta.dataLen, flags: meta.flags, K: meta.K, symbolSize: meta.symbolSize, seed: cur, fileHash: meta.fileHash, fileName: meta.fileName, payload }))
       cur = (cur + 1) >>> 0
     }
-    encodeQuadToCanvas(frames, canvas)
+    if (count === 2) encodeDualToCanvas(frames, canvas)
+    else encodeQuadToCanvas(frames, canvas)
     return cur
   }, [meta])
 
-  // Decide quad vs single: quad for K≥4 and symbolSize≤300
-  const useQuad = meta ? (meta.K >= 4 && meta.symbolSize <= 300) : false
-
-  // Animation loop
+  // Animation loop — reads gridModeRef live so changes take effect without restart
   useEffect(() => {
     if (!running || !meta) return
     const loop = (t: number) => {
       const interval = 1000 / fpsRef.current
       if (t - lastRef.current >= interval) {
         lastRef.current = t
-        seedRef.current = renderFrames(seedRef.current, useQuad ? 4 : 1)
+        seedRef.current = renderFrames(seedRef.current, gridModeRef.current)
         setSeed(seedRef.current)
       }
       rafRef.current = requestAnimationFrame(loop)
     }
     rafRef.current = requestAnimationFrame(loop)
     return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current) }
-  }, [running, meta, renderFrames, useQuad])
+  }, [running, meta, renderFrames])
 
   // Static preview on prepare
   useEffect(() => {
     if (meta && !running) {
       seedRef.current = 0
-      renderFrames(0, useQuad ? 4 : 1)
+      renderFrames(0, gridModeRef.current)
     }
   }, [meta]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const symbolsPerTick = useQuad ? 4 : 1
-  const estSeconds = meta ? Math.ceil(meta.K / (fps * symbolsPerTick) * 1.3) : 0
+  const estSeconds = meta ? Math.ceil(meta.K / (fps * gridMode) * 1.3) : 0
 
   return (
     <div className="space-y-4">
@@ -596,7 +602,7 @@ function SendPanel() {
               <Stat label="Size" value={fmtBytes(file.size)} />
               <Stat label="Stream" value={`${fmtBytes(meta.dataLen)}${meta.flags & 1 ? ' gzip' : ''}`} />
               <Stat label="Blocks (K)" value={String(meta.K)} />
-              <Stat label="Mode" value={useQuad ? '2×2 quad QR' : 'Single QR'} />
+              <Stat label="QR grid" value={gridMode === 1 ? 'Single' : gridMode === 2 ? '1×2 (2 QR)' : '2×2 (4 QR)'} />
               <Stat label="Level" value="L (max density)" />
               <Stat label="Est. time" value={`~${estSeconds}s`} />
               <Stat label="Seed" value={String(seed)} />
@@ -616,13 +622,33 @@ function SendPanel() {
                 <span className="text-slate-600 dark:text-slate-300">Speed</span>
                 <input type="range" min={3} max={15} value={fps}
                   onChange={e => setFps(Number(e.target.value))} />
-                <span className="tabular-nums w-14">{fps} fps{useQuad ? ' ×4' : ''}</span>
+                <span className="tabular-nums w-14">{fps} fps</span>
               </label>
+              {/* Grid mode — switchable live */}
+              <div className="flex items-center gap-2 text-sm">
+                <span className="text-slate-600 dark:text-slate-300">QR grid</span>
+                <div className="flex rounded-lg overflow-hidden border border-slate-200 dark:border-slate-700 text-xs font-medium">
+                  {([1, 2, 4] as const).map(g => (
+                    <button
+                      key={g}
+                      onClick={() => setGridMode(g)}
+                      className={
+                        'px-3 py-1.5 transition-colors ' +
+                        (gridMode === g
+                          ? 'bg-emerald-500 text-white'
+                          : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800')
+                      }
+                    >
+                      {g === 1 ? '1' : g === 2 ? '1×2' : '2×2'}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
 
-            {useQuad && (
+            {gridMode > 1 && (
               <p className="text-xs text-emerald-700 dark:text-emerald-400 font-medium">
-                ✦ 2×2 quad mode active — 4 fountain symbols per frame, ~{fps * 4} symbols/sec
+                ✦ {gridMode === 2 ? '1×2 dual' : '2×2 quad'} mode — {gridMode} fountain symbols per frame (~{fps * gridMode} symbols/sec). If your phone struggles to read the grid, switch to 1.
               </p>
             )}
 
@@ -925,9 +951,11 @@ function Stat({ label, value }: { label: string; value: string }) {
 // ----------------------------------------------------------------------------
 function BeamInfo() {
   return (
-    <div className="mt-8 text-sm leading-6 text-slate-700 dark:text-slate-300 space-y-4">
+    <div className="mt-8 text-sm leading-6 text-slate-700 dark:text-slate-300 space-y-6">
+
+      {/* What it is */}
       <div>
-        <h3 className="text-base font-semibold">What Beam is</h3>
+        <h3 className="text-base font-semibold mb-1">What Beam is</h3>
         <p>
           Beam transfers a file from one device to another using nothing but animated QR codes and a
           camera. No network, no server, nothing uploaded — the file is encoded into a fountain of QR
@@ -935,60 +963,112 @@ function BeamInfo() {
           only need a browser tab.
         </p>
       </div>
+
+      {/* How to use */}
       <div>
-        <h3 className="text-base font-semibold">How to use it</h3>
+        <h3 className="text-base font-semibold mb-1">How to use it</h3>
         <ul className="list-disc pl-5 space-y-1">
-          <li><strong>Send:</strong> pick a file, choose a block size, press <em>Start beaming</em>. The QR codes cycle continuously — that's normal.</li>
-          <li><strong>Receive:</strong> on the other device, open the Receive tab and press <em>Start camera</em>. Point it at the sending screen. The progress bar fills as blocks arrive. When complete, the file downloads automatically with its original name.</li>
-          <li><strong>Pausing:</strong> the receiver saves progress automatically. If you need to stop, press Pause — a Resume banner will appear when you return.</li>
-          <li>Adjust the <strong>speed</strong> slider. Slower = more reliable on shaky cameras; faster = quicker transfers.</li>
+          <li><strong>Send:</strong> pick a file, choose a block size and QR grid, press <em>Start beaming</em>. The codes cycle continuously — that's normal.</li>
+          <li><strong>Receive:</strong> on the other device, open the Receive tab and press <em>Start camera</em>. Point it at the screen. Progress fills as blocks arrive; the file downloads automatically with its original name when done.</li>
+          <li><strong>Pausing:</strong> the receiver saves progress to your browser every 10 blocks. Press Pause at any time — a Resume banner appears when you return.</li>
+          <li><strong>QR grid:</strong> start with <em>1</em> (single, most reliable). If your camera keeps up, try <em>1×2</em> then <em>2×2</em> for more throughput. Switch live during a transfer — no restart needed.</li>
         </ul>
       </div>
+
+      {/* How fountain coding works */}
       <div>
-        <h3 className="text-base font-semibold">2×2 quad mode</h3>
-        <p>
-          When the file has 4 or more blocks and small block size is selected, Beam displays a 2×2
-          grid of four independent QR codes simultaneously. The receiver scans all four quadrants in
-          each camera frame, multiplying throughput by up to 4×. This is unique to Beam — no other
-          browser-based QR transfer tool does this.
-        </p>
-      </div>
-      <div>
-        <h3 className="text-base font-semibold">How fountain coding works</h3>
+        <h3 className="text-base font-semibold mb-1">How fountain coding works</h3>
         <p>
           The file is split into <em>K</em> equal blocks. Each QR frame carries an XOR combination
-          of some blocks, chosen by a seed embedded in the frame. The receiver needs no specific frame
-          and no specific order — any sufficient subset reconstructs the whole file. Dropped, blurry,
-          or missed frames cost nothing; the next one substitutes. This is an LT (Luby Transform)
-          fountain code with a Robust Soliton degree distribution.
+          of some blocks, chosen by a seed embedded in the frame itself. The receiver needs no
+          specific frame and no specific order — any sufficient subset reconstructs the whole file.
+          Dropped, blurry, or missed frames cost nothing; the next one substitutes. This is an LT
+          (Luby Transform) fountain code with a Robust Soliton degree distribution — the same family
+          of codes used in satellite broadcasting and deep-space telemetry.
         </p>
       </div>
+
+      {/* Block size */}
       <div>
-        <h3 className="text-base font-semibold">Block size & max file size</h3>
+        <h3 className="text-base font-semibold mb-1">Block size & max file size</h3>
         <ul className="list-disc pl-5 space-y-1">
-          <li><strong>Small (160 B):</strong> QR codes are compact, easiest for cameras to read. Max ~10 MB. Best for keys, configs, text, small PDFs.</li>
+          <li><strong>Small (160 B):</strong> compact QR codes, easiest for any camera. Max ~10 MB. Best for keys, configs, text, small PDFs.</li>
           <li><strong>Medium (300 B):</strong> balanced. Max ~19 MB.</li>
-          <li><strong>Large (512 B):</strong> denser QR codes — needs a steady hand and good lighting, but handles files up to ~33 MB.</li>
-          <li>Compressible files (text, JSON, HTML) are automatically gzip-compressed before encoding, further reducing block count.</li>
+          <li><strong>Large (512 B):</strong> denser codes — needs steady camera and good lighting. Max ~33 MB.</li>
+          <li>Compressible files (text, JSON, HTML) are automatically gzip-compressed before encoding, reducing block count further.</li>
         </ul>
       </div>
+
+      {/* Air-gap */}
       <div>
-        <h3 className="text-base font-semibold">Air-gap & offline use</h3>
+        <h3 className="text-base font-semibold mb-1">Air-gap & offline use</h3>
         <p>
           Beam makes zero network requests during a transfer — it works on machines with no network
-          card, no WiFi, no Bluetooth, and no USB. Camera access requires a secure context (HTTPS or
-          localhost), so install String Ninja to your home screen over HTTPS once; after that it
-          works fully offline.
+          card, no WiFi, no Bluetooth, and no USB port. Camera access requires a secure context
+          (HTTPS or localhost), so install String Ninja to your home screen over HTTPS once; after
+          that it works fully offline and air-gapped.
         </p>
       </div>
+
+      {/* Integrity */}
       <div>
-        <h3 className="text-base font-semibold">Integrity & privacy</h3>
+        <h3 className="text-base font-semibold mb-1">Integrity & privacy</h3>
         <p>
           The sender computes a SHA-256 hash of the original file and embeds it in every frame. The
           receiver verifies this hash after reconstruction — if a single byte is wrong, the transfer
           is rejected. No data ever leaves either device.
         </p>
       </div>
+
+      {/* Comparison */}
+      <div>
+        <h3 className="text-base font-semibold mb-2">How Beam compares to alternatives</h3>
+        <p className="mb-3 text-slate-500 dark:text-slate-400 text-xs">
+          Based on independently verified research across all major QR/optical file transfer tools.
+        </p>
+        <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700">
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="bg-slate-50 dark:bg-slate-800 text-left">
+                <th className="px-3 py-2 font-semibold text-slate-600 dark:text-slate-300 whitespace-nowrap">Approach</th>
+                <th className="px-3 py-2 font-semibold text-slate-600 dark:text-slate-300 whitespace-nowrap">No server</th>
+                <th className="px-3 py-2 font-semibold text-slate-600 dark:text-slate-300 whitespace-nowrap">Fountain codes</th>
+                <th className="px-3 py-2 font-semibold text-slate-600 dark:text-slate-300 whitespace-nowrap">Browser-native</th>
+                <th className="px-3 py-2 font-semibold text-slate-600 dark:text-slate-300 whitespace-nowrap">Resume</th>
+                <th className="px-3 py-2 font-semibold text-slate-600 dark:text-slate-300 whitespace-nowrap">Multi-QR grid</th>
+                <th className="px-3 py-2 font-semibold text-slate-600 dark:text-slate-300 whitespace-nowrap">Max size</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+              {[
+                { name: 'Beam', server: '✅', fountain: '✅', browser: '✅', resume: '✅', multi: '✅ 1/1×2/2×2', size: '~33 MB', highlight: true },
+                { name: 'WebRTC P2P tools', server: '❌ needs relay', fountain: '❌', browser: '✅', resume: '❌', multi: '❌', size: 'large' },
+                { name: 'CLI QR tools (Go/Python)', server: '✅', fountain: '✅ some', browser: '❌ install required', resume: '❌', multi: '❌', size: 'small' },
+                { name: 'Native app QR tools (C++)', server: '✅', fountain: '✅ some', browser: '❌ install required', resume: '❌', multi: '❌', size: '33 MB' },
+                { name: 'Browser QR (sequential)', server: '✅', fountain: '❌', browser: '✅', resume: '❌', multi: '❌', size: 'small' },
+                { name: 'Relay-based file share', server: '❌ relay server', fountain: '❌', browser: '❌ CLI', resume: '❌', multi: '❌', size: 'large' },
+              ].map(row => (
+                <tr key={row.name} className={row.highlight ? 'bg-emerald-50 dark:bg-emerald-950/30 font-medium' : 'hover:bg-slate-50 dark:hover:bg-slate-800/50'}>
+                  <td className="px-3 py-2 whitespace-nowrap text-slate-800 dark:text-slate-200">{row.name}</td>
+                  <td className="px-3 py-2 whitespace-nowrap">{row.server}</td>
+                  <td className="px-3 py-2 whitespace-nowrap">{row.fountain}</td>
+                  <td className="px-3 py-2 whitespace-nowrap">{row.browser}</td>
+                  <td className="px-3 py-2 whitespace-nowrap">{row.resume}</td>
+                  <td className="px-3 py-2 whitespace-nowrap">{row.multi}</td>
+                  <td className="px-3 py-2 whitespace-nowrap">{row.size}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <ul className="mt-3 list-disc pl-5 space-y-1 text-slate-600 dark:text-slate-400">
+          <li><strong className="text-slate-800 dark:text-slate-200">Only browser-native + fountain-coded + serverless tool.</strong> Other fountain-coded QR tools require installing a native app (Go, Python, or C++). Browser-based QR tools exist but use sequential chunks — miss one frame and that block is lost until it cycles back.</li>
+          <li><strong className="text-slate-800 dark:text-slate-200">Multi-QR grid is unique to Beam.</strong> No other QR transfer tool — browser or native — displays multiple independent codes simultaneously for parallel decoding.</li>
+          <li><strong className="text-slate-800 dark:text-slate-200">Resume across sessions.</strong> Beam saves decoder state to IndexedDB every 10 blocks. Close the tab, switch apps, come back later — no re-scan from scratch.</li>
+          <li><strong className="text-slate-800 dark:text-slate-200">No install on either end.</strong> Native app tools with higher throughput use proprietary color-icon matrix formats that need a custom C++ decoder. Beam trades that ceiling for universal compatibility — any phone camera, any browser, zero install.</li>
+        </ul>
+      </div>
+
     </div>
   )
 }
