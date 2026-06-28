@@ -416,7 +416,6 @@ self.onmessage=function(e){
   }
   if(msg.type==='frame'){
     try{
-      // support both single and quad (4-element array) frame batches
       var images=Array.isArray(msg.images)?msg.images:[msg.image];
       for(var i=0;i<images.length;i++){
         var img=images[i];
@@ -424,6 +423,7 @@ self.onmessage=function(e){
         if(code&&code.binaryData&&code.binaryData.length) ingest(new Uint8Array(code.binaryData));
       }
     }catch(err){/* drop frame */}
+    postMessage({type:'ack'}); // signals main thread: worker is idle, ready for next frame
   }
 };
 `
@@ -875,41 +875,52 @@ function ReceivePanel() {
       let sampleCanvas: HTMLCanvasElement | null = document.createElement('canvas')
       let sampleCtx: CanvasRenderingContext2D | null = sampleCanvas.getContext('2d', { willReadFrequently: true })
       sampleCanvas.width = SAMPLE_SZ; sampleCanvas.height = SAMPLE_SZ
+      let workerBusy = false  // prevent queuing frames faster than worker can decode
+      let tickCount = 0
 
       const sample = () => {
         const v = videoRef.current, w = workerRef.current
         if (!v || !w || v.videoWidth === 0 || !sampleCanvas || !sampleCtx) return
+        // Drop frame if worker is still processing the last one — prevents queue buildup
+        if (workerBusy) return
+        workerBusy = true
+        tickCount++
+
         // Crop center square from the 16:9 camera feed — matches the square viewfinder UI.
-        // jsQR only processes SAMPLE_SZ×SAMPLE_SZ pixels instead of the full 1280×720 frame.
         const vw = v.videoWidth, vh = v.videoHeight
         const side = Math.min(vw, vh)
         const sx = Math.floor((vw - side) / 2), sy = Math.floor((vh - side) / 2)
         sampleCtx.drawImage(v, sx, sy, side, side, 0, 0, SAMPLE_SZ, SAMPLE_SZ)
-        const sw = SAMPLE_SZ, sh = SAMPLE_SZ
+        const sz = SAMPLE_SZ
 
-        // Always try full-frame (handles single-QR sender).
-        // Also try quadrants (handles 2×2 multi-QR sender). Avoids sending 5 buffers every tick —
-        // alternate: full-frame on even ticks, quadrants on odd ticks.
-        const tick = Date.now()
-        if (tick % 2 === 0) {
-          const img = sampleCtx.getImageData(0, 0, sw, sh)
-          w.postMessage({ type: 'frame', images: [{ data: img.data, width: sw, height: sh }] }, [img.data.buffer])
+        // Alternate: full-frame (single-QR) on even ticks, quadrants (multi-QR) on odd ticks.
+        if (tickCount % 2 === 0) {
+          const img = sampleCtx.getImageData(0, 0, sz, sz)
+          w.postMessage({ type: 'frame', images: [{ data: img.data, width: sz, height: sz }] }, [img.data.buffer])
         } else {
-          const qw = Math.floor(sw / 2), qh = Math.floor(sh / 2)
-          const q1 = sampleCtx.getImageData(0, 0, qw, qh)
-          const q2 = sampleCtx.getImageData(qw, 0, qw, qh)
-          const q3 = sampleCtx.getImageData(0, qh, qw, qh)
-          const q4 = sampleCtx.getImageData(qw, qh, qw, qh)
+          const qz = Math.floor(sz / 2)
+          const q1 = sampleCtx.getImageData(0, 0, qz, qz)
+          const q2 = sampleCtx.getImageData(qz, 0, qz, qz)
+          const q3 = sampleCtx.getImageData(0, qz, qz, qz)
+          const q4 = sampleCtx.getImageData(qz, qz, qz, qz)
           w.postMessage(
             { type: 'frame', images: [
-              { data: q1.data, width: qw, height: qh },
-              { data: q2.data, width: qw, height: qh },
-              { data: q3.data, width: qw, height: qh },
-              { data: q4.data, width: qw, height: qh },
+              { data: q1.data, width: qz, height: qz },
+              { data: q2.data, width: qz, height: qz },
+              { data: q3.data, width: qz, height: qz },
+              { data: q4.data, width: qz, height: qz },
             ]},
             [q1.data.buffer, q2.data.buffer, q3.data.buffer, q4.data.buffer]
           )
         }
+      }
+
+      // Worker signals done after each frame batch so we clear the busy flag
+      const workerEl = workerRef.current!
+      const origOnMsg = workerEl.onmessage as ((e: MessageEvent) => void)
+      workerEl.onmessage = (e: MessageEvent) => {
+        workerBusy = false  // worker finished — ready for next frame
+        origOnMsg(e)
       }
 
       // Use requestVideoFrameCallback if available (~30fps, fires on real camera frames)
