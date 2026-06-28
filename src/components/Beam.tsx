@@ -409,6 +409,10 @@ type Mode = 'send' | 'receive'
 export default function Beam() {
   const [mode, setMode] = useState<Mode>('send')
 
+  // Start loading jsQR + ZXing WASM immediately when Beam mounts (user may be on Send tab).
+  // By the time they switch to Receive and hit Start, both decoders are compiled and warm.
+  useEffect(() => { loadDecoders().catch(() => {}) }, [])
+
   return (
     <ToolCard
       title="📡 Beam — File Transfer"
@@ -688,21 +692,33 @@ function SendPanel() {
 const IDB_SESSION_KEY = 'beam-current-session'
 
 // QR decoder state — module-level so it persists across scans.
-// jsQR: sync, always available.  ZXing-WASM: async Promise, faster once loaded.
 let _jsQRFn: ((d: Uint8ClampedArray, w: number, h: number, o: any) => any) | null = null
 let _zxRead: ((id: ImageData, opts: any) => Promise<any[]>) | null = null
+let _barcodeDetector: any = null
 const ZXING_OPTS = { formats: ['QRCode'], tryHarder: true, tryInvert: false, binarizer: 'LocalAverage' }
 
-/** Loads jsQR (sync) and kicks off ZXing WASM in background. Resolves when jsQR is ready. */
+// Bounding box in 0-1 normalised coords relative to the cropped square frame
+interface QRBox { x: number; y: number; w: number; h: number }
+interface DecodeResult { bytes: Uint8Array; box: QRBox | null }
+
+/** Loads jsQR (sync), BarcodeDetector (native), and ZXing WASM (background). */
 function loadDecoders(): Promise<void> {
   if (_jsQRFn) return Promise.resolve()
+
+  // Native BarcodeDetector — Chrome/Android, no download needed
+  if (typeof (window as any).BarcodeDetector !== 'undefined') {
+    try {
+      _barcodeDetector = new (window as any).BarcodeDetector({ formats: ['qr_code'] })
+    } catch { /* not supported */ }
+  }
+
   return new Promise((resolve, reject) => {
     const s = document.createElement('script')
     s.src = jsQRUrl
     s.onload = () => {
       _jsQRFn = (window as any).jsQR
       resolve()
-      // Load ZXing IIFE + WASM in background — upgrades decode quality once ready
+      // ZXing WASM loads in background — upgrades to faster C++ decoder once compiled
       const zs = document.createElement('script')
       zs.src = zxingIIFEUrl
       zs.onload = () => {
@@ -719,28 +735,77 @@ function loadDecoders(): Promise<void> {
   })
 }
 
-/** Decode one canvas ImageData. Uses ZXing when ready, falls back to jsQR. */
-async function decodeFrame(img: ImageData): Promise<Uint8Array | null> {
+/** corners → axis-aligned bounding box in 0-1 normalised coords */
+function cornersToBox(pts: { x: number; y: number }[], imgW: number, imgH: number): QRBox {
+  const xs = pts.map(p => p.x), ys = pts.map(p => p.y)
+  const x0 = Math.min(...xs), y0 = Math.min(...ys)
+  const x1 = Math.max(...xs), y1 = Math.max(...ys)
+  return { x: x0 / imgW, y: y0 / imgH, w: (x1 - x0) / imgW, h: (y1 - y0) / imgH }
+}
+
+/**
+ * Decode one ImageData frame. Priority: BarcodeDetector → ZXing → jsQR.
+ * Returns bytes + normalised bounding box (null if decoder doesn't provide one).
+ */
+async function decodeFrame(img: ImageData): Promise<DecodeResult | null> {
+  // 1. Native BarcodeDetector (hardware-accelerated on Android Chrome)
+  if (_barcodeDetector) {
+    try {
+      const results = await _barcodeDetector.detect(img)
+      for (const r of results) {
+        if (r.rawValue != null && r.cornerPoints?.length) {
+          // BarcodeDetector returns text; encode back to bytes via latin1
+          const bytes = new Uint8Array(r.rawValue.length)
+          for (let i = 0; i < r.rawValue.length; i++) bytes[i] = r.rawValue.charCodeAt(i) & 0xff
+          if (bytes.length) return { bytes, box: cornersToBox(r.cornerPoints, img.width, img.height) }
+        }
+      }
+    } catch { /* fall through */ }
+  }
+
+  // 2. ZXing-WASM (C++, fast, cross-platform)
   if (_zxRead) {
     try {
       const results = await _zxRead(img, ZXING_OPTS)
-      for (const r of results) if (r.isValid && r.bytes?.length) return new Uint8Array(r.bytes)
-    } catch { /* fall through to jsQR */ }
+      for (const r of results) {
+        if (r.isValid && r.bytes?.length) {
+          const box = r.position ? cornersToBox(
+            [r.position.topLeft, r.position.topRight, r.position.bottomRight, r.position.bottomLeft],
+            img.width, img.height
+          ) : null
+          return { bytes: new Uint8Array(r.bytes), box }
+        }
+      }
+    } catch { /* fall through */ }
   }
+
+  // 3. jsQR (pure JS fallback)
   if (_jsQRFn) {
     const r = _jsQRFn(img.data, img.width, img.height, { inversionAttempts: 'dontInvert' })
-    if (r?.binaryData?.length) return new Uint8Array(r.binaryData)
+    if (r?.binaryData?.length) {
+      const box = r.location ? cornersToBox(
+        [r.location.topLeftCorner, r.location.topRightCorner, r.location.bottomRightCorner, r.location.bottomLeftCorner],
+        img.width, img.height
+      ) : null
+      return { bytes: new Uint8Array(r.binaryData), box }
+    }
   }
+
   return null
 }
 
 function ReceivePanel() {
   const videoRef = useRef<HTMLVideoElement | null>(null)
-  const canvasRef = useRef<HTMLCanvasElement | null>(null)
+  const canvasRef = useRef<HTMLCanvasElement | null>(null)  // hidden off-screen sample canvas
+  const overlayRef = useRef<HTMLCanvasElement | null>(null) // visible bounding-box overlay
   const streamRef = useRef<MediaStream | null>(null)
   const rafRef = useRef<number | null>(null)
   const ltRef = useRef<LTState>(makeFreshLT())
   const doneRef = useRef(false)
+
+  // Pre-warm: kick off jsQR + ZXing WASM load the moment Receive tab is mounted,
+  // so both are compiled/JIT-warm before the user hits Start.
+  useEffect(() => { loadDecoders().catch(() => {}) }, [])
   const [scanning, setScanning] = useState(false)
   const [error, setError] = useState('')
   const [progress, setProgress] = useState<{ recovered: number; K: number } | null>(null)
@@ -809,12 +874,46 @@ function ReceivePanel() {
       setScanning(true)
       setStatus(resume ? 'Camera ready — keep scanning.' : 'Scanning… aim at the sending screen.')
 
+      // Try to enable continuous autofocus (supported on Android Chrome; silently fails elsewhere)
+      try {
+        const track = stream.getVideoTracks()[0]
+        if (track && typeof (track as any).applyConstraints === 'function') {
+          await (track as any).applyConstraints({ advanced: [{ focusMode: 'continuous' }] } as any)
+        }
+      } catch { /* not supported — ignore */ }
+
       const SAMPLE_SZ = 512
       const sc = document.createElement('canvas')
       sc.width = SAMPLE_SZ; sc.height = SAMPLE_SZ
       const sctx = sc.getContext('2d', { willReadFrequently: true })!
 
       await loadDecoders()
+
+      // Fade-out timer for the bounding box
+      let boxFadeTimer: ReturnType<typeof setTimeout> | null = null
+
+      const drawBox = (box: QRBox | null) => {
+        const ov = overlayRef.current
+        if (!ov) return
+        const W = ov.width, H = ov.height
+        const ctx = ov.getContext('2d')!
+        ctx.clearRect(0, 0, W, H)
+        if (!box) return
+        const x = box.x * W, y = box.y * H, w = box.w * W, h = box.h * H
+        const r = 8
+        ctx.beginPath()
+        ctx.moveTo(x + r, y)
+        ctx.arcTo(x + w, y, x + w, y + h, r)
+        ctx.arcTo(x + w, y + h, x, y + h, r)
+        ctx.arcTo(x, y + h, x, y, r)
+        ctx.arcTo(x, y, x + w, y, r)
+        ctx.closePath()
+        ctx.strokeStyle = '#22c55e'
+        ctx.lineWidth = 3
+        ctx.shadowColor = '#22c55e'
+        ctx.shadowBlur = 8
+        ctx.stroke()
+      }
 
       let busy = false
       const loop = async () => {
@@ -827,9 +926,15 @@ function ReceivePanel() {
           const side = Math.min(vw, vh)
           sctx.drawImage(v, (vw - side) >> 1, (vh - side) >> 1, side, side, 0, 0, SAMPLE_SZ, SAMPLE_SZ)
           const img = sctx.getImageData(0, 0, SAMPLE_SZ, SAMPLE_SZ)
-          const raw = await decodeFrame(img)
+          const result = await decodeFrame(img)
           busy = false
-          if (raw) {
+          if (result) {
+            // Draw / refresh bounding box
+            drawBox(result.box)
+            if (boxFadeTimer) clearTimeout(boxFadeTimer)
+            boxFadeTimer = setTimeout(() => drawBox(null), 500)
+
+            const raw = result.bytes
             const r = ltIngest(ltRef.current, raw)
             if (r === 'progress') {
               const st = ltRef.current
@@ -953,6 +1058,9 @@ function ReceivePanel() {
         <div className={scanning ? 'relative w-full aspect-square rounded-xl overflow-hidden bg-black border border-slate-200 dark:border-slate-800' : 'hidden'}>
           <video ref={videoRef} playsInline muted
             className="absolute inset-0 w-full h-full object-cover" />
+          {/* Bounding-box overlay — sized to match the video element via CSS */}
+          <canvas ref={overlayRef} width={512} height={512}
+            className="absolute inset-0 w-full h-full pointer-events-none" />
           <canvas ref={canvasRef} className="hidden" />
         </div>
 

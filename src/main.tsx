@@ -61,6 +61,21 @@ const router = createBrowserRouter([
   }
 ], { basename: import.meta.env.BASE_URL })
 
+// Register Beam decoder service worker (caches jsQR + ZXing IIFE + WASM permanently)
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register(import.meta.env.BASE_URL + 'beam-sw.js').catch(() => {})
+}
+
+// Preload ZXing WASM as early as possible so compilation overlaps with React startup.
+// The SW will serve it from cache on subsequent visits (no network round-trip).
+import zxingWasmUrl from './vendor/beam/zxing_reader.wasm?url'
+{
+  const link = document.createElement('link')
+  link.rel = 'preload'; link.as = 'fetch'; link.crossOrigin = 'anonymous'
+  link.href = new URL(zxingWasmUrl, window.location.href).href
+  document.head.appendChild(link)
+}
+
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <ThemeProvider>
