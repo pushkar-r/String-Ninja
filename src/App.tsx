@@ -1,5 +1,5 @@
-import React from 'react'
-import { Link, Outlet } from 'react-router-dom'
+import React, { useEffect } from 'react'
+import { Link, Outlet, useLocation } from 'react-router-dom'
 import Header from './components/Header'
 import CookieBanner from './components/CookieBanner'
 
@@ -14,9 +14,16 @@ function FooterLink({ to, children }: { to: string; children: React.ReactNode })
   )
 }
 
+function ScrollToTop() {
+  const { pathname } = useLocation()
+  useEffect(() => { window.scrollTo(0, 0) }, [pathname])
+  return null
+}
+
 export default function App() {
   return (
     <div className="min-h-screen flex flex-col text-slate-900 dark:text-slate-100 break-words bg-slate-50 dark:bg-slate-950">
+      <ScrollToTop />
       <Header />
       <main className="flex-1 max-w-6xl w-full mx-auto px-4 py-6">
         <Outlet />

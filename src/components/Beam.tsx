@@ -796,7 +796,8 @@ function ReceivePanel() {
     const ws = Array.from({ length: POOL_SIZE }, () => new Worker(URL.createObjectURL(blob)))
     workersRef.current = ws
     workerBusy.current = ws.map(() => false)
-    return () => { ws.forEach(w => w.terminate()); workersRef.current = []; workerBusy.current = [] }
+    workerSentAt.current = ws.map(() => 0)
+    return () => { ws.forEach(w => w.terminate()); workersRef.current = []; workerBusy.current = []; workerSentAt.current = [] }
   }, [makeWorkerBlob])
 
   const handleDecoded = useCallback(async (payloads: Uint8Array[]) => {
