@@ -392,6 +392,15 @@ self.onmessage=function(e){
   var msg=e.data;
   if(msg.type==='reset'){reset(null);return;}
   if(msg.type==='restore'){reset(msg.state);return;}
+  if(msg.type==='requestSave'){
+    if(K>0&&recoveredCount>0){
+      var snap={K:K,symbolSize:symbolSize,dataLen:dataLen,flags:flags,fileHashHex:fileHashHex,fileName:fileName,
+        cdf:Array.from(cdf),recovered:recovered.map(function(b){return b?Array.from(b):null;}),
+        recoveredCount:recoveredCount,seenSeeds:seenSeeds};
+      postMessage({type:'saveState',state:snap});
+    }
+    return;
+  }
   if(msg.type==='frame'){
     try{
       // support both single and quad (4-element array) frame batches
@@ -712,6 +721,29 @@ function ReceivePanel() {
     if (workerRef.current) { workerRef.current.terminate(); workerRef.current = null }
   }, [])
 
+  // Flush decoder state to IDB before killing the worker so resume works correctly
+  const pauseCamera = useCallback(async () => {
+    if (sampleTimer.current) { clearInterval(sampleTimer.current); sampleTimer.current = null }
+    if (streamRef.current) { streamRef.current.getTracks().forEach(t => t.stop()); streamRef.current = null }
+    const worker = workerRef.current
+    if (worker) {
+      await new Promise<void>(resolve => {
+        const timeout = setTimeout(resolve, 800)
+        const prev = worker.onmessage as ((e: MessageEvent) => void) | null
+        worker.onmessage = async (e: MessageEvent) => {
+          if (prev) prev(e)
+          if (e.data?.type === 'saveState') { clearTimeout(timeout); resolve() }
+        }
+        worker.postMessage({ type: 'requestSave' })
+      })
+      worker.terminate()
+      workerRef.current = null
+    }
+    setScanning(false)
+    setStatus('Paused — progress saved. Resume when ready.')
+    setResumeAvailable(true)
+  }, [])
+
   useEffect(() => () => cleanup(), [cleanup])
 
   const buildAndStartWorker = useCallback(async (savedState?: any) => {
@@ -878,7 +910,7 @@ function ReceivePanel() {
             </button>
           ) : (
             <button
-              onClick={() => { cleanup(); setScanning(false); setStatus('Paused — progress saved. Resume when ready.') }}
+              onClick={() => pauseCamera()}
               className="px-4 py-2 rounded-lg bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-medium text-sm transition-colors"
             >
               Pause
@@ -907,9 +939,9 @@ function ReceivePanel() {
           </div>
         )}
 
-        <div className="relative flex justify-center">
+        <div className={scanning ? 'relative w-full rounded-xl overflow-hidden bg-black border border-slate-200 dark:border-slate-800' : 'hidden'}>
           <video ref={videoRef} playsInline muted
-            className={scanning ? 'w-full max-w-[400px] max-h-[60vw] sm:max-h-[320px] rounded-xl border border-slate-200 dark:border-slate-800 object-contain bg-black' : 'hidden'} />
+            className="w-full h-auto block object-cover" />
           <canvas ref={canvasRef} className="hidden" />
         </div>
 
