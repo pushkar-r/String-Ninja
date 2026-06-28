@@ -11,6 +11,7 @@ import { beautifyCode, minifyCode } from '../utils/formatters'
 import { xmlToJson, jsonToXml } from '../utils/xmljson'
 import { normalizeText } from '../utils/unicode'
 import * as yaml from 'js-yaml'
+import Beam from '../components/Beam'
 
 function describeJsonError(jsonText: string, err: any): string {
   try {
@@ -34,7 +35,7 @@ function describeJsonError(jsonText: string, err: any): string {
   }
 }
 export default function DataTools() {
-  const [active, setActive] = useState<'json'|'yaml'|'csv'|'md'|'qr'|'code'|'xml'|'norm'>('json')
+  const [active, setActive] = useState<'json'|'yaml'|'csv'|'md'|'qr'|'beam'|'code'|'xml'|'norm'>('json')
 
   // States preserved from original implementation
   const [jsonText, setJsonText] = useState('')
@@ -80,6 +81,7 @@ export default function DataTools() {
     { key: 'csv', label: 'CSV ↔ JSON' },
     { key: 'md', label: 'Markdown → HTML' },
     { key: 'qr', label: 'QR Code Tools' },
+    { key: 'beam', label: '📡 Beam — File Transfer' },
     { key: 'code', label: 'Beautify / Minify' },
     { key: 'xml', label: 'XML ↔ JSON' },
     { key: 'norm', label: 'Unicode Normalizer' },
@@ -304,6 +306,8 @@ export default function DataTools() {
             </div>
           </ToolCard>
         )
+      case 'beam':
+        return <Beam />
       case 'code':
         return (
           <ToolCard title="HTML / CSS / JS Beautify & Minify" description="Format or minify HTML, CSS, and JavaScript for readability or performance.">

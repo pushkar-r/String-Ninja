@@ -55,6 +55,7 @@ const tools = [
   { label: 'JSON to CSV', path: '/data?tool=csv', category: 'Data' },
   { label: 'Markdown to HTML', path: '/data?tool=md', category: 'Data' },
   { label: 'QR Code Generator', path: '/data?tool=qr', category: 'Data' },
+  { label: 'Beam — QR File Transfer', path: '/data?tool=beam', category: 'Data' },
   { label: 'Beautify / Minify Code', path: '/data?tool=code', category: 'Data' },
   { label: 'XML to JSON Converter', path: '/data?tool=xml', category: 'Data' },
   { label: 'Unicode Normalizer', path: '/data?tool=norm', category: 'Data' },

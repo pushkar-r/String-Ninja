@@ -37,3 +37,9 @@ declare module 'qrcode' {
   }
   export default QRCode
 }
+
+declare module '*/qrcode-generator.mjs' {
+  const qrcode: any
+  export default qrcode
+  export const stringToBytes: (s: string) => number[]
+}
