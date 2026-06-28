@@ -1,4 +1,5 @@
-import React, { useRef, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import ToolCard from '../components/ToolCard'
 import ToolLayout from '../components/ToolLayout'
 import CopyButton from '../components/CopyButton'
@@ -34,8 +35,25 @@ function describeJsonError(jsonText: string, err: any): string {
     return 'Invalid JSON'
   }
 }
+type ActiveTool = 'json'|'yaml'|'csv'|'md'|'qr'|'beam'|'code'|'xml'|'norm'
+const VALID_TOOLS = new Set<ActiveTool>(['json','yaml','csv','md','qr','beam','code','xml','norm'])
+
 export default function DataTools() {
-  const [active, setActive] = useState<'json'|'yaml'|'csv'|'md'|'qr'|'beam'|'code'|'xml'|'norm'>('json')
+  const [searchParams, setSearchParams] = useSearchParams()
+  const [active, setActive] = useState<ActiveTool>(() => {
+    const t = searchParams.get('tool') as ActiveTool
+    return VALID_TOOLS.has(t) ? t : 'json'
+  })
+
+  useEffect(() => {
+    const t = searchParams.get('tool') as ActiveTool
+    if (t && VALID_TOOLS.has(t) && t !== active) setActive(t)
+  }, [searchParams]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  function selectTool(key: ActiveTool) {
+    setActive(key)
+    setSearchParams({ tool: key })
+  }
 
   // States preserved from original implementation
   const [jsonText, setJsonText] = useState('')
@@ -389,7 +407,7 @@ export default function DataTools() {
         title="Data Tools"
         activeKey={active}
         navItems={navItems}
-        onSelect={key => setActive(key as any)}
+        onSelect={key => selectTool(key as ActiveTool)}
       >
         {renderPanel()}
       </ToolLayout>

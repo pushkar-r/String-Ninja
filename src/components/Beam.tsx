@@ -909,7 +909,7 @@ function ReceivePanel() {
 
         <div className="relative flex justify-center">
           <video ref={videoRef} playsInline muted
-            className={scanning ? 'w-full max-w-[400px] rounded-xl border border-slate-200 dark:border-slate-800' : 'hidden'} />
+            className={scanning ? 'w-full max-w-[400px] max-h-[60vw] sm:max-h-[320px] rounded-xl border border-slate-200 dark:border-slate-800 object-contain bg-black' : 'hidden'} />
           <canvas ref={canvasRef} className="hidden" />
         </div>
 
