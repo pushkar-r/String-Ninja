@@ -39,13 +39,22 @@ const IDB_STORE = 'sessions'
 
 // Symbol size presets. Larger = fewer blocks = faster for big files, but QR
 // codes get denser (higher version). Camera must resolve them clearly.
-// Frame total = HEADER_LEN(80) + symbolSize + 4 (CRC)
-// QR Level L capacity by version: v10=271B, v13=428B, v16=587B
-// Presets sized so total frame fits cleanly inside each version boundary.
-const SYMBOL_PRESETS: Record<string, { bytes: number; label: string; maxMB: number }> = {
-  small:  { bytes: 180, label: 'Small (180 B/block) — QR v10, easiest to scan', maxMB: 11 },
-  medium: { bytes: 340, label: 'Medium (340 B/block) — QR v13, balanced', maxMB: 22 },
-  large:  { bytes: 500, label: 'Large (500 B/block) — QR v16, needs steady camera', maxMB: 32 },
+// Frame total = HEADER_LEN(80) + symbolSize + 4 (CRC) = 84 + symbolSize
+// Presets per EC level, sized to fit neatly under each QR version's byte capacity.
+// Level M: v10=194B(→110), v12=271B(→187), v15=376B(→292), v18=513B(→429)
+// Level L: v10=271B(→187), v12=367B(→283), v15=520B(→436), v18=691B(→607)
+type ECLevel = 'M' | 'L'
+const SYMBOL_PRESETS: Record<ECLevel, Record<string, { bytes: number; label: string; maxMB: number }>> = {
+  M: {
+    small:  { bytes: 110, label: 'Small — QR v10 M, easiest to scan', maxMB: 7 },
+    medium: { bytes: 187, label: 'Medium — QR v12 M, balanced', maxMB: 12 },
+    large:  { bytes: 292, label: 'Large — QR v15 M, needs steady camera', maxMB: 19 },
+  },
+  L: {
+    small:  { bytes: 187, label: 'Small — QR v10 L, good camera needed', maxMB: 12 },
+    medium: { bytes: 283, label: 'Medium — QR v12 L, balanced', maxMB: 18 },
+    large:  { bytes: 436, label: 'Large — QR v15 L, high density', maxMB: 28 },
+  },
 }
 
 // ----------------------------------------------------------------------------
@@ -173,16 +182,17 @@ function fmtBytes(n: number): string {
 }
 
 // ----------------------------------------------------------------------------
-// QR rendering — level L for maximum density
+// QR rendering
 // ----------------------------------------------------------------------------
 function renderQRToCtx(
   frame: Uint8Array,
   ctx: CanvasRenderingContext2D,
-  x: number, y: number, size: number
+  x: number, y: number, size: number,
+  ecLevel: ECLevel = 'M'
 ) {
   let str = ''
   for (let i = 0; i < frame.length; i++) str += String.fromCharCode(frame[i] & 0xff)
-  const qr = (qrcode as any)(0, 'L')  // Level L: max data density
+  const qr = (qrcode as any)(0, ecLevel)
   qr.addData(str, 'Byte')
   qr.make()
   const count = qr.getModuleCount()
@@ -205,13 +215,13 @@ function renderQRToCtx(
 }
 
 // 1×2 dual: two QR codes side by side
-function encodeDualToCanvas(frames: Uint8Array[], canvas: HTMLCanvasElement) {
+function encodeDualToCanvas(frames: Uint8Array[], canvas: HTMLCanvasElement, ecLevel: ECLevel = 'M') {
   const ctx = canvas.getContext('2d')!
   const half = canvas.width / 2
   ctx.fillStyle = '#ffffff'
   ctx.fillRect(0, 0, canvas.width, canvas.height)
-  renderQRToCtx(frames[0], ctx, 0, 0, half)
-  if (frames[1]) renderQRToCtx(frames[1], ctx, half, 0, half)
+  renderQRToCtx(frames[0], ctx, 0, 0, half, ecLevel)
+  if (frames[1]) renderQRToCtx(frames[1], ctx, half, 0, half, ecLevel)
   ctx.strokeStyle = '#e2e8f0'
   ctx.lineWidth = 1
   ctx.beginPath()
@@ -220,14 +230,14 @@ function encodeDualToCanvas(frames: Uint8Array[], canvas: HTMLCanvasElement) {
 }
 
 // 2×2 quad: four QR codes in a grid
-function encodeQuadToCanvas(frames: Uint8Array[], canvas: HTMLCanvasElement) {
+function encodeQuadToCanvas(frames: Uint8Array[], canvas: HTMLCanvasElement, ecLevel: ECLevel = 'M') {
   const ctx = canvas.getContext('2d')!
   const half = canvas.width / 2
   ctx.fillStyle = '#ffffff'
   ctx.fillRect(0, 0, canvas.width, canvas.height)
   const positions = [[0, 0], [half, 0], [0, half], [half, half]]
   for (let i = 0; i < Math.min(frames.length, 4); i++) {
-    renderQRToCtx(frames[i], ctx, positions[i][0], positions[i][1], half)
+    renderQRToCtx(frames[i], ctx, positions[i][0], positions[i][1], half, ecLevel)
   }
   ctx.strokeStyle = '#e2e8f0'
   ctx.lineWidth = 1
@@ -238,9 +248,9 @@ function encodeQuadToCanvas(frames: Uint8Array[], canvas: HTMLCanvasElement) {
 }
 
 // Single QR
-function encodeSingleToCanvas(frame: Uint8Array, canvas: HTMLCanvasElement) {
+function encodeSingleToCanvas(frame: Uint8Array, canvas: HTMLCanvasElement, ecLevel: ECLevel = 'M') {
   const ctx = canvas.getContext('2d')!
-  renderQRToCtx(frame, ctx, 0, 0, canvas.width)
+  renderQRToCtx(frame, ctx, 0, 0, canvas.width, ecLevel)
 }
 
 // ----------------------------------------------------------------------------
@@ -464,6 +474,9 @@ function SendPanel() {
   const [error, setError] = useState('')
   const [fps, setFps] = useState(6)
   const [symbolPreset, setSymbolPreset] = useState<'small' | 'medium' | 'large'>('small')
+  const [ecLevel, setEcLevel] = useState<ECLevel>('M')
+  const ecLevelRef = useRef<ECLevel>('M')
+  useEffect(() => { ecLevelRef.current = ecLevel }, [ecLevel])
   const [gridMode, setGridMode] = useState<1 | 2 | 4>(1)
   const [running, setRunning] = useState(false)
   const [seed, setSeed] = useState(0)
@@ -481,7 +494,7 @@ function SendPanel() {
   useEffect(() => { fpsRef.current = fps }, [fps])
   useEffect(() => { gridModeRef.current = gridMode }, [gridMode])
 
-  const prepare = useCallback(async (f: File, preset: 'small' | 'medium' | 'large') => {
+  const prepare = useCallback(async (f: File, preset: 'small' | 'medium' | 'large', level?: ECLevel) => {
     setError('')
     setRunning(false)
     if (rafRef.current) cancelAnimationFrame(rafRef.current)
@@ -489,10 +502,10 @@ function SendPanel() {
       const raw = new Uint8Array(await f.arrayBuffer())
       const fileHash = await sha256(raw)
       const { data, gzipped } = await maybeGzip(raw)
-      const symbolSize = SYMBOL_PRESETS[preset].bytes
+      const symbolSize = SYMBOL_PRESETS[level ?? ecLevelRef.current][preset].bytes
       const K = Math.max(1, Math.ceil(data.length / symbolSize))
       if (K > 65535) {
-        setError(`File too large for this block size (${fmtBytes(f.size)}). Switch to "Large" blocks or use a smaller file.`)
+        setError(`File too large for this block size (${fmtBytes(f.size)}). Switch to "Large" blocks, Level L, or use a smaller file.`)
         setMeta(null)
         return
       }
@@ -513,10 +526,10 @@ function SendPanel() {
     }
   }, [])
 
-  // Re-prepare when preset changes and file already selected
+  // Re-prepare when preset or EC level changes and file already selected
   useEffect(() => {
-    if (file) prepare(file, symbolPreset)
-  }, [symbolPreset]) // eslint-disable-line react-hooks/exhaustive-deps
+    if (file) prepare(file, symbolPreset, ecLevel)
+  }, [symbolPreset, ecLevel]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Render `count` fountain frames starting at seed s, return next seed
   const renderFrames = useCallback((s: number, count: number): number => {
@@ -527,7 +540,7 @@ function SendPanel() {
       const payload = new Uint8Array(meta.symbolSize)
       const { indices } = deriveSymbol(cur, meta.K, cdfRef.current)
       for (const ix of indices) { const blk = blocksRef.current[ix]; for (let i = 0; i < meta.symbolSize; i++) payload[i] ^= blk[i] }
-      encodeSingleToCanvas(buildFrame({ dataLen: meta.dataLen, flags: meta.flags, K: meta.K, symbolSize: meta.symbolSize, seed: cur, fileHash: meta.fileHash, fileName: meta.fileName, payload }), canvas)
+      encodeSingleToCanvas(buildFrame({ dataLen: meta.dataLen, flags: meta.flags, K: meta.K, symbolSize: meta.symbolSize, seed: cur, fileHash: meta.fileHash, fileName: meta.fileName, payload }), canvas, ecLevelRef.current)
       return (cur + 1) >>> 0
     }
     const frames: Uint8Array[] = []
@@ -538,8 +551,8 @@ function SendPanel() {
       frames.push(buildFrame({ dataLen: meta.dataLen, flags: meta.flags, K: meta.K, symbolSize: meta.symbolSize, seed: cur, fileHash: meta.fileHash, fileName: meta.fileName, payload }))
       cur = (cur + 1) >>> 0
     }
-    if (count === 2) encodeDualToCanvas(frames, canvas)
-    else encodeQuadToCanvas(frames, canvas)
+    if (count === 2) encodeDualToCanvas(frames, canvas, ecLevelRef.current)
+    else encodeQuadToCanvas(frames, canvas, ecLevelRef.current)
     return cur
   }, [meta])
 
@@ -582,22 +595,46 @@ function SendPanel() {
               onChange={e => {
                 const f = e.target.files?.[0] || null
                 setFile(f)
-                if (f) prepare(f, symbolPreset)
+                if (f) prepare(f, symbolPreset, ecLevelRef.current)
               }}
               className="block text-sm"
             />
           </div>
-          <div>
-            <label className="block text-sm font-medium mb-2">Block size</label>
-            <select
-              value={symbolPreset}
-              onChange={e => setSymbolPreset(e.target.value as any)}
-              className="w-full text-sm rounded-lg border border-slate-200 dark:border-slate-700 px-3 py-2"
-            >
-              {Object.entries(SYMBOL_PRESETS).map(([k, v]) => (
-                <option key={k} value={k}>{v.label} · max {v.maxMB} MB</option>
-              ))}
-            </select>
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="block text-sm font-medium mb-2">Block size</label>
+              <select
+                value={symbolPreset}
+                onChange={e => setSymbolPreset(e.target.value as any)}
+                className="w-full text-sm rounded-lg border border-slate-200 dark:border-slate-700 px-3 py-2 bg-white dark:bg-slate-950"
+              >
+                {Object.entries(SYMBOL_PRESETS[ecLevel]).map(([k, v]) => (
+                  <option key={k} value={k}>{v.label} · max {v.maxMB} MB</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-2">Error correction</label>
+              <div className="flex rounded-lg overflow-hidden border border-slate-200 dark:border-slate-700 text-sm">
+                {(['M', 'L'] as ECLevel[]).map(lv => (
+                  <button
+                    key={lv}
+                    onClick={() => setEcLevel(lv)}
+                    className={
+                      'flex-1 py-2 font-medium transition-colors ' +
+                      (ecLevel === lv
+                        ? 'bg-emerald-500 text-white'
+                        : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800')
+                    }
+                  >
+                    {lv === 'M' ? 'M (default)' : 'L (dense)'}
+                  </button>
+                ))}
+              </div>
+              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                {ecLevel === 'M' ? 'Recovers ~15% damage — reliable on most phones' : 'Recovers ~7% damage — max data, needs good lighting'}
+              </p>
+            </div>
           </div>
         </div>
 
